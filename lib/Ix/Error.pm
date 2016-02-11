@@ -28,6 +28,8 @@ package Ix::Error::Generic {
     required => 1,
   );
 
+  with 'Ix::Error';
+
   __PACKAGE__->meta->make_immutable;
 }
 
