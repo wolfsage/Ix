@@ -35,7 +35,7 @@ sub process_request ($self, $calls) {
     # hand, the spec does not. -- rjbs, 2016-02-11
     my ($method, $arg, $cid) = @$call;
 
-    my $handler = $self->handler_for( $method, \%ephemera );
+    my $handler = $self->handler_for( $method );
 
     unless ($handler) {
       push @results, [ error => { type => 'unknownMethod' }, $cid ];
@@ -43,7 +43,7 @@ sub process_request ($self, $calls) {
     }
 
     my @rv = try {
-      $self->$handler($arg);
+      $self->$handler($arg, \%ephemera);
     } catch {
       if ($_->$_DOES('Ix::Error')) {
         return $_;
@@ -53,8 +53,9 @@ sub process_request ($self, $calls) {
     };
 
     RV: for my $i (0 .. $#rv) {
+      local $_ = $rv[$i];
       push @results, $_->$_DOES('Ix::Result')
-                   ? [ $_->result_type, $_->result_attribute, $cid ]
+                   ? [ $_->result_type, $_->result_properties, $cid ]
                    : [ error => 'garbledResponse', $cid ];
 
       if ($results[-1] eq 'error' && $i < $#rv) {

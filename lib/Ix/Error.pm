@@ -18,8 +18,8 @@ package Ix::Error::Generic {
 
   use namespace::autoclean;
 
-  sub result_properties {
-    return { type => $result->type };
+  sub result_properties ($self) {
+    return { type => $self->error_type };
   }
 
   has error_type => (
