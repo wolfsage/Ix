@@ -3,13 +3,11 @@ package Ix::Error;
 use Moose::Role;
 use experimental qw(signatures postderef);
 
-with 'Throwable', 'StackTrace::Auto';
+with 'Ix::Result', 'Throwable', 'StackTrace::Auto';
 
 use namespace::autoclean;
 
 sub result_type { 'error' }
-
-requires 'result_properties';
 
 requires 'error_type';
 
