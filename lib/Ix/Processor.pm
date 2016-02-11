@@ -52,25 +52,27 @@ sub process_request ($self, $calls) {
       }
     };
 
-    my ($i) = grep {; $_->$_DOES('Ix::Error') } @rv;
-    if ($#rv > $i) {
-      # In this branch, we have a potential return value like:
-      # (
-      #   [ valid => ... ],
-      #   [ error => ... ],
-      #   [ valid => ... ],
-      # );
-      #
-      # According to the JMAP specification ("§ Errors"), we shouldn't be
-      # getting anything after the error.  So, remove it, but also file an
-      # exception report. -- rjbs, 2016-02-11
-      #
-      # XXX: file internal error report -- rjbs, 2016-02-11
-      splice @rv, $i;
-    }
+    RV: for my $i (0 .. $#rv) {
+      push @results, $_->$_DOES('Ix::Result')
+                   ? [ $_->result_type, $_->result_attribute, $cid ]
+                   : [ error => 'garbledResponse', $cid ];
 
-    push @results, map {; [ $_->result_type, $_->result_attributes, $cid, ] }
-                   @rv;
+      if ($results[-1] eq 'error' && $i < $#rv) {
+        # In this branch, we have a potential return value like:
+        # (
+        #   [ valid => ... ],
+        #   [ error => ... ],
+        #   [ valid => ... ],
+        # );
+        #
+        # According to the JMAP specification ("§ Errors"), we shouldn't be
+        # getting anything after the error.  So, remove it, but also file an
+        # exception report. -- rjbs, 2016-02-11
+        #
+        # TODO: file internal error report -- rjbs, 2016-02-11
+        last RV;
+      }
+    }
   }
 
   return \@results;
