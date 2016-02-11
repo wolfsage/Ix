@@ -13,7 +13,8 @@ requires 'error_type';
 
 package Ix::Error::Generic {
   use Moose;
-  with 'Ix::Error';
+
+  use experimental qw(signatures postderef);
 
   use namespace::autoclean;
 
