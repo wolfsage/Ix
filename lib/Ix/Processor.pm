@@ -58,7 +58,7 @@ sub process_request ($self, $calls) {
                    ? [ $_->result_type, $_->result_properties, $cid ]
                    : [ error => 'garbledResponse', $cid ];
 
-      if ($results[-1] eq 'error' && $i < $#rv) {
+      if ($results[-1][0] eq 'error' && $i < $#rv) {
         # In this branch, we have a potential return value like:
         # (
         #   [ valid => ... ],
