@@ -19,8 +19,19 @@ package Ix::Error::Generic {
   use namespace::autoclean;
 
   sub result_properties ($self) {
-    return { type => $self->error_type };
+    return { $self->properties, type => $self->error_type };
   }
+
+  sub BUILD ($self, @) {
+    Carp::confess(q{"type" is forbidden as an error property})
+      if $self->has_property('type');
+  }
+
+  has properties => (
+    isa => 'HashRef',
+    traits  => [ 'Hash' ],
+    handles => { properties => 'elements', has_property => 'exists' },
+  );
 
   has error_type => (
     is  => 'ro',
