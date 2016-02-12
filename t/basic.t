@@ -5,10 +5,40 @@ use experimental qw(signatures postderef);
 use lib 't/lib';
 
 use Bakesale;
+use Bakesale::Schema;
 use Test::More;
 
+sub test_schema {
+  unlink 'test.sqlite';
+  my $schema = Bakesale::Schema->connect(
+    'dbi:SQLite:dbname=test.sqlite',
+    undef,
+    undef,
+  );
+
+  $schema->deploy;
+
+  my $cookieid = 1;
+  $schema->resultset('Cookies')->populate([
+    { accountid => 1, state => 1, id => $cookieid++, type => 'tim tam',
+      baked_at => 1455319258 },
+    { accountid => 1, state => 1, id => $cookieid++, type => 'oreo',
+      baked_at => 1455319283 },
+    { accountid => 2, state => 1, id => $cookieid++, type => 'thin mint',
+      baked_at => 1455319308 },
+    { accountid => 1, state => 3, id => $cookieid++, type => 'samoa',
+      baked_at => 1455319240 },
+    { accountid => 1, state => 8, id => $cookieid++, type => 'tim tam',
+      baked_at => 1455310000 },
+  ]);
+
+  return $schema;
+}
+
+my $Bakesale = Bakesale->new({ schema => test_schema() });
+
 {
-  my $res = Bakesale->process_request([
+  my $res = $Bakesale->process_request([
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ pieTypes => { tasty => 0 }, 'b' ],
   ]);
@@ -24,7 +54,7 @@ use Test::More;
 }
 
 {
-  my $res = Bakesale->process_request([
+  my $res = $Bakesale->process_request([
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] }, 'b' ],
     [ pieTypes => { tasty => 0 }, 'c' ],
@@ -39,6 +69,30 @@ use Test::More;
       [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] }, 'c' ],
     ],
     "a call with an error and a multi-value result",
+  ) or diag explain($res);
+}
+
+{
+  my $res = $Bakesale->process_request([
+    [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
+  ]);
+
+  is_deeply(
+    $res,
+    [
+      [
+        cookies => {
+          notFound => undef,
+          state => 10,
+          list  => [
+            { id => 4, type => 'samoa',   }, # baked_at => 1455319240 },
+            { id => 5, type => 'tim tam', }, # baked_at => 1455310000 },
+          ],
+        },
+        'a',
+      ],
+    ],
+    "a getFoos call backed by the database",
   ) or diag explain($res);
 }
 

@@ -4,15 +4,53 @@ package Bakesale {
   use Moose;
   with 'Ix::Processor';
 
-  use Ix::Util qw(error);
+  use List::MoreUtils qw(uniq);
+  use Ix::Util qw(error result);
 
   use experimental qw(signatures postderef);
   use namespace::autoclean;
 
+  has schema => (
+    is => 'ro',
+    required => 1,
+  );
+
   sub handler_for ($self, $method) {
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
+    return 'get_cookies'   if $method eq 'getCookies';
     return;
+  }
+
+  sub get_cookies ($self, $arg = {}, $ephemera = {}) {
+    # XXX We need to put this on a Context object -- rjbs, 2016-02-12
+    my $account = 1;
+
+    my $ids   = $arg->{ids};
+    my $props = $arg->{properties}; # something to pass to HashInflater?
+    my $since = $arg->{sinceState};
+
+    # TODO validate $props
+
+    my @rows = $self->schema->resultset('Cookies')->search(
+      {
+        accountid => $account,
+        (defined $since ? (state => { '>' => $since }) : ()),
+        ($ids ? (cookieid => $ids) : ()),
+      },
+      {
+        ($props ? (select => [ uniq(id => @$props) ]) : ()),
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+      },
+    )->all;
+
+    # TODO: populate notFound result property
+
+    return result(cookies => {
+      state => 10,
+      list  => \@rows,
+      notFound => undef,
+    });
   }
 
   sub pie_type_list ($self, $arg = {}, $ephemera = {}) {
