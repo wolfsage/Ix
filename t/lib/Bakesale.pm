@@ -30,6 +30,7 @@ package Bakesale {
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
     return 'get_cookies'   if $method eq 'getCookies';
+    return 'set_cookies'   if $method eq 'setCookies';
     return;
   }
 
@@ -59,6 +60,37 @@ package Bakesale {
     return result(cookies => {
       state => 10,
       list  => \@rows,
+      notFound => undef,
+    });
+  }
+
+  sub set_cookies ($self, $arg = {}, $ephemera = {}) {
+    my $account_id = $Bakesale::Context::Context->account_id;
+
+    # This whole mechanism should be provided by context -- rjbs, 2016-02-16
+    my $state_row = $self->schema->resultset('States')->search({
+      accountid => $account_id,
+      type      => 'cookies',
+    })->first;
+
+    my $curr_state = $state_row->state;
+    my $next_state = $curr_state + 1;
+
+    # TODO validate everything
+
+    if (($arg->{ifInState} // $curr_state) ne $curr_state) {
+      return error('stateMismatch');
+    }
+
+    # create
+    # update
+    # destroy
+
+    # TODO: populate notFound result property
+
+    return result(cookies => {
+      state => 10,
+      list  => [],
       notFound => undef,
     });
   }

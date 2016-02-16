@@ -32,6 +32,11 @@ sub test_schema {
       baked_at => 1455310000 },
   ]);
 
+  $schema->resultset('States')->populate([
+    { accountid => 1, type => 'cookies', state => 8 },
+    { accountid => 2, type => 'cookies', state => 1 },
+  ]);
+
   return $schema;
 }
 
@@ -93,6 +98,20 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
       ],
     ],
     "a getFoos call backed by the database",
+  ) or diag explain($res);
+}
+
+{
+  my $res = $Bakesale->process_request([
+    [ setCookies => { ifInState => 3, destroy => [ 4 ] }, 'a' ],
+  ]);
+
+  is_deeply(
+    $res,
+    [
+      [ error => { type => 'stateMismatch' }, 'a' ],
+    ],
+    "setCookies respects ifInState",
   ) or diag explain($res);
 }
 
