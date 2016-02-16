@@ -6,6 +6,7 @@ use lib 't/lib';
 
 use Bakesale;
 use Bakesale::Schema;
+use Test::Deep;
 use Test::More;
 
 sub test_schema {
@@ -112,6 +113,41 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
       [ error => { type => 'stateMismatch' }, 'a' ],
     ],
     "setCookies respects ifInState",
+  ) or diag explain($res);
+}
+
+{
+  my $res = $Bakesale->process_request([
+    [
+      setCookies => {
+        ifInState => 8,
+        create    => {
+          yellow => { type => 'shortbread' },
+          gold   => { type => 'aznac' },
+          blue   => {},
+        },
+      },
+      'a'
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookiesSet => superhashof({
+          created => {
+            yellow => { id => ignore(), baked_at => ignore() },
+            gold   => { id => ignore(), baked_at => ignore() },
+          },
+          notCreated => {
+            blue   => superhashof({ type => 'invalidRecord' }),
+          },
+        }),
+        'a'
+      ],
+    ],
+    "we can create cookies with setCookies",
   ) or diag explain($res);
 }
 

@@ -82,16 +82,47 @@ package Bakesale {
       return error('stateMismatch');
     }
 
-    # create
+    my $cookies_rs = $self->schema->resultset('Cookies');
+
+    my %result;
+
+    my $now = time;
+
+    if ($arg->{create}) {
+      # TODO handle unknown properties
+      for my $id (keys $arg->{create}->%*) {
+        my %rec = (
+          $arg->{create}{$id}->%{qw(type)},
+
+          baked_at  => $now,
+
+          accountid => $account_id,
+          state     => $next_state,
+        );
+
+        my $row = eval { $cookies_rs->create(\%rec); };
+
+        if ($row) {
+          # This is silly.  Can we get a pair slice out of a Row?
+          $result{created}{$id} = { id => $row->id, %rec{qw(baked_at)} };
+        } else {
+          $result{not_created}{$id} = error('invalidRecord');
+        }
+      }
+
+      $state_row->state($next_state);
+    }
+
     # update
     # destroy
 
     # TODO: populate notFound result property
 
-    return result(cookies => {
-      state => 10,
-      list  => [],
-      notFound => undef,
+    return Ix::Result::FoosSet->new({
+      result_type => 'cookiesSet',
+      old_state => $curr_state,
+      new_state => $next_state,
+      %result,
     });
   }
 
