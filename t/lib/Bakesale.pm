@@ -113,7 +113,7 @@ package Bakesale {
         }
       }
 
-      $state_row->state($next_state);
+      $state_row->state($next_state) if keys $result{created}->%*;
     }
 
     if ($arg->{update}) {
@@ -133,7 +133,7 @@ package Bakesale {
       }
 
       $result{updated} = \@updated;
-      $state_row->state($next_state);
+      $state_row->state($next_state) if @updated;
     }
 
     if ($arg->{destroy}) {
@@ -149,8 +149,10 @@ package Bakesale {
       }
 
       $result{destroyed} = \@destroyed;
-      $state_row->state($next_state);
+      $state_row->state($next_state) if @destroyed;
     }
+
+    $state_row->update;
 
     return Ix::Result::FoosSet->new({
       result_type => 'cookiesSet',

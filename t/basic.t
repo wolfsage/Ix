@@ -140,6 +140,9 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
     [
       [
         cookiesSet => superhashof({
+          oldState => 8,
+          newState => 9,
+
           created => {
             yellow => { id => ignore(), baked_at => ignore() },
             gold   => { id => ignore(), baked_at => ignore() },
@@ -181,6 +184,13 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
     ],
     "the db matches our expectations",
   ) or diag explain(\@rows);
+
+  my $state = $Bakesale->schema->resultset('States')->search({
+    account_id => 1,
+    type => 'cookies',
+  })->first;
+
+  is($state->state, 9, "state ended got updated just once");
 }
 
 done_testing;
