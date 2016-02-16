@@ -1,5 +1,14 @@
 use 5.20.0;
 
+package Bakesale::Context {
+  use warnings;
+  use experimental qw(signatures postderef);
+
+  sub account_id ($self) { 1 }
+
+  our $Context = bless { } => __PACKAGE__;
+}
+
 package Bakesale {
   use Moose;
   with 'Ix::Processor';
@@ -9,6 +18,8 @@ package Bakesale {
 
   use experimental qw(signatures postderef);
   use namespace::autoclean;
+
+  BEGIN { Bakesale::Context->import }
 
   has schema => (
     is => 'ro',
@@ -23,8 +34,7 @@ package Bakesale {
   }
 
   sub get_cookies ($self, $arg = {}, $ephemera = {}) {
-    # XXX We need to put this on a Context object -- rjbs, 2016-02-12
-    my $account = 1;
+    my $account_id = $Bakesale::Context::Context->account_id;
 
     my $ids   = $arg->{ids};
     my $props = $arg->{properties}; # something to pass to HashInflater?
@@ -34,7 +44,7 @@ package Bakesale {
 
     my @rows = $self->schema->resultset('Cookies')->search(
       {
-        accountid => $account,
+        accountid => $account_id,
         (defined $since ? (state => { '>' => $since }) : ()),
         ($ids ? (cookieid => $ids) : ()),
       },
