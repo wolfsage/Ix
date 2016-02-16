@@ -193,4 +193,43 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
   is($state->state, 9, "state ended got updated just once");
 }
 
+{
+  my $res = $Bakesale->process_request([
+    [
+      setCookies => {
+        ifInState => 9,
+        destroy   => [ 3 ],
+        create    => { blue => {} },
+        update    => { 2 => { delicious => 0 } },
+      },
+      'poirot'
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => 9,
+          newState => 9,
+
+          notCreated   => { blue => ignore() },
+          notUpdated   => { 2    => ignore() },
+          notDestroyed => { 3    => ignore() },
+        }),
+        'poirot'
+      ],
+    ],
+    "no state change when no destruction",
+  ) or diag explain($res);
+
+  my $state = $Bakesale->schema->resultset('States')->search({
+    account_id => 1,
+    type => 'cookies',
+  })->first;
+
+  is($state->state, 9, "no updates, no state change");
+}
+
 done_testing;

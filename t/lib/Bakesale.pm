@@ -157,7 +157,7 @@ package Bakesale {
     return Ix::Result::FoosSet->new({
       result_type => 'cookiesSet',
       old_state => $curr_state,
-      new_state => $next_state,
+      new_state => $state_row->state,
       %result,
     });
   }
