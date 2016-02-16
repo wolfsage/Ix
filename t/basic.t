@@ -19,23 +19,22 @@ sub test_schema {
 
   $schema->deploy;
 
-  my $cookieid = 1;
   $schema->resultset('Cookies')->populate([
-    { accountid => 1, state => 1, id => $cookieid++, type => 'tim tam',
+    { account_id => 1, state => 1, id => 1, type => 'tim tam',
       baked_at => 1455319258 },
-    { accountid => 1, state => 1, id => $cookieid++, type => 'oreo',
+    { account_id => 1, state => 1, id => 2, type => 'oreo',
       baked_at => 1455319283 },
-    { accountid => 2, state => 1, id => $cookieid++, type => 'thin mint',
+    { account_id => 2, state => 1, id => 3, type => 'thin mint',
       baked_at => 1455319308 },
-    { accountid => 1, state => 3, id => $cookieid++, type => 'samoa',
+    { account_id => 1, state => 3, id => 4, type => 'samoa',
       baked_at => 1455319240 },
-    { accountid => 1, state => 8, id => $cookieid++, type => 'tim tam',
+    { account_id => 1, state => 8, id => 5, type => 'tim tam',
       baked_at => 1455310000 },
   ]);
 
   $schema->resultset('States')->populate([
-    { accountid => 1, type => 'cookies', state => 8 },
-    { accountid => 2, type => 'cookies', state => 1 },
+    { account_id => 1, type => 'cookies', state => 8 },
+    { account_id => 2, type => 'cookies', state => 1 },
   ]);
 
   return $schema;
@@ -126,6 +125,11 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
           gold   => { type => 'aznac' },
           blue   => {},
         },
+        update => {
+          1 => { type => 'half-eaten tim-tam' },
+          2 => { delicious => 0 },
+        },
+        destroy => [ 4, 3 ],
       },
       'a'
     ],
@@ -143,12 +147,40 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
           notCreated => {
             blue   => superhashof({ type => 'invalidRecord' }),
           },
+          updated => [ 1 ],
+          notUpdated => {
+            2 => superhashof({ type => 'invalidRecord' }),
+          },
+          destroyed => [ 4 ],
+          notDestroyed => {
+            3 => superhashof({ type => ignore() }),
+          },
         }),
         'a'
       ],
     ],
     "we can create cookies with setCookies",
   ) or diag explain($res);
+
+  my @rows = $Bakesale->schema->resultset('Cookies')->search(
+    { account_id => 1 },
+    {
+      order_by => 'id',
+      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    },
+  );
+
+  cmp_deeply(
+    \@rows,
+    [
+      superhashof({ id => 1, type => 'half-eaten tim-tam' }),
+      superhashof({ id => 2, type => 'oreo' }),
+      superhashof({ id => 5, type => 'tim tam' }),
+      superhashof({ id => 6, type => any(qw(shortbread aznac)) }),
+      superhashof({ id => 7, type => any(qw(shortbread aznac)) }),
+    ],
+    "the db matches our expectations",
+  ) or diag explain(\@rows);
 }
 
 done_testing;

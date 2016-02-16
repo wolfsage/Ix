@@ -45,7 +45,7 @@ package Bakesale {
 
     my @rows = $self->schema->resultset('Cookies')->search(
       {
-        accountid => $account_id,
+        account_id => $account_id,
         (defined $since ? (state => { '>' => $since }) : ()),
         ($ids ? (cookieid => $ids) : ()),
       },
@@ -69,7 +69,7 @@ package Bakesale {
 
     # This whole mechanism should be provided by context -- rjbs, 2016-02-16
     my $state_row = $self->schema->resultset('States')->search({
-      accountid => $account_id,
+      account_id => $account_id,
       type      => 'cookies',
     })->first;
 
@@ -90,14 +90,16 @@ package Bakesale {
 
     if ($arg->{create}) {
       # TODO handle unknown properties
+      my $error = error('invalidRecord', { description => "could not update" });
+
       for my $id (keys $arg->{create}->%*) {
         my %rec = (
           $arg->{create}{$id}->%{qw(type)},
 
           baked_at  => $now,
 
-          accountid => $account_id,
-          state     => $next_state,
+          account_id => $account_id,
+          state      => $next_state,
         );
 
         my $row = eval { $cookies_rs->create(\%rec); };
@@ -105,18 +107,50 @@ package Bakesale {
         if ($row) {
           # This is silly.  Can we get a pair slice out of a Row?
           $result{created}{$id} = { id => $row->id, %rec{qw(baked_at)} };
+          $ephemera->{cookies}{$id} = $row->id;
         } else {
-          $result{not_created}{$id} = error('invalidRecord');
+          $result{not_created}{$id} = $error;
         }
       }
 
       $state_row->state($next_state);
     }
 
-    # update
-    # destroy
+    if ($arg->{update}) {
+      my @updated;
+      my $error = error('invalidRecord', { description => "could not update" });
+      for my $id (keys $arg->{update}->%*) {
+        my $row = $cookies_rs->find({ id => $id, account_id => $account_id });
 
-    # TODO: populate notFound result property
+        # TODO: validate the update -- rjbs, 2016-02-16
+        my $ok = eval { $row->update($arg->{update}{$id}); 1 };
+
+        if ($ok) {
+          push @updated, $id;
+        } else {
+          $result{not_updated}{$id} = $error;
+        }
+      }
+
+      $result{updated} = \@updated;
+      $state_row->state($next_state);
+    }
+
+    if ($arg->{destroy}) {
+      my @destroyed;
+      for my $id ($arg->{destroy}->@*) {
+        my $rv = $cookies_rs->search({ id => $id, account_id => $account_id })
+                            ->delete;
+        if ($rv > 0) {
+          push @destroyed, $id;
+        } else {
+          $result{not_destroyed}{$id} = error('failedToDelete');
+        }
+      }
+
+      $result{destroyed} = \@destroyed;
+      $state_row->state($next_state);
+    }
 
     return Ix::Result::FoosSet->new({
       result_type => 'cookiesSet',
