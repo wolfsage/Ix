@@ -196,6 +196,35 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
 {
   my $res = $Bakesale->process_request([
     [
+      setCakes => {
+        ifInState => 1,
+        create    => {
+          yum => { type => 'wedding', layer_count => 4 }
+        }
+      },
+      'cake!',
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cakesSet => superhashof({
+          created => {
+            yum => superhashof({ baked_at => ignore() }),
+          }
+        }),
+        'cake!',
+      ],
+    ],
+    "we can bake cakes",
+  ) or diag explain($res);
+}
+
+{
+  my $res = $Bakesale->process_request([
+    [
       setCookies => {
         ifInState => 9,
         destroy   => [ 3 ],

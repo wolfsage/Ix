@@ -13,7 +13,6 @@ package Bakesale {
   use Moose;
   with 'Ix::Processor';
 
-  use List::MoreUtils qw(uniq);
   use Ix::Util qw(error result);
 
   use experimental qw(signatures postderef);
@@ -26,11 +25,42 @@ package Bakesale {
     required => 1,
   );
 
+  has _dbic_handlers => (
+    is   => 'ro',
+    lazy => 1,
+    init_arg => undef,
+    default => sub {
+      my ($self) = @_;
+
+      my %handler;
+
+      my $source_reg = $self->schema->source_registrations;
+      for my $moniker (keys %$source_reg) {
+        my $rclass = $source_reg->{$moniker}->result_class;
+        next unless $rclass->isa('Ix::DBIC::Result');
+        my $key = $rclass->ix_type_key;
+
+        $handler{"get\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
+          $self->schema->resultset($moniker)->ix_get($arg, $ephemera);
+        };
+
+        $handler{"set\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
+          $self->schema->resultset($moniker)->ix_set($arg, $ephemera);
+        };
+
+      }
+
+      return \%handler;
+    }
+  );
+
   sub handler_for ($self, $method) {
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
-    return 'get_cookies'   if $method eq 'getCookies';
-    return 'set_cookies'   if $method eq 'setCookies';
+
+    my $h = $self->_dbic_handlers;
+    return $h->{$method} if exists $h->{$method};
+
     return;
   }
 
