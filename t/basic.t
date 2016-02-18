@@ -88,7 +88,7 @@ my $Bakesale = Bakesale->new({ schema => test_schema() });
       [
         cookies => {
           notFound => undef,
-          state => 10,
+          state => 8,
           list  => [
             { id => 4, type => 'samoa',   }, # baked_at => 1455319240 },
             { id => 5, type => 'tim tam', }, # baked_at => 1455310000 },

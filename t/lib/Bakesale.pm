@@ -35,33 +35,8 @@ package Bakesale {
   }
 
   sub get_cookies ($self, $arg = {}, $ephemera = {}) {
-    my $account_id = $Bakesale::Context::Context->account_id;
-
-    my $ids   = $arg->{ids};
-    my $props = $arg->{properties}; # something to pass to HashInflater?
-    my $since = $arg->{sinceState};
-
-    # TODO validate $props
-
-    my @rows = $self->schema->resultset('Cookies')->search(
-      {
-        account_id => $account_id,
-        (defined $since ? (state => { '>' => $since }) : ()),
-        ($ids ? (cookieid => $ids) : ()),
-      },
-      {
-        ($props ? (select => [ uniq(id => @$props) ]) : ()),
-        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-      },
-    )->all;
-
-    # TODO: populate notFound result property
-
-    return result(cookies => {
-      state => 10,
-      list  => \@rows,
-      notFound => undef,
-    });
+    my $cookies_rs = $self->schema->resultset('Cookies');
+    $cookies_rs->ix_get($arg, $ephemera);
   }
 
   sub set_cookies ($self, $arg = {}, $ephemera = {}) {

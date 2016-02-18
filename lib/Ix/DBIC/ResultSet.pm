@@ -5,7 +5,8 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(error);
+use Ix::Util qw(error result);
+use List::MoreUtils qw(uniq);
 use Safe::Isa;
 
 use namespace::clean;
@@ -18,6 +19,39 @@ sub _ix_rclass ($self) {
     unless $rclass->isa('Ix::DBIC::Result');
 
   return $rclass;
+}
+
+sub ix_get ($self, $arg = {}, $ephemera = {}) {
+  my $account_id = $Bakesale::Context::Context->account_id;
+
+  my $rclass = $self->_ix_rclass;
+  my $state_row  = $self->_curr_state_row($rclass);
+
+  my $ids   = $arg->{ids};
+  my $props = $arg->{properties}; # something to pass to HashInflater?
+  my $since = $arg->{sinceState};
+
+  # TODO validate $props
+
+  my @rows = $self->search(
+    {
+      account_id => $account_id,
+      (defined $since ? (state => { '>' => $since }) : ()),
+      ($ids ? (id => $ids) : ()),
+    },
+    {
+      ($props ? (select => [ uniq(id => @$props) ]) : ()),
+      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+    },
+  )->all;
+
+  # TODO: populate notFound result property
+
+  return result($rclass->ix_type_key => {
+    state => $state_row->state,
+    list  => \@rows,
+    notFound => undef,
+  });
 }
 
 sub ix_create ($self, $to_create, $ephemera) {
@@ -119,6 +153,26 @@ sub ix_destroy ($self, $to_destroy, $ephemera) {
   return \%result;
 }
 
+sub _curr_state_row ($self, $rclass) {
+  # This whole mechanism should be provided by context -- rjbs, 2016-02-16
+  # Really, should it? 😕  -- rjbs, 2016-02-18
+  # Anyway, we need to create a row if none exists.
+  my $account_id = $Bakesale::Context::Context->account_id;
+
+  my $states_rs = $self->result_source->schema->resultset('States');
+
+  my $state_row = $states_rs->search({
+    account_id => $account_id,
+    type       => $rclass->ix_type_key,
+  })->first;
+
+  $state_row //= $states_rs->create({
+    account_id => $account_id,
+    type       => $rclass->ix_type_key,
+    state      => 1,
+  });
+}
+
 sub ix_set ($self, $arg = {}, $ephemera = {}) {
   my $account_id = $Bakesale::Context::Context->account_id;
 
@@ -126,20 +180,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
-  # This whole mechanism should be provided by context -- rjbs, 2016-02-16
-  # Really, should it? 😕  -- rjbs, 2016-02-18
-  # Anyway, we need to create a row if none exists.
-  my $state_row = $schema->resultset('States')->search({
-    account_id => $account_id,
-    type       => $type_key,
-  })->first;
-
-  $state_row //= $schema->resultset('States')->create({
-    account_id => $account_id,
-    type       => $type_key,
-    state      => 1,
-  });
-
+  my $state_row  = $self->_curr_state_row($rclass);
   my $curr_state = $state_row->state;
   my $next_state = $curr_state + 1;
 
