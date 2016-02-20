@@ -88,11 +88,20 @@ sub ix_create ($self, $to_create, $ephemera) {
 
   my @user_props = $rclass->ix_user_property_names;
 
-  for my $id (keys $to_create->%*) {
+  TO_CREATE: for my $id (keys $to_create->%*) {
+    my %user_props = @user_props ? $to_create->{$id}->%{@user_props} : ();
+    if (my @bogus = grep {; ref $user_props{$_} } keys %user_props) {
+      $result{not_created}{$id} = error(invalidProperty => {
+        description => "invalid property values",
+        invalidProperties => \@bogus,
+      });
+      next TO_CREATE;
+    }
+
     my %rec = (
       # barf if there are unexpected properties, don't just drop them
       # -- rjbs, 2016-02-18
-      (@user_props ? $to_create->{$id}->%{@user_props} : ()),
+      %user_props,
 
       # XXX: this surely must require a lot more customizability; pass in
       # context, user props, blah blah blah
