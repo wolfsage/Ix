@@ -9,38 +9,7 @@ use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 
-sub test_schema {
-  unlink 'test.sqlite';
-  my $schema = Bakesale::Schema->connect(
-    'dbi:SQLite:dbname=test.sqlite',
-    undef,
-    undef,
-  );
-
-  $schema->deploy;
-
-  $schema->resultset('Cookies')->populate([
-    { account_id => 1, state => 1, id => 1, type => 'tim tam',
-      baked_at => 1455319258 },
-    { account_id => 1, state => 1, id => 2, type => 'oreo',
-      baked_at => 1455319283 },
-    { account_id => 2, state => 1, id => 3, type => 'thin mint',
-      baked_at => 1455319308 },
-    { account_id => 1, state => 3, id => 4, type => 'samoa',
-      baked_at => 1455319240 },
-    { account_id => 1, state => 8, id => 5, type => 'tim tam',
-      baked_at => 1455310000 },
-  ]);
-
-  $schema->resultset('States')->populate([
-    { account_id => 1, type => 'cookies', state => 8 },
-    { account_id => 2, type => 'cookies', state => 1 },
-  ]);
-
-  return $schema;
-}
-
-my $Bakesale = Bakesale->new({ schema => test_schema() });
+my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 
 {
   my $res = $Bakesale->process_request([
