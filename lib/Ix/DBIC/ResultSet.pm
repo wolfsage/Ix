@@ -32,7 +32,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $since = $arg->{sinceState};
 
   my %is_prop = map  {; $_ => 1 }
-                grep {; $_ ne 'account_id' }
+                grep {; $_ ne 'account_id' && $_ ne 'state' }
                 $self->result_source->columns;
 
   my @props;
