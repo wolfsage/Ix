@@ -65,7 +65,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   return result($rclass->ix_type_key => {
     state => $state_row->state,
     list  => \@rows,
-    notFound => undef,
+    notFound => undef, # TODO
   });
 }
 
