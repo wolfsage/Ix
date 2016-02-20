@@ -98,14 +98,17 @@ sub ix_create ($self, $to_create, $ephemera) {
       next TO_CREATE;
     }
 
+    my %default_properties = (
+      # XXX: this surely must require a lot more customizability; pass in
+      # context, user props, blah blah blah
+      $rclass->ix_default_properties->%*,
+    );
+
     my %rec = (
       # barf if there are unexpected properties, don't just drop them
       # -- rjbs, 2016-02-18
       %user_props,
-
-      # XXX: this surely must require a lot more customizability; pass in
-      # context, user props, blah blah blah
-      $rclass->ix_default_properties->%*,
+      %default_properties,
 
       account_id => $account_id,
       state      => $next_state,
@@ -115,7 +118,7 @@ sub ix_create ($self, $to_create, $ephemera) {
 
     if ($row) {
       # This is silly.  Can we get a pair slice out of a Row?
-      $result{created}{$id} = { id => $row->id, %rec{qw(baked_at)} };
+      $result{created}{$id} = { id => $row->id, %default_properties };
 
       $ephemera->{$type_key}{$id} = $row->id;
     } else {
