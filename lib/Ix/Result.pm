@@ -1,5 +1,6 @@
 use 5.20.0;
 package Ix::Result;
+
 use Moose::Role;
 use experimental qw(signatures postderef);
 
@@ -9,6 +10,7 @@ requires 'result_type';
 requires 'result_properties';
 
 package Ix::Result::Generic {
+
   use Moose;
   use experimental qw(signatures postderef);
 
@@ -25,6 +27,7 @@ package Ix::Result::Generic {
 };
 
 package Ix::Result::FoosSet {
+
   use Moose;
   use experimental qw(signatures postderef);
 

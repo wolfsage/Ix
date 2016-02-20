@@ -1,6 +1,7 @@
 use 5.20.0;
 use warnings;
 package Ix::DBIC::ResultSet;
+
 use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);

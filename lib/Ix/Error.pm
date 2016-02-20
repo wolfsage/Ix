@@ -1,5 +1,6 @@
 use 5.20.0;
 package Ix::Error;
+
 use Moose::Role;
 use experimental qw(signatures postderef);
 
@@ -12,6 +13,7 @@ sub result_type { 'error' }
 requires 'error_type';
 
 package Ix::Error::Generic {
+
   use Moose;
 
   use experimental qw(signatures postderef);

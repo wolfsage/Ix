@@ -1,5 +1,6 @@
 use 5.20.0;
 package Ix::Processor::WithSchema;
+
 use Moose::Role;
 use experimental qw(signatures postderef);
 
