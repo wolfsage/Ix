@@ -29,10 +29,25 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $state_row  = $self->_curr_state_row($rclass);
 
   my $ids   = $arg->{ids};
-  my $props = $arg->{properties}; # something to pass to HashInflater?
   my $since = $arg->{sinceState};
 
-  # TODO validate $props
+  my %is_prop = map  {; $_ => 1 }
+                grep {; $_ ne 'account_id' }
+                $self->result_source->columns;
+
+  my @props;
+  if ($arg->{properties}) {
+    if (my @invalid = grep {; ! $is_prop{$_} } $arg->{properties}->@*) {
+      return error("propertyError", {
+        description       => "requested unknown property",
+        unknownProperties => \@invalid,
+      });
+    }
+
+    @props = uniq('id', $arg->{properties}->@*);
+  } else {
+    @props = keys %is_prop;
+  }
 
   my @rows = $self->search(
     {
@@ -41,13 +56,12 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
       ($ids ? (id => $ids) : ()),
     },
     {
-      ($props ? (select => [ uniq(id => @$props) ]) : ()),
+      select => \@props,
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
     },
   )->all;
 
   # TODO: populate notFound result property
-
   return result($rclass->ix_type_key => {
     state => $state_row->state,
     list  => \@rows,
