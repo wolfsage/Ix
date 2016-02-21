@@ -11,7 +11,7 @@ __PACKAGE__->add_columns(
   state       => { data_type => 'ingeger', is_nullable => 0 },
   type        => { is_nullable => 0 },
   layer_count => { data_type => 'integer', is_nullable => 0 },
-  baked_at    => { data_type => 'integer', is_nullable => 0 },
+  baked_at    => { data_type => 'datetime', is_nullable => 0 },
 );
 
 __PACKAGE__->set_primary_key('id');
@@ -21,7 +21,7 @@ sub ix_type_key { 'cakes' }
 sub ix_user_property_names { qw(type layer_count) }
 
 sub ix_default_properties {
-  return { baked_at => time };
+  return { baked_at => Ix::DateTime->now };
 }
 
 1;

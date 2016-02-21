@@ -6,7 +6,7 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(error result);
+use Ix::Util qw(error parsedate result);
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
 
@@ -15,8 +15,8 @@ use namespace::clean;
 sub _ix_rclass ($self) {
   my $rclass = $self->result_source->result_class;
 
-  # TODO: make this check something non-garbagey
-  Carp::confess("ix_create called with non-Ix-compatible result class: $rclass")
+  # Can this happen?  Who knows, probably! -- rjbs, 2016-02-20
+  Carp::confess("called with non-Ix-compatible result class: $rclass")
     unless $rclass->isa('Ix::DBIC::Result');
 
   return $rclass;
@@ -25,8 +25,8 @@ sub _ix_rclass ($self) {
 sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $account_id = $Bakesale::Context::Context->account_id;
 
-  my $rclass = $self->_ix_rclass;
-  my $state_row  = $self->_curr_state_row($rclass);
+  my $rclass    = $self->_ix_rclass;
+  my $state_row = $self->_curr_state_row($rclass);
 
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
@@ -88,9 +88,13 @@ sub ix_create ($self, $to_create, $ephemera) {
 
   my @user_props = $rclass->ix_user_property_names;
 
+  my $info = $self->result_source->columns_info;
+  my @date_fields = grep {; ($info->{$_}{data_type} // '') eq 'datetime' }
+                    keys %$info;
+
   TO_CREATE: for my $id (keys $to_create->%*) {
     my %user_props = @user_props ? $to_create->{$id}->%{@user_props} : ();
-    if (my @bogus = grep {; ref $user_props{$_} } keys %user_props) {
+    if (my @bogus = grep {; ref $user_props{$_} && ! $user_props{$_}->$_isa('DateTime') } keys %user_props) {
       $result{not_created}{$id} = error(invalidProperty => {
         description => "invalid property values",
         invalidProperties => \@bogus,
@@ -113,6 +117,29 @@ sub ix_create ($self, $to_create, $ephemera) {
       account_id => $account_id,
       state      => $next_state,
     );
+
+    my @bogus_dates;
+    DATE_FIELD: for my $date_field (@date_fields) {
+      next DATE_FIELD unless exists $rec{$date_field};
+      if (ref $rec{ $date_field }) {
+        $rec{$date_field} = $rec{ $date_field }->as_string;
+        next DATE_FIELD;
+      }
+
+      if (my $dt = parsedate($rec{$_})) {
+        # great, it's already valid
+      } else {
+        push @bogus_dates, $dt;
+      }
+    }
+
+    if (@bogus_dates) {
+      $result{not_created}{$id} = error(invalidProperty => {
+        description => "invalid date values",
+        invalidProperties => \@bogus_dates,
+      });
+      next TO_CREATE;
+    }
 
     my $row = eval { $self->create(\%rec); };
 
