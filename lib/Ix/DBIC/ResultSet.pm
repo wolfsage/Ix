@@ -80,7 +80,7 @@ sub ix_create ($self, $to_create, $ephemera) {
   my $next_state = $ephemera->{next_state}{$type_key};
 
   # TODO handle unknown properties
-  my $error = error('invalidRecord', { description => "could not update" });
+  my $error = error('invalidRecord', { description => "could not create" });
 
   my %result;
 
@@ -94,7 +94,7 @@ sub ix_create ($self, $to_create, $ephemera) {
 
   TO_CREATE: for my $id (keys $to_create->%*) {
     my %user_props = @user_props ? $to_create->{$id}->%{@user_props} : ();
-    if (my @bogus = grep {; ref $user_props{$_} && ! $user_props{$_}->$_isa('DateTime') } keys %user_props) {
+    if (my @bogus = grep {; ref $user_props{$_} && ! $user_props{$_}->$_isa('Ix::DateTime') } keys %user_props) {
       $result{not_created}{$id} = error(invalidProperty => {
         description => "invalid property values",
         invalidProperties => \@bogus,
@@ -122,14 +122,15 @@ sub ix_create ($self, $to_create, $ephemera) {
     DATE_FIELD: for my $date_field (@date_fields) {
       next DATE_FIELD unless exists $rec{$date_field};
       if (ref $rec{ $date_field }) {
-        $rec{$date_field} = $rec{ $date_field }->as_string;
+        # $rec{$date_field} = $rec{ $date_field }->as_string;
         next DATE_FIELD;
       }
 
       if (my $dt = parsedate($rec{$_})) {
         # great, it's already valid
+        $rec{$date_field} = $dt;
       } else {
-        push @bogus_dates, $dt;
+        push @bogus_dates, $_;
       }
     }
 

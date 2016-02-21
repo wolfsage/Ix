@@ -38,7 +38,9 @@ package Ix::DateTime {
 
   use parent 'DateTime'; # should use DateTime::Moonpig
 
-  sub as_string ($self) {
+  use overload '""' => 'as_string';
+
+  sub as_string ($self, @) {
     $rfc3339->format_datetime($self);
   }
 

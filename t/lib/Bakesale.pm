@@ -23,15 +23,15 @@ package Bakesale::Test {
 
     $schema->resultset('Cookies')->populate([
       { account_id => 1, state => 1, id => 1, type => 'tim tam',
-        baked_at => 1455319258 },
+        baked_at => '2016-01-01T12:34:56Z' },
       { account_id => 1, state => 1, id => 2, type => 'oreo',
-        baked_at => 1455319283 },
+        baked_at => '2016-01-02T23:45:60Z' },
       { account_id => 2, state => 1, id => 3, type => 'thin mint',
-        baked_at => 1455319308 },
+        baked_at => '2016-01-23T01:02:03Z' },
       { account_id => 1, state => 3, id => 4, type => 'samoa',
-        baked_at => 1455319240 },
+        baked_at => '2016-02-01T12:00:01Z' },
       { account_id => 1, state => 8, id => 5, type => 'tim tam',
-        baked_at => 1455310000 },
+        baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
     $schema->resultset('States')->populate([
