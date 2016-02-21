@@ -218,7 +218,7 @@ sub _curr_state_row ($self, $rclass) {
 
   my $state_row = $states_rs->search({
     accountId => $accountId,
-    type       => $rclass->ix_type_key,
+    type      => $rclass->ix_type_key,
   })->first;
 
   $state_row //= $states_rs->create({
