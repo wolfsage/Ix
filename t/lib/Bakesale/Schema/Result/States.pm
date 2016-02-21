@@ -1,10 +1,10 @@
 package Bakesale::Schema::Result::States;
 use base qw/DBIx::Class::Core/;
 
+__PACKAGE__->load_components(qw/+Ix::DBIC::StatesResult/);
+
 __PACKAGE__->table('states');
 
-__PACKAGE__->add_columns(qw( accountId type state ));
-
-__PACKAGE__->set_primary_key(qw( accountId type ));
+__PACKAGE__->ix_setup_states_result;
 
 1;
