@@ -15,9 +15,11 @@ sub ix_default_properties { return {} }
 
 sub ix_add_columns ($class) {
   $class->add_columns(
-    id          => { data_type => 'integer', is_auto_increment => 1 },
-    accountId   => { is_nullable => 0 },
-    state       => { data_type => 'integer', is_nullable => 0 },
+    id            => { data_type => 'integer', is_auto_increment => 1 },
+    accountId     => { is_nullable => 0 },
+    modSeqCreated => { data_type => 'integer' },
+    modSeqChanged => { data_type => 'integer' },
+    dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
   );
 }
 

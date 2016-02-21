@@ -91,7 +91,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
         ifInState => 8,
         create    => {
           yellow => { type => 'shortbread' },
-          gold   => { type => 'aznac' },
+          gold   => { type => 'anzac' },
           blue   => {},
         },
         update => {
@@ -145,11 +145,12 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
   cmp_deeply(
     \@rows,
     [
-      superhashof({ id => 1, type => 'half-eaten tim-tam' }),
-      superhashof({ id => 2, type => 'oreo' }),
-      superhashof({ id => 5, type => 'tim tam' }),
-      superhashof({ id => 6, type => any(qw(shortbread aznac)) }),
-      superhashof({ id => 7, type => any(qw(shortbread aznac)) }),
+      superhashof({ dateDeleted => undef, id => 1, type => 'half-eaten tim-tam' }),
+      superhashof({ dateDeleted => undef, id => 2, type => 'oreo' }),
+      superhashof({ dateDeleted => re(qr/T/), id => 4, type => 'samoa' }),
+      superhashof({ dateDeleted => undef, id => 5, type => 'tim tam' }),
+      superhashof({ dateDeleted => undef, id => 6, type => any(qw(shortbread anzac)) }),
+      superhashof({ dateDeleted => undef, id => 7, type => any(qw(shortbread anzac)) }),
     ],
     "the db matches our expectations",
   ) or diag explain(\@rows);
@@ -159,7 +160,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
     type => 'cookies',
   })->first;
 
-  is($state->state, 9, "state ended got updated just once");
+  is($state->highestModSeq, 9, "state ended got updated just once");
 }
 
 {
@@ -227,7 +228,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
     type => 'cookies',
   })->first;
 
-  is($state->state, 9, "no updates, no state change");
+  is($state->highestModSeq, 9, "no updates, no state change");
 }
 
 done_testing;

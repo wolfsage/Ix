@@ -22,6 +22,13 @@ sub _ix_rclass ($self) {
   return $rclass;
 }
 
+my %HIDDEN_COLUMN = map {; $_ => 1 } qw(
+  accountId
+  modSeqCreated
+  modSeqChanged
+  dateDeleted
+);
+
 sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $accountId = $Bakesale::Context::Context->accountId;
 
@@ -32,7 +39,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $since = $arg->{sinceState};
 
   my %is_prop = map  {; $_ => 1 }
-                grep {; $_ ne 'accountId' && $_ ne 'state' }
+                grep {; ! $HIDDEN_COLUMN{$_} }
                 $self->result_source->columns;
 
   my @props;
@@ -52,8 +59,9 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my @rows = $self->search(
     {
       accountId => $accountId,
-      (defined $since ? (state => { '>' => $since }) : ()),
+      (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
       ($ids ? (id => $ids) : ()),
+      dateDeleted => undef,
     },
     {
       select => \@props,
@@ -63,7 +71,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
 
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
-    state => $state_row->state,
+    state => $state_row->highestModSeq,
     list  => \@rows,
     notFound => undef, # TODO
   });
@@ -115,7 +123,8 @@ sub ix_create ($self, $to_create, $ephemera) {
       %default_properties,
 
       accountId => $accountId,
-      state      => $next_state,
+      modSeqCreated => $next_state,
+      modSeqChanged => $next_state,
     );
 
     my @bogus_dates;
@@ -164,13 +173,34 @@ sub ix_update ($self, $to_update, $ephemera) {
 
   my %result;
 
+  # XXX: this is garbage, fix it -- rjbs, 2016-02-18
+  my $type_key   = $rclass->ix_type_key;
+  my $next_state = $ephemera->{next_state}{$type_key};
+
   my @updated;
   my $error = error('invalidRecord', { description => "could not update" });
-  for my $id (keys $to_update->%*) {
-    my $row = $self->find({ id => $id, accountId => $accountId });
+  UPDATE: for my $id (keys $to_update->%*) {
+    my $row = $self->find({
+      id => $id,
+      accountId   => $accountId,
+      dateDeleted => undef,
+    });
+
+    unless ($row) {
+      $result{not_updated}{$id} = error(notFound => {
+        description => "no such record found",
+      });
+      next UPDATE;
+    }
 
     # TODO: validate the update -- rjbs, 2016-02-16
-    my $ok = eval { $row->update($to_update->{$id}); 1 };
+    my $ok = eval {
+      $row->update({
+        $to_update->{$id}->%*,
+        modSeqChanged => $next_state,
+      });
+      1;
+    };
 
     if ($ok) {
       push @updated, $id;
@@ -188,15 +218,37 @@ sub ix_destroy ($self, $to_destroy, $ephemera) {
   my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass = $self->_ix_rclass;
+  #
+  # XXX: this is garbage, fix it -- rjbs, 2016-02-18
+  my $type_key   = $rclass->ix_type_key;
+  my $next_state = $ephemera->{next_state}{$type_key};
 
   my %result;
 
   my @destroyed;
-  for my $id ($to_destroy->@*) {
-    my $rv = $self->search({ id => $id, accountId => $accountId })
-                  ->delete;
+  DESTROY: for my $id ($to_destroy->@*) {
+    my $row = $self->search({
+      id => $id,
+      accountId => $accountId,
+      dateDeleted => undef,
+    })->first;
 
-    if ($rv > 0) {
+    unless ($row) {
+      $result{not_destroyed}{$id} = error(notFound => {
+        description => "no such record found",
+      });
+      next DESTROY;
+    }
+
+    my $ok = eval {
+      $row->update({
+        modSeqChanged => $next_state,
+        dateDeleted   => Ix::DateTime->now,
+      });
+      1;
+    };
+
+    if ($ok) {
       push @destroyed, $id;
     } else {
       $result{not_destroyed}{$id} = error('failedToDelete');
@@ -223,8 +275,9 @@ sub _curr_state_row ($self, $rclass) {
 
   $state_row //= $states_rs->create({
     accountId => $accountId,
-    type       => $rclass->ix_type_key,
-    state      => 1,
+    type      => $rclass->ix_type_key,
+    highestModSeq => 1,
+    lowestModSeq  => 1,
   });
 }
 
@@ -236,7 +289,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   my $schema   = $self->result_source->schema;
 
   my $state_row  = $self->_curr_state_row($rclass);
-  my $curr_state = $state_row->state;
+  my $curr_state = $state_row->highestModSeq;
   my $next_state = $curr_state + 1;
 
   # XXX THIS IS GARBAGE, fixed by putting state on context or something...
@@ -259,7 +312,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
     $result{created}     = $create_result->{created};
     $result{not_created} = $create_result->{not_created};
 
-    $state_row->state($next_state) if keys $result{created}->%*;
+    $state_row->highestModSeq($next_state) if keys $result{created}->%*;
   }
 
   if ($arg->{update}) {
@@ -267,7 +320,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
 
     $result{updated} = $update_result->{updated};
     $result{not_updated} = $update_result->{not_updated};
-    $state_row->state($next_state) if $result{updated} && $result{updated}->@*;
+    $state_row->highestModSeq($next_state) if $result{updated} && $result{updated}->@*;
   }
 
   if ($arg->{destroy}) {
@@ -275,7 +328,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
 
     $result{destroyed} = $destroy_result->{destroyed};
     $result{not_destroyed} = $destroy_result->{not_destroyed};
-    $state_row->state($next_state) if $result{destroyed} && $result{destroyed}->@*;
+    $state_row->highestModSeq($next_state) if $result{destroyed} && $result{destroyed}->@*;
   }
 
   $state_row->update;
@@ -283,7 +336,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   return Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,
-    new_state => $state_row->state,
+    new_state => $state_row->highestModSeq,
     %result,
   });
 }

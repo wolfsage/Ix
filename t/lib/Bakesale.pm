@@ -1,8 +1,8 @@
 use 5.20.0;
+use warnings;
+use experimental qw(lexical_subs signatures postderef);
 
 package Bakesale::Context {
-  use warnings;
-  use experimental qw(signatures postderef);
 
   sub accountId ($self) { 1 }
 
@@ -21,22 +21,24 @@ package Bakesale::Test {
 
     $schema->deploy;
 
+    my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
+
     $schema->resultset('Cookies')->populate([
-      { accountId => 1, state => 1, id => 1, type => 'tim tam',
+      { accountId => 1, modseq(1), id => 1, type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z' },
-      { accountId => 1, state => 1, id => 2, type => 'oreo',
+      { accountId => 1, modseq(1), id => 2, type => 'oreo',
         baked_at => '2016-01-02T23:45:60Z' },
-      { accountId => 2, state => 1, id => 3, type => 'thin mint',
+      { accountId => 2, modseq(1), id => 3, type => 'thin mint',
         baked_at => '2016-01-23T01:02:03Z' },
-      { accountId => 1, state => 3, id => 4, type => 'samoa',
+      { accountId => 1, modseq(3), id => 4, type => 'samoa',
         baked_at => '2016-02-01T12:00:01Z' },
-      { accountId => 1, state => 8, id => 5, type => 'tim tam',
+      { accountId => 1, modseq(8), id => 5, type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
     $schema->resultset('States')->populate([
-      { accountId => 1, type => 'cookies', state => 8 },
-      { accountId => 2, type => 'cookies', state => 1 },
+      { accountId => 1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
+      { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
     return $schema;
