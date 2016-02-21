@@ -5,10 +5,9 @@ __PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
 
 __PACKAGE__->table('cookies');
 
+__PACKAGE__->ix_add_columns;
+
 __PACKAGE__->add_columns(
-  id         => { data_type => 'integer', is_auto_increment => 1 },
-  accountId  => { is_nullable => 0 },
-  state      => { data_type => 'ingeger', is_nullable => 0 },
   type       => { is_nullable => 0 },
   baked_at   => { data_type => 'datetime', is_nullable => 0 },
 );
