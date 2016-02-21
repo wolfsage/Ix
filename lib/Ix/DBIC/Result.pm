@@ -7,6 +7,9 @@ use parent 'DBIx::Class';
 use experimental qw(signatures postderef);
 
 sub ix_type_key { Carp::confess("ix_type_key not implemented") }
+sub ix_type_key_singular ($self) {
+  $self->ix_type_key =~ s/s\z//r;
+}
 
 # XXX This should probably instead be Rx to validate the user properites.
 sub ix_user_property_names { return () };

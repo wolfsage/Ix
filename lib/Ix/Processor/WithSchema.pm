@@ -32,10 +32,15 @@ has _dbic_handlers => (
     for my $moniker (keys %$source_reg) {
       my $rclass = $source_reg->{$moniker}->result_class;
       next unless $rclass->isa('Ix::DBIC::Result');
-      my $key = $rclass->ix_type_key;
+      my $key  = $rclass->ix_type_key;
+      my $key1 = $rclass->ix_type_key_singular;
 
       $handler{"get\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
         $self->schema->resultset($moniker)->ix_get($arg, $ephemera);
+      };
+
+      $handler{"get\u${key1}Updates"} = sub ($self, $arg = {}, $ephemera = {}) {
+        $self->schema->resultset($moniker)->ix_get_updates($arg, $ephemera);
       };
 
       $handler{"set\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
