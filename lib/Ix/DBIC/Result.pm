@@ -17,7 +17,7 @@ sub ix_add_columns ($class) {
   $class->add_columns(
     id          => { data_type => 'integer', is_auto_increment => 1 },
     accountId   => { is_nullable => 0 },
-    state       => { data_type => 'ingeger', is_nullable => 0 },
+    state       => { data_type => 'integer', is_nullable => 0 },
   );
 }
 
