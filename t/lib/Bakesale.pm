@@ -4,7 +4,7 @@ package Bakesale::Context {
   use warnings;
   use experimental qw(signatures postderef);
 
-  sub account_id ($self) { 1 }
+  sub accountId ($self) { 1 }
 
   our $Context = bless { } => __PACKAGE__;
 }
@@ -22,21 +22,21 @@ package Bakesale::Test {
     $schema->deploy;
 
     $schema->resultset('Cookies')->populate([
-      { account_id => 1, state => 1, id => 1, type => 'tim tam',
+      { accountId => 1, state => 1, id => 1, type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z' },
-      { account_id => 1, state => 1, id => 2, type => 'oreo',
+      { accountId => 1, state => 1, id => 2, type => 'oreo',
         baked_at => '2016-01-02T23:45:60Z' },
-      { account_id => 2, state => 1, id => 3, type => 'thin mint',
+      { accountId => 2, state => 1, id => 3, type => 'thin mint',
         baked_at => '2016-01-23T01:02:03Z' },
-      { account_id => 1, state => 3, id => 4, type => 'samoa',
+      { accountId => 1, state => 3, id => 4, type => 'samoa',
         baked_at => '2016-02-01T12:00:01Z' },
-      { account_id => 1, state => 8, id => 5, type => 'tim tam',
+      { accountId => 1, state => 8, id => 5, type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
     $schema->resultset('States')->populate([
-      { account_id => 1, type => 'cookies', state => 8 },
-      { account_id => 2, type => 'cookies', state => 1 },
+      { accountId => 1, type => 'cookies', state => 8 },
+      { accountId => 2, type => 'cookies', state => 1 },
     ]);
 
     return $schema;

@@ -7,7 +7,7 @@ __PACKAGE__->table('cakes');
 
 __PACKAGE__->add_columns(
   id          => { data_type => 'integer', is_auto_increment => 1 },
-  account_id  => { is_nullable => 0 },
+  accountId   => { is_nullable => 0 },
   state       => { data_type => 'ingeger', is_nullable => 0 },
   type        => { is_nullable => 0 },
   layer_count => { data_type => 'integer', is_nullable => 0 },

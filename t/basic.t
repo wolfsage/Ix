@@ -135,7 +135,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
   ) or diag explain($res);
 
   my @rows = $Bakesale->schema->resultset('Cookies')->search(
-    { account_id => 1 },
+    { accountId => 1 },
     {
       order_by => 'id',
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -155,7 +155,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
   ) or diag explain(\@rows);
 
   my $state = $Bakesale->schema->resultset('States')->search({
-    account_id => 1,
+    accountId => 1,
     type => 'cookies',
   })->first;
 
@@ -223,7 +223,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
   ) or diag explain($res);
 
   my $state = $Bakesale->schema->resultset('States')->search({
-    account_id => 1,
+    accountId => 1,
     type => 'cookies',
   })->first;
 

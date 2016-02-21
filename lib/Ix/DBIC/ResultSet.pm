@@ -23,7 +23,7 @@ sub _ix_rclass ($self) {
 }
 
 sub ix_get ($self, $arg = {}, $ephemera = {}) {
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass    = $self->_ix_rclass;
   my $state_row = $self->_curr_state_row($rclass);
@@ -32,7 +32,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my $since = $arg->{sinceState};
 
   my %is_prop = map  {; $_ => 1 }
-                grep {; $_ ne 'account_id' && $_ ne 'state' }
+                grep {; $_ ne 'accountId' && $_ ne 'state' }
                 $self->result_source->columns;
 
   my @props;
@@ -51,7 +51,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
 
   my @rows = $self->search(
     {
-      account_id => $account_id,
+      accountId => $accountId,
       (defined $since ? (state => { '>' => $since }) : ()),
       ($ids ? (id => $ids) : ()),
     },
@@ -70,7 +70,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
 }
 
 sub ix_create ($self, $to_create, $ephemera) {
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -114,7 +114,7 @@ sub ix_create ($self, $to_create, $ephemera) {
       %user_props,
       %default_properties,
 
-      account_id => $account_id,
+      accountId => $accountId,
       state      => $next_state,
     );
 
@@ -158,7 +158,7 @@ sub ix_create ($self, $to_create, $ephemera) {
 }
 
 sub ix_update ($self, $to_update, $ephemera) {
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -167,7 +167,7 @@ sub ix_update ($self, $to_update, $ephemera) {
   my @updated;
   my $error = error('invalidRecord', { description => "could not update" });
   for my $id (keys $to_update->%*) {
-    my $row = $self->find({ id => $id, account_id => $account_id });
+    my $row = $self->find({ id => $id, accountId => $accountId });
 
     # TODO: validate the update -- rjbs, 2016-02-16
     my $ok = eval { $row->update($to_update->{$id}); 1 };
@@ -185,7 +185,7 @@ sub ix_update ($self, $to_update, $ephemera) {
 }
 
 sub ix_destroy ($self, $to_destroy, $ephemera) {
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -193,7 +193,7 @@ sub ix_destroy ($self, $to_destroy, $ephemera) {
 
   my @destroyed;
   for my $id ($to_destroy->@*) {
-    my $rv = $self->search({ id => $id, account_id => $account_id })
+    my $rv = $self->search({ id => $id, accountId => $accountId })
                   ->delete;
 
     if ($rv > 0) {
@@ -212,24 +212,24 @@ sub _curr_state_row ($self, $rclass) {
   # This whole mechanism should be provided by context -- rjbs, 2016-02-16
   # Really, should it? 😕  -- rjbs, 2016-02-18
   # Anyway, we need to create a row if none exists.
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $states_rs = $self->result_source->schema->resultset('States');
 
   my $state_row = $states_rs->search({
-    account_id => $account_id,
+    accountId => $accountId,
     type       => $rclass->ix_type_key,
   })->first;
 
   $state_row //= $states_rs->create({
-    account_id => $account_id,
+    accountId => $accountId,
     type       => $rclass->ix_type_key,
     state      => 1,
   });
 }
 
 sub ix_set ($self, $arg = {}, $ephemera = {}) {
-  my $account_id = $Bakesale::Context::Context->account_id;
+  my $accountId = $Bakesale::Context::Context->accountId;
 
   my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;
