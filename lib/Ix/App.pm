@@ -11,7 +11,7 @@ use namespace::autoclean;
 
 has json_codec => (
   is => 'ro',
-  default => sub { JSON->new->utf8->canonical },
+  default => sub { JSON->new->utf8->pretty->allow_blessed->convert_blessed->canonical },
   handles => {
     encode_json => 'encode',
     decode_json => 'decode',
