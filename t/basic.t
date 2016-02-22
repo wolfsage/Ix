@@ -165,6 +165,57 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 
 {
   my $res = $Bakesale->process_request([
+    [ getCookieUpdates => { sinceState => 8 }, 'a' ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookieUpdates => {
+          oldState => 8,
+          newState => 9,
+          hasMoreUpdates => bool(0),
+          changed  => bag(1, 6, 7),
+          removed  => bag(4),
+        },
+        'a',
+      ],
+    ],
+    "updates can be got",
+  ) or diag explain($res);
+}
+
+{
+  my $get_res = $Bakesale->process_request([
+    [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
+  ]);
+
+  my $res = $Bakesale->process_request([
+    [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 }, 'a' ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookieUpdates => {
+          oldState => 8,
+          newState => 9,
+          hasMoreUpdates => bool(0),
+          changed  => bag(1, 6, 7),
+          removed  => bag(4),
+        },
+        'a',
+      ],
+      $get_res->[0],
+    ],
+    "updates can be got (with implicit fetch)",
+  ) or diag explain($res);
+}
+
+{
+  my $res = $Bakesale->process_request([
     [
       setCakes => {
         ifInState => 1,

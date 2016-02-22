@@ -7,6 +7,7 @@ use parent 'DBIx::Class::ResultSet';
 use experimental qw(signatures postderef);
 
 use Ix::Util qw(error parsedate result);
+use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
 
@@ -45,7 +46,7 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   my @props;
   if ($arg->{properties}) {
     if (my @invalid = grep {; ! $is_prop{$_} } $arg->{properties}->@*) {
-      return error("propertyError", {
+      return error("invalidArguments", {
         description       => "requested unknown property",
         unknownProperties => \@invalid,
       });
@@ -75,6 +76,172 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
     list  => \@rows,
     notFound => undef, # TODO
   });
+}
+
+sub ix_get_updates ($self, $arg = {}, $ephemera = {}) {
+  my $accountId = $Bakesale::Context::Context->accountId;
+
+  my $since = $arg->{sinceState};
+
+  return error(invalidArguments => { description => "no sinceState given" })
+    unless defined $since;
+
+  my $limit = $arg->{maxChanges};
+  if (defined $limit && ( $limit !~ /^[0-9]+\z/ || $limit == 0 )) {
+    return error(invalidArguments => { description => "invalid maxChanges" });
+  }
+
+  my $rclass   = $self->_ix_rclass;
+  my $type_key = $rclass->ix_type_key;
+  my $schema   = $self->result_source->schema;
+  my $res_type = $rclass->ix_type_key_singular . "Updates";
+
+  my $state_row  = $self->_curr_state_row($rclass);
+
+  if ($state_row->highestModSeq == $since) {
+    return result($res_type => {
+      oldState => $since,
+      newState => $since,
+      hasMoreUpdates => JSON::false(), # Gross. -- rjbs, 2016-02-21
+      changed => [],
+      removed => [],
+    });
+  }
+
+  if ($state_row->highestModSeq < $since) {
+    return error(invalidArguments => { description => "invalid sinceState" });
+  }
+
+  if ($state_row->lowestModSeq >= $since) {
+    return error(cannotCalculateChanges => {
+      description => "client cache must be reconstucted"
+    })
+  }
+
+  my %is_prop = map  {; $_ => 1 }
+                grep {; ! $HIDDEN_COLUMN{$_} }
+                $self->result_source->columns;
+
+  my @invalid_props;
+
+  my @props;
+  if ($arg->{fetchRecords} && $arg->{fetchRecordProperties}) {
+    if (@invalid_props = grep {; ! $is_prop{$_} } $arg->{fetchRecordProperties}->@*) {
+      @props = 'id';
+    }
+
+    @props = uniq('id', $arg->{fetchRecordProperties}->@*);
+  } elsif ($arg->{fetchRecords}) {
+    @props = keys %is_prop;
+  } else {
+    @props = 'id';
+  }
+
+  my @rows = $self->search(
+    {
+      accountId     => $accountId,
+      modSeqChanged => { '>' => $since },
+    },
+    {
+      select => [ @props, 'dateDeleted' ],
+      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+      ($limit ? (rows => $limit + 1) : ()),
+      order_by => 'modSeqChanged',
+    },
+  )->all;
+
+  my $highestModSeq  = $state_row->highestModSeq;
+  my $hasMoreUpdates = 0;
+
+  if ($limit && @rows > $limit) {
+    if ($rows[-2]{modSeqChanged} == $rows[-1]{modSeqChanged}) {
+      # The (limit+1)th element starts a new state.  Drop it and we're good to
+      # go. -- rjbs, 2016-02-22
+      $#rows = $limit - 1;
+      $highestModSeq = $rows[-1]{modSeqChanged};
+    } else {
+      # So, the user asked for (say) 100 rows.  We got 101 and found that the
+      # 101st was the same state as the 100th.  We'll drop the whole set of
+      # records from that state, and let the user know that more changes await.
+      # -- rjbs, 2016-02-22
+      $hasMoreUpdates = 1;
+
+      my $maxState = $rows[$limit]{modSeqChanged};
+      @rows = grep { $_->{modSeqChanged} != $maxState } @rows;
+
+      if (@rows == 0) {
+        # ... well, it turns out that the entire batch was in one state.  We
+        # can't possibly provide a consistent update within the bounds that the
+        # user requested.  When this happens, we're permitted to provide more
+        # records than requested, so let's just fetch one state worth of
+        # records. -- rjbs, 2016-02-22
+        @rows = $self->search(
+          {
+            accountId     => $accountId,
+            modSeqChanged => $maxState,
+          },
+          {
+            select => [ @props, 'dateDeleted' ],
+            result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+            order_by => 'modSeqChanged',
+          },
+        )->all;
+      }
+
+      $highestModSeq = $rows[-1]{modSeqChanged};
+    }
+  }
+
+  my @changed;
+  my @removed;
+  for my $item (@rows) {
+    if ($item->{dateDeleted}) {
+      push @removed, $item->{id};
+    } else {
+      push @changed, $item;
+    }
+  }
+
+  my @return = result($res_type => {
+    oldState => $since,
+    newState => $highestModSeq,
+    hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
+    changed => [ map {; $_->{id} } @changed ],
+    removed => \@removed,
+  });
+
+  if ($arg->{fetchRecords}) {
+    if (@invalid_props) {
+      push @return, error(invalidArguments => {
+        description       => "requested unknown property",
+        unknownProperties => \@invalid_props,
+      });
+    } else {
+      push @return, result($type_key => {
+        state => $state_row->highestModSeq,
+        list  => [ map {; +{ $_->%{ @props } } } @changed ],
+        notFound => undef, # TODO
+      });
+    }
+  }
+
+  return @return;
+}
+
+sub ix_purge ($self) {
+  # ## Cleaning up old records
+  #
+  # If you want to purge old records from a table:
+  #
+  # 1. Lock the row in the ModSeq table for the "List" type + account id of the
+  #    request. This ensures that you cannot return inconsistent data to a client.
+  # 2. Remove anything with a dateDeleted older than 7 days, or whatever your
+  #    threshold is. Make a note of the highest *modSeqChanged* value among the set
+  #    of rows removed.
+  # 3. If the highest *modSeqChanged* of a removed row is higher than the
+  #    *lowestModSeq* value in the ModSeq table, update this field to the higher
+  #    value.
+  # 4. Unlock the row in the ModSeq table.
 }
 
 sub ix_create ($self, $to_create, $ephemera) {
