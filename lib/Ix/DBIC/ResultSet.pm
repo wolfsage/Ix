@@ -229,19 +229,29 @@ sub ix_get_updates ($self, $arg = {}, $ephemera = {}) {
 }
 
 sub ix_purge ($self) {
-  # ## Cleaning up old records
-  #
-  # If you want to purge old records from a table:
-  #
-  # 1. Lock the row in the ModSeq table for the "List" type + account id of the
-  #    request. This ensures that you cannot return inconsistent data to a client.
-  # 2. Remove anything with a dateDeleted older than 7 days, or whatever your
-  #    threshold is. Make a note of the highest *modSeqChanged* value among the set
-  #    of rows removed.
-  # 3. If the highest *modSeqChanged* of a removed row is higher than the
-  #    *lowestModSeq* value in the ModSeq table, update this field to the higher
-  #    value.
-  # 4. Unlock the row in the ModSeq table.
+  my $accountId = $Bakesale::Context::Context->accountId;
+
+  my $rclass = $self->_ix_rclass;
+
+  my $type_key = $rclass->ix_type_key;
+
+  my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
+
+  my $rs = $self->search({
+    accountId   => $accountId,
+    dateDeleted => { '<', $since->as_string },
+  });
+
+  my $maxDeletedModSeq = $self->get_column('modSeqChanged')->max;
+
+  $rs->delete;
+
+  my $state_row = $self->_curr_state_row($rclass);
+
+  $state_row->lowestModSeq( $maxDeletedModSeq )
+    if $maxDeletedModSeq > $state_row->lowestModSeq;
+
+  return;
 }
 
 sub ix_create ($self, $to_create, $ephemera) {
