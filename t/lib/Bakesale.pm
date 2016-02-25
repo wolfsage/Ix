@@ -17,6 +17,7 @@ package Bakesale::Test {
       'dbi:SQLite:dbname=test.sqlite',
       undef,
       undef,
+      { quote_names => 1 },
     );
 
     $schema->deploy;
