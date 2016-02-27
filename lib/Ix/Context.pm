@@ -16,5 +16,15 @@ has schema => (
   required => 1,
 );
 
+has processor => (
+  is   => 'ro',
+  does => 'Ix::Processor',
+  required => 1,
+);
+
+sub process_request ($self, $calls) {
+  $self->processor->process_request($self, $calls);
+}
+
 __PACKAGE__->meta->make_immutable;
 1;

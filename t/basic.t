@@ -18,7 +18,7 @@ my $ctx = $Bakesale->get_context({
 });
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ pieTypes => { tasty => 0 }, 'b' ],
   ]);
@@ -34,7 +34,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] }, 'b' ],
     [ pieTypes => { tasty => 0 }, 'c' ],
@@ -53,7 +53,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
   ]);
 
@@ -77,7 +77,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ setCookies => { ifInState => 3, destroy => [ 4 ] }, 'a' ],
   ]);
 
@@ -91,7 +91,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [
       setCookies => {
         ifInState => 8,
@@ -170,7 +170,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ getCookieUpdates => { sinceState => 8 }, 'a' ],
   ]);
 
@@ -193,11 +193,11 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $get_res = $Bakesale->process_request($ctx, [
+  my $get_res = $ctx->process_request([
     [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
   ]);
 
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 }, 'a' ],
   ]);
 
@@ -221,7 +221,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [
       setCakes => {
         ifInState => 1,
@@ -250,7 +250,7 @@ my $ctx = $Bakesale->get_context({
 }
 
 {
-  my $res = $Bakesale->process_request($ctx, [
+  my $res = $ctx->process_request([
     [
       setCookies => {
         ifInState => 9,

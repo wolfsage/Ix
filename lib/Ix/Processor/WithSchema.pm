@@ -24,6 +24,7 @@ sub get_context ($self, $arg) {
   Ix::Context->new({
     accountId => $arg->{accountId},
     schema    => $self->schema_class->connect($arg->{connect_info}->@*),
+    processor => $self,
   });
 }
 
