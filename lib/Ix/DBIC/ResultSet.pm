@@ -30,11 +30,11 @@ my %HIDDEN_COLUMN = map {; $_ => 1 } qw(
   dateDeleted
 );
 
-sub ix_get ($self, $arg = {}, $ephemera = {}) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_get ($self, $ctx, $arg = {}) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass    = $self->_ix_rclass;
-  my $state_row = $self->_curr_state_row($rclass);
+  my $state_row = $self->_curr_state_row($ctx, $rclass);
 
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
@@ -78,8 +78,8 @@ sub ix_get ($self, $arg = {}, $ephemera = {}) {
   });
 }
 
-sub ix_get_updates ($self, $arg = {}, $ephemera = {}) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_get_updates ($self, $ctx, $arg = {}) {
+  my $accountId = $ctx->{accountId};
 
   my $since = $arg->{sinceState};
 
@@ -96,7 +96,7 @@ sub ix_get_updates ($self, $arg = {}, $ephemera = {}) {
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
 
-  my $state_row  = $self->_curr_state_row($rclass);
+  my $state_row  = $self->_curr_state_row($ctx, $rclass);
 
   if ($state_row->highestModSeq == $since) {
     return result($res_type => {
@@ -228,8 +228,8 @@ sub ix_get_updates ($self, $arg = {}, $ephemera = {}) {
   return @return;
 }
 
-sub ix_purge ($self) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_purge ($self, $ctx) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass = $self->_ix_rclass;
 
@@ -246,7 +246,7 @@ sub ix_purge ($self) {
 
   $rs->delete;
 
-  my $state_row = $self->_curr_state_row($rclass);
+  my $state_row = $self->_curr_state_row($ctx, $rclass);
 
   $state_row->lowestModSeq( $maxDeletedModSeq )
     if $maxDeletedModSeq > $state_row->lowestModSeq;
@@ -254,15 +254,15 @@ sub ix_purge ($self) {
   return;
 }
 
-sub ix_create ($self, $to_create, $ephemera) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_create ($self, $ctx, $to_create) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass = $self->_ix_rclass;
 
   my $type_key = $rclass->ix_type_key;
 
   # XXX: this is garbage, fix it -- rjbs, 2016-02-18
-  my $next_state = $ephemera->{next_state}{$type_key};
+  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
 
   # TODO handle unknown properties
   my $error = error('invalidRecord', { description => "could not create" });
@@ -334,7 +334,7 @@ sub ix_create ($self, $to_create, $ephemera) {
       # This is silly.  Can we get a pair slice out of a Row?
       $result{created}{$id} = { id => $row->id, %default_properties };
 
-      $ephemera->{$type_key}{$id} = $row->id;
+      $ctx->{ix_ephemera}{$type_key}{$id} = $row->id;
     } else {
       $result{not_created}{$id} = $error;
     }
@@ -343,8 +343,8 @@ sub ix_create ($self, $to_create, $ephemera) {
   return \%result;
 }
 
-sub ix_update ($self, $to_update, $ephemera) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_update ($self, $ctx, $to_update) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass = $self->_ix_rclass;
 
@@ -352,7 +352,7 @@ sub ix_update ($self, $to_update, $ephemera) {
 
   # XXX: this is garbage, fix it -- rjbs, 2016-02-18
   my $type_key   = $rclass->ix_type_key;
-  my $next_state = $ephemera->{next_state}{$type_key};
+  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
 
   my @updated;
   my $error = error('invalidRecord', { description => "could not update" });
@@ -391,14 +391,14 @@ sub ix_update ($self, $to_update, $ephemera) {
   return \%result;
 }
 
-sub ix_destroy ($self, $to_destroy, $ephemera) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_destroy ($self, $ctx, $to_destroy) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass = $self->_ix_rclass;
   #
   # XXX: this is garbage, fix it -- rjbs, 2016-02-18
   my $type_key   = $rclass->ix_type_key;
-  my $next_state = $ephemera->{next_state}{$type_key};
+  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
 
   my %result;
 
@@ -437,11 +437,11 @@ sub ix_destroy ($self, $to_destroy, $ephemera) {
   return \%result;
 }
 
-sub _curr_state_row ($self, $rclass) {
+sub _curr_state_row ($self, $ctx, $rclass) {
   # This whole mechanism should be provided by context -- rjbs, 2016-02-16
   # Really, should it? 😕  -- rjbs, 2016-02-18
   # Anyway, we need to create a row if none exists.
-  my $accountId = $Bakesale::Context::Context->accountId;
+  my $accountId = $ctx->{accountId};
 
   my $states_rs = $self->result_source->schema->resultset('States');
 
@@ -458,20 +458,20 @@ sub _curr_state_row ($self, $rclass) {
   });
 }
 
-sub ix_set ($self, $arg = {}, $ephemera = {}) {
-  my $accountId = $Bakesale::Context::Context->accountId;
+sub ix_set ($self, $ctx, $arg = {}) {
+  my $accountId = $ctx->{accountId};
 
   my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
-  my $state_row  = $self->_curr_state_row($rclass);
+  my $state_row  = $self->_curr_state_row($ctx, $rclass);
   my $curr_state = $state_row->highestModSeq;
   my $next_state = $curr_state + 1;
 
   # XXX THIS IS GARBAGE, fixed by putting state on context or something...
   # -- rjbs, 2016-02-18
-  $ephemera->{next_state}{$type_key} = $next_state;
+  $ctx->{ix_ephemera}{next_state}{$type_key} = $next_state;
 
   # TODO validate everything
 
@@ -484,7 +484,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   my $now = time;
 
   if ($arg->{create}) {
-    my $create_result = $self->ix_create($arg->{create}, $ephemera);
+    my $create_result = $self->ix_create($ctx, $arg->{create});
 
     $result{created}     = $create_result->{created};
     $result{not_created} = $create_result->{not_created};
@@ -493,7 +493,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   }
 
   if ($arg->{update}) {
-    my $update_result = $self->ix_update($arg->{update}, $ephemera);
+    my $update_result = $self->ix_update($ctx, $arg->{update});
 
     $result{updated} = $update_result->{updated};
     $result{not_updated} = $update_result->{not_updated};
@@ -501,7 +501,7 @@ sub ix_set ($self, $arg = {}, $ephemera = {}) {
   }
 
   if ($arg->{destroy}) {
-    my $destroy_result = $self->ix_destroy($arg->{destroy}, $ephemera);
+    my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
 
     $result{destroyed} = $destroy_result->{destroyed};
     $result{not_destroyed} = $destroy_result->{not_destroyed};

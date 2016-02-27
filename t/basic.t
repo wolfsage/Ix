@@ -11,8 +11,10 @@ use Test::More;
 
 my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 
+my $ctx = { accountId => 1 };
+
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ pieTypes => { tasty => 0 }, 'b' ],
   ]);
@@ -28,7 +30,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ pieTypes => { tasty => 1 }, 'a' ],
     [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] }, 'b' ],
     [ pieTypes => { tasty => 0 }, 'c' ],
@@ -47,7 +49,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
   ]);
 
@@ -71,7 +73,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ setCookies => { ifInState => 3, destroy => [ 4 ] }, 'a' ],
   ]);
 
@@ -85,7 +87,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [
       setCookies => {
         ifInState => 8,
@@ -164,7 +166,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ getCookieUpdates => { sinceState => 8 }, 'a' ],
   ]);
 
@@ -187,11 +189,11 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $get_res = $Bakesale->process_request([
+  my $get_res = $Bakesale->process_request($ctx, [
     [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
   ]);
 
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 }, 'a' ],
   ]);
 
@@ -215,7 +217,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [
       setCakes => {
         ifInState => 1,
@@ -244,7 +246,7 @@ my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
 }
 
 {
-  my $res = $Bakesale->process_request([
+  my $res = $Bakesale->process_request($ctx, [
     [
       setCookies => {
         ifInState => 9,

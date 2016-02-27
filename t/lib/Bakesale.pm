@@ -2,13 +2,6 @@ use 5.20.0;
 use warnings;
 use experimental qw(lexical_subs signatures postderef);
 
-package Bakesale::Context {
-
-  sub accountId ($self) { 1 }
-
-  our $Context = bless { } => __PACKAGE__;
-}
-
 package Bakesale::Test {
   sub test_schema {
     unlink 'test.sqlite';
@@ -55,15 +48,13 @@ package Bakesale {
   use experimental qw(signatures postderef);
   use namespace::autoclean;
 
-  BEGIN { Bakesale::Context->import }
-
   sub handler_for ($self, $method) {
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
     return;
   }
 
-  sub pie_type_list ($self, $arg = {}, $ephemera = {}) {
+  sub pie_type_list ($self, $ctx, $arg = {}) {
     my $only_tasty = delete local $arg->{tasty};
     return error('invalidArguments') if keys %$arg;
 
@@ -73,12 +64,12 @@ package Bakesale {
     return Bakesale::PieTypes->new({ flavors => \@flavors });
   }
 
-  sub bake_pies ($self, $arg = {}, $ephemera = {}) {
+  sub bake_pies ($self, $ctx, $arg = {}) {
     return error("invalidArguments")
       unless $arg->{pieTypes} && $arg->{pieTypes}->@*;
 
     my %is_flavor = map {; $_ => 1 }
-                    $self->pie_type_list({ tasty => $arg->{tasty} })->flavors;
+                    $self->pie_type_list($ctx, { tasty => $arg->{tasty} })->flavors;
 
     my @rv;
     for my $type ($arg->{pieTypes}->@*) {

@@ -35,16 +35,16 @@ has _dbic_handlers => (
       my $key  = $rclass->ix_type_key;
       my $key1 = $rclass->ix_type_key_singular;
 
-      $handler{"get\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
-        $self->schema->resultset($moniker)->ix_get($arg, $ephemera);
+      $handler{"get\u$key"} = sub ($self, $ctx, $arg = {}) {
+        $self->schema->resultset($moniker)->ix_get($ctx, $arg);
       };
 
-      $handler{"get\u${key1}Updates"} = sub ($self, $arg = {}, $ephemera = {}) {
-        $self->schema->resultset($moniker)->ix_get_updates($arg, $ephemera);
+      $handler{"get\u${key1}Updates"} = sub ($self, $ctx, $arg = {}) {
+        $self->schema->resultset($moniker)->ix_get_updates($ctx, $arg);
       };
 
-      $handler{"set\u$key"} = sub ($self, $arg = {}, $ephemera = {}) {
-        $self->schema->resultset($moniker)->ix_set($arg, $ephemera);
+      $handler{"set\u$key"} = sub ($self, $ctx, $arg) {
+        $self->schema->resultset($moniker)->ix_set($ctx, $arg);
       };
 
     }

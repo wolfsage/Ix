@@ -24,12 +24,12 @@ requires 'handler_for';
 # This may be needed anyway, since entire requests are executed with
 # transactional isolation! -- rjbs, 2016-02-11
 
-sub process_request ($self, $calls) {
+sub process_request ($self, $ctx, $calls) {
   my @results;
 
   # I believe this will end up used as a sideband to communicate things like
   # objects created for temporary ids.  -- rjbs, 2016-02-11
-  my %ephemera;
+  local $ctx->{ix_ephemera} = {};
 
   CALL: for my $call (@$calls) {
     # On one hand, I am tempted to disallow ambiguous cids here.  On the other
@@ -44,7 +44,7 @@ sub process_request ($self, $calls) {
     }
 
     my @rv = try {
-      $self->$handler($arg, \%ephemera);
+      $self->$handler($ctx, $arg);
     } catch {
       if ($_->$_DOES('Ix::Error')) {
         return $_;
