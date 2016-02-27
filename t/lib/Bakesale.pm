@@ -3,15 +3,16 @@ use warnings;
 use experimental qw(lexical_subs signatures postderef);
 
 package Bakesale::Test {
-  sub test_schema {
+  sub test_schema_connect_info {
     unlink 'test.sqlite';
     require Bakesale::Schema;
-    my $schema = Bakesale::Schema->connect(
+    my @connect_info = (
       'dbi:SQLite:dbname=test.sqlite',
       undef,
       undef,
       { quote_names => 1 },
     );
+    my $schema = Bakesale::Schema->connect(@connect_info);
 
     $schema->deploy;
 
@@ -35,7 +36,7 @@ package Bakesale::Test {
       { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
-    return $schema;
+    return \@connect_info;
   }
 }
 
@@ -47,6 +48,8 @@ package Bakesale {
 
   use experimental qw(signatures postderef);
   use namespace::autoclean;
+
+  sub schema_class { 'Bakesale::Schema' }
 
   sub handler_for ($self, $method) {
     return 'pie_type_list' if $method eq 'pieTypes';

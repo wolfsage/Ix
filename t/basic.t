@@ -9,9 +9,13 @@ use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 
-my $Bakesale = Bakesale->new({ schema => Bakesale::Test->test_schema() });
+my $conn_info = Bakesale::Test->test_schema_connect_info;
+my $Bakesale = Bakesale->new;
 
-my $ctx = { accountId => 1 };
+my $ctx = $Bakesale->get_context({
+  accountId => 1,
+  connect_info => $conn_info,
+});
 
 {
   my $res = $Bakesale->process_request($ctx, [
@@ -136,7 +140,7 @@ my $ctx = { accountId => 1 };
     "we can create cookies with setCookies",
   ) or diag explain($res);
 
-  my @rows = $Bakesale->schema->resultset('Cookies')->search(
+  my @rows = $ctx->schema->resultset('Cookies')->search(
     { accountId => 1 },
     {
       order_by => 'id',
@@ -157,7 +161,7 @@ my $ctx = { accountId => 1 };
     "the db matches our expectations",
   ) or diag explain(\@rows);
 
-  my $state = $Bakesale->schema->resultset('States')->search({
+  my $state = $ctx->schema->resultset('States')->search({
     accountId => 1,
     type => 'cookies',
   })->first;
@@ -276,7 +280,7 @@ my $ctx = { accountId => 1 };
     "no state change when no destruction",
   ) or diag explain($res);
 
-  my $state = $Bakesale->schema->resultset('States')->search({
+  my $state = $ctx->schema->resultset('States')->search({
     accountId => 1,
     type => 'cookies',
   })->first;
