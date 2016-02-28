@@ -11,25 +11,34 @@ use namespace::autoclean;
 
 has json_codec => (
   is => 'ro',
-  default => sub { JSON->new->utf8->pretty->allow_blessed->convert_blessed->canonical },
+  default => sub {
+    JSON->new->utf8->pretty->allow_blessed->convert_blessed->canonical
+  },
   handles => {
     encode_json => 'encode',
     decode_json => 'decode',
   },
 );
 
+requires 'connect_info';
+
 has processor => (
   is => 'ro',
   required => 1,
-  handles  => [ qw(process_request) ],
 );
 
 sub app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
+
+    my $ctx = $self->processor->get_context({
+      accountId => 1,
+      connect_info => $self->connect_info,
+    });
+
     my $content = $req->raw_body;
     my $calls   = $self->decode_json( $content );
-    my $result  = $self->process_request( $calls );
+    my $result  = $ctx->process_request( $calls );
 
     return [
       200,
