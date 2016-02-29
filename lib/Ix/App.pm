@@ -27,8 +27,17 @@ has processor => (
   required => 1,
 );
 
+has _logger => (
+  is => 'ro',
+  default => sub {},
+);
+
 sub app ($self) {
   return sub ($env) {
+    state $request_number;
+    $request_number++;
+    my $request_time = Ix::DateTime->now->iso8601;
+
     my $req = Plack::Request->new($env);
 
     if ($req->method eq 'OPTIONS') {
@@ -50,8 +59,22 @@ sub app ($self) {
     });
 
     my $content = $req->raw_body;
+
+    $self->_logger(
+      "$request_time Request $request_number (Request)\n\n"
+      . (length($content) ? ($content =~ s/^/  /mgr) : "  (no content)")
+      . "\n"
+    );
+
     my $calls   = $self->decode_json( $content );
     my $result  = $ctx->process_request( $calls );
+    my $json    = $self->encode_json($result);
+
+    $self->_logger(
+      "$request_time Request $request_number (Response)\n\n"
+      . ($json =~ s/^/  /mgr)
+      . "\n"
+    );
 
     return [
       200,
@@ -59,7 +82,7 @@ sub app ($self) {
         'Content-Type', 'application/json',
         'Access-Control-Allow-Origin' => '*',
       ],
-      [ $self->encode_json($result) ],
+      [ $json ],
     ];
   }
 }
