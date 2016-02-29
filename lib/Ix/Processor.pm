@@ -27,6 +27,8 @@ requires 'handler_for';
 sub process_request ($self, $ctx, $calls) {
   my @results;
 
+  $ctx->schema->txn_begin;
+
   # I believe this will end up used as a sideband to communicate things like
   # objects created for temporary ids.  -- rjbs, 2016-02-11
   local $ctx->{ix_ephemera} = {};
@@ -76,6 +78,8 @@ sub process_request ($self, $ctx, $calls) {
       }
     }
   }
+
+  $ctx->schema->txn_begin;
 
   return \@results;
 }
