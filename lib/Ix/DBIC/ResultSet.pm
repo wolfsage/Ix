@@ -102,8 +102,8 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   if ($state_row->highestModSeq == $since) {
     return result($res_type => {
-      oldState => $since,
-      newState => $since,
+      oldState => "$since",
+      newState => "$since",
       hasMoreUpdates => JSON::false(), # Gross. -- rjbs, 2016-02-21
       changed => [],
       removed => [],
@@ -205,10 +205,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   }
 
   my @return = result($res_type => {
-    oldState => $since,
-    newState => $highestModSeq,
+    oldState => "$since",
+    newState => "$highestModSeq",
     hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
-    changed => [ map {; $_->{id} } @changed ],
+    changed => [ map {; "$_->{id}" } @changed ],
     removed => \@removed,
   });
 
@@ -223,7 +223,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       $self->_ix_wash_rows(\@rows);
 
       push @return, result($type_key => {
-        state => $state_row->highestModSeq,
+        state => "" . $state_row->highestModSeq,
         list  => \@rows,
         notFound => undef, # TODO
       });
