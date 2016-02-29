@@ -372,7 +372,10 @@ sub _ix_wash_rows ($self, $rows) {
     for my $key (@boo_fields) {
       $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
     }
+
+    $row->{id} = "$row->{id}" if defined $row->{id};
   }
+
 }
 
 sub ix_update ($self, $ctx, $to_update) {
