@@ -70,6 +70,8 @@ sub ix_get ($self, $ctx, $arg = {}) {
     },
   )->all;
 
+  $self->_ix_wash_rows(\@rows);
+
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
     state => $state_row->highestModSeq,
@@ -217,9 +219,12 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
         unknownProperties => \@invalid_props,
       });
     } else {
+      my @rows = map {; +{ $_->%{ @props } } } @changed;
+      $self->_ix_wash_rows(\@rows);
+
       push @return, result($type_key => {
         state => $state_row->highestModSeq,
-        list  => [ map {; +{ $_->%{ @props } } } @changed ],
+        list  => \@rows,
         notFound => undef, # TODO
       });
     }
@@ -340,7 +345,34 @@ sub ix_create ($self, $ctx, $to_create) {
     }
   }
 
+  $self->_ix_wash_rows([ values $result{created}->%* ]);
+
   return \%result;
+}
+
+sub _ix_wash_rows ($self, $rows) {
+  my $info = $self->result_source->columns_info;
+
+  my @num_fields = grep {; ($info->{$_}{data_type} // '') eq 'integer' } keys %$info;
+  my @str_fields = grep {; ($info->{$_}{data_type} // '') eq 'text' }    keys %$info;
+  my @boo_fields = grep {; ($info->{$_}{data_type} // '') eq 'boolean' } keys %$info;
+
+  my $true  = JSON::true();
+  my $false = JSON::false();
+
+  for my $row (@$rows) {
+    for my $key (@num_fields) {
+      $row->{$key} = 0 + $row->{$key} if defined $row->{$key};
+    }
+
+    for my $key (@str_fields) {
+      $row->{$key} = "$row->{$key}" if defined $row->{$key};
+    }
+
+    for my $key (@boo_fields) {
+      $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
+    }
+  }
 }
 
 sub ix_update ($self, $ctx, $to_update) {
