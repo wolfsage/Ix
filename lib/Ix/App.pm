@@ -31,6 +31,19 @@ sub app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
 
+    if ($req->method eq 'OPTIONS') {
+      return [
+        200,
+        [
+          'Access-Control-Allow-Origin' => '*',
+          'Access-Control-Allow-Methods' => 'POST,GET,OPTIONS',
+          'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
+          'Access-Control-Allow-Max-Age' => 60
+        ],
+        [ '' ],
+      ];
+    }
+
     my $ctx = $self->processor->get_context({
       accountId => 1,
       connect_info => $self->connect_info,
@@ -42,7 +55,10 @@ sub app ($self) {
 
     return [
       200,
-      [ 'Content-Type', 'application/json' ],
+      [
+        'Content-Type', 'application/json',
+        'Access-Control-Allow-Origin' => '*',
+      ],
       [ $self->encode_json($result) ],
     ];
   }
