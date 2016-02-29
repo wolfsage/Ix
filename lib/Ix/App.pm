@@ -29,7 +29,7 @@ has processor => (
 
 has _logger => (
   is => 'ro',
-  default => sub {},
+  default => sub { sub {} },
 );
 
 sub app ($self) {
@@ -60,7 +60,7 @@ sub app ($self) {
 
     my $content = $req->raw_body;
 
-    $self->_logger(
+    $self->_logger->(
       "$request_time Request $request_number (Request)\n\n"
       . (length($content) ? ($content =~ s/^/  /mgr) : "  (no content)")
       . "\n"
@@ -70,7 +70,7 @@ sub app ($self) {
     my $result  = $ctx->process_request( $calls );
     my $json    = $self->encode_json($result);
 
-    $self->_logger(
+    $self->_logger->(
       "$request_time Request $request_number (Response)\n\n"
       . ($json =~ s/^/  /mgr)
       . "\n"
