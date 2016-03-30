@@ -351,7 +351,8 @@ sub ix_create ($self, $ctx, $to_create) {
 }
 
 sub _ix_wash_rows ($self, $rows) {
-  my $info = $self->result_source->columns_info;
+  my $rclass = $self->_ix_rclass;
+  my $info   = $self->result_source->columns_info;
 
   my @num_fields = grep {; ($info->{$_}{data_type} // '') eq 'integer' } keys %$info;
   my @str_fields = grep {; ($info->{$_}{data_type} // '') eq 'text' }    keys %$info;
@@ -376,6 +377,9 @@ sub _ix_wash_rows ($self, $rows) {
     $row->{id} = "$row->{id}" if defined $row->{id};
   }
 
+  $rclass->_ix_wash_rows($rows) if $rclass->can('_ix_wash_rows');
+
+  return;
 }
 
 sub ix_update ($self, $ctx, $to_update) {
