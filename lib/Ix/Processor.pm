@@ -79,7 +79,7 @@ sub process_request ($self, $ctx, $calls) {
     }
   }
 
-  $ctx->schema->txn_begin;
+  $ctx->schema->txn_commit;
 
   return \@results;
 }
