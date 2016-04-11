@@ -81,16 +81,13 @@ my $jmap_tester = JMAP::Tester->new({
   );
 }
 
-done_testing;
-__END__
-
 {
-  my $res = $ctx->process_request([
-    [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookies => { sinceState => 2, properties => [ qw(type) ] } ],
   ]);
 
   is_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookies => {
@@ -101,29 +98,28 @@ __END__
             { id => 5, type => 'tim tam', }, # baked_at => 1455310000 },
           ],
         },
-        'a',
       ],
     ],
     "a getFoos call backed by the database",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ setCookies => { ifInState => 3, destroy => [ 4 ] }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ setCookies => { ifInState => 3, destroy => [ 4 ] } ],
   ]);
 
   is_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
-      [ error => { type => 'stateMismatch' }, 'a' ],
+      [ error => { type => 'stateMismatch' } ],
     ],
     "setCookies respects ifInState",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCookies => {
         ifInState => 8,
@@ -138,12 +134,11 @@ __END__
         },
         destroy => [ 4, 3 ],
       },
-      'a'
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookiesSet => superhashof({
@@ -166,48 +161,30 @@ __END__
             3 => superhashof({ type => ignore() }),
           },
         }),
-        'a'
       ],
     ],
     "we can create cookies with setCookies",
-  ) or diag explain($res);
-
-  my @rows = $ctx->schema->resultset('Cookies')->search(
-    { accountId => 1 },
-    {
-      order_by => 'id',
-      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-    },
   );
 
-  cmp_deeply(
-    \@rows,
-    [
-      superhashof({ dateDeleted => undef, id => 1, type => 'half-eaten tim-tam' }),
-      superhashof({ dateDeleted => undef, id => 2, type => 'oreo' }),
-      superhashof({ dateDeleted => re(qr/T/), id => 4, type => 'samoa' }),
-      superhashof({ dateDeleted => undef, id => 5, type => 'tim tam' }),
-      superhashof({ dateDeleted => undef, id => 6, type => any(qw(shortbread anzac)) }),
-      superhashof({ dateDeleted => undef, id => 7, type => any(qw(shortbread anzac)) }),
-    ],
-    "the db matches our expectations",
-  ) or diag explain(\@rows);
+  my $set = $res->single_sentence->as_set;
 
-  my $state = $ctx->schema->resultset('States')->search({
-    accountId => 1,
-    type => 'cookies',
-  })->first;
+  is($set->old_state, 8, "old state is 8");
+  is($set->new_state, 9, "new state is 9");
 
-  is($state->highestModSeq, 9, "state ended got updated just once");
+  is_deeply(
+    [ sort $set->created_creation_ids ],
+    [ qw(gold yellow) ],
+    "created the things we expected",
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ getCookieUpdates => { sinceState => 8 }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookieUpdates => { sinceState => 8 } ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookieUpdates => {
@@ -217,24 +194,23 @@ __END__
           changed  => bag(1, 6, 7),
           removed  => bag(4),
         },
-        'a',
       ],
     ],
     "updates can be got",
-  ) or diag explain($res);
+  ) or diag explain( $res->as_struct );
 }
 
 {
-  my $get_res = $ctx->process_request([
-    [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
+  my $get_res = $jmap_tester->request([
+    [ getCookies => { ids => [ 1, 6, 7 ] } ],
   ]);
 
-  my $res = $ctx->process_request([
-    [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 } ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookieUpdates => {
@@ -244,16 +220,15 @@ __END__
           changed  => bag(1, 6, 7),
           removed  => bag(4),
         },
-        'a',
       ],
-      $get_res->[0],
+      $jmap_tester->strip_json_types( $get_res->single_sentence->as_struct ),
     ],
     "updates can be got (with implicit fetch)",
-  ) or diag explain($res);
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_struct ) );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCakes => {
         ifInState => 1,
@@ -261,12 +236,11 @@ __END__
           yum => { type => 'wedding', layer_count => 4 }
         }
       },
-      'cake!',
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cakesSet => superhashof({
@@ -274,15 +248,14 @@ __END__
             yum => superhashof({ baked_at => ignore() }),
           }
         }),
-        'cake!',
       ],
     ],
     "we can bake cakes",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCookies => {
         ifInState => 9,
@@ -290,12 +263,11 @@ __END__
         create    => { blue => {} },
         update    => { 2 => { delicious => 0 } },
       },
-      'poirot'
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookiesSet => superhashof({
@@ -306,18 +278,10 @@ __END__
           notUpdated   => { 2    => ignore() },
           notDestroyed => { 3    => ignore() },
         }),
-        'poirot'
       ],
     ],
     "no state change when no destruction",
-  ) or diag explain($res);
-
-  my $state = $ctx->schema->resultset('States')->search({
-    accountId => 1,
-    type => 'cookies',
-  })->first;
-
-  is($state->highestModSeq, 9, "no updates, no state change");
+  );
 }
 
 done_testing;
