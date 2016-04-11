@@ -34,13 +34,13 @@ my $jmap_tester = JMAP::Tester->new({
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->call_response(0)->as_struct ),
+    $jmap_tester->strip_json_types( $res->sentence(0)->as_struct ),
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
     "first call response: as expected",
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->crs(1)->single->as_struct ),
+    $jmap_tester->strip_json_types( $res->paragraph(1)->single->as_struct ),
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     "second call response group: one item, as expected",
   );
@@ -53,7 +53,7 @@ my $jmap_tester = JMAP::Tester->new({
     [ pieTypes => { tasty => 0 } ],
   ]);
 
-  my ($pie1, $bake, $pie2) = $res->n_call_response_sets(3);
+  my ($pie1, $bake, $pie2) = $res->assert_n_paragraphs(3);
 
   is_deeply(
     $jmap_tester->strip_json_types( $pie1->as_struct ),
