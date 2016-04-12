@@ -3,11 +3,14 @@ use warnings;
 use experimental qw(lexical_subs signatures postderef);
 
 package Bakesale::Test {
+  use File::Temp qw(tempdir);
+
   sub test_schema_connect_info {
-    unlink 'test.sqlite';
+    my $dir = tempdir(CLEANUP => 1);
+
     require Bakesale::Schema;
     my @connect_info = (
-      'dbi:SQLite:dbname=test.sqlite',
+      "dbi:SQLite:dbname=$dir/bakesale.sqlite",
       undef,
       undef,
       { quote_names => 1 },
