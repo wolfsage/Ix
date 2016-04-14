@@ -55,7 +55,7 @@ my $jmap_tester = JMAP::Tester->new({
 
   my ($pie1, $bake, $pie2) = $res->assert_n_paragraphs(3);
 
-  is_deeply(
+  cmp_deeply(
     $jmap_tester->strip_json_types( $pie1->as_struct ),
     [
       [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
@@ -72,7 +72,7 @@ my $jmap_tester = JMAP::Tester->new({
     "bakePies call reply: as expected",
   );
 
-  is_deeply(
+  cmp_deeply(
     $jmap_tester->strip_json_types( $pie2->as_struct ),
     [
       [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
@@ -86,7 +86,7 @@ my $jmap_tester = JMAP::Tester->new({
     [ getCookies => { sinceState => 2, properties => [ qw(type) ] } ],
   ]);
 
-  is_deeply(
+  cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
@@ -109,7 +109,7 @@ my $jmap_tester = JMAP::Tester->new({
     [ setCookies => { ifInState => 3, destroy => [ 4 ] } ],
   ]);
 
-  is_deeply(
+  cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [ error => { type => 'stateMismatch' } ],
@@ -171,7 +171,7 @@ my $jmap_tester = JMAP::Tester->new({
   is($set->old_state, 8, "old state is 8");
   is($set->new_state, 9, "new state is 9");
 
-  is_deeply(
+  cmp_deeply(
     [ sort $set->created_creation_ids ],
     [ qw(gold yellow) ],
     "created the things we expected",
