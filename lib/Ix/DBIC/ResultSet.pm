@@ -74,7 +74,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
-    state => $state_row->highestModSeq,
+    state => "" . $state_row->highestModSeq,
     list  => \@rows,
     notFound => undef, # TODO
   });
@@ -198,7 +198,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my @removed;
   for my $item (@rows) {
     if ($item->{dateDeleted}) {
-      push @removed, $item->{id};
+      push @removed, "$item->{id}";
     } else {
       push @changed, $item;
     }
