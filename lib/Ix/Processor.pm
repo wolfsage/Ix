@@ -79,6 +79,8 @@ sub process_request ($self, $ctx, $calls) {
     }
   }
 
+  $ctx->state->_save_states;
+
   $ctx->schema->txn_commit;
 
   return \@results;

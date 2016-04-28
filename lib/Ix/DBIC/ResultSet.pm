@@ -34,7 +34,6 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my $accountId = $ctx->{accountId};
 
   my $rclass    = $self->_ix_rclass;
-  my $state_row = $self->_curr_state_row($ctx, $rclass);
 
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
@@ -74,7 +73,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
-    state => "" . $state_row->highestModSeq,
+    state => "" . $ctx->state->state_for($rclass->ix_type_key),
     list  => \@rows,
     notFound => undef, # TODO
   });
@@ -98,7 +97,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
 
-  my $state_row  = $self->_curr_state_row($ctx, $rclass);
+  my $state_row = $self->_curr_state_row($ctx, $rclass);
 
   if ($state_row->highestModSeq == $since) {
     return result($res_type => {
@@ -260,14 +259,13 @@ sub ix_purge ($self, $ctx) {
 }
 
 sub ix_create ($self, $ctx, $to_create) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
   my $type_key = $rclass->ix_type_key;
 
-  # XXX: this is garbage, fix it -- rjbs, 2016-02-18
-  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
+  my $next_state = $ctx->state->next_state_for($type_key);
 
   # TODO handle unknown properties
   my $error = error('invalidRecord', { description => "could not create" });
@@ -389,9 +387,8 @@ sub ix_update ($self, $ctx, $to_update) {
 
   my %result;
 
-  # XXX: this is garbage, fix it -- rjbs, 2016-02-18
   my $type_key   = $rclass->ix_type_key;
-  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
+  my $next_state = $ctx->state->next_state_for($type_key);
 
   my @updated;
   my $error = error('invalidRecord', { description => "could not update" });
@@ -434,10 +431,9 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   my $accountId = $ctx->{accountId};
 
   my $rclass = $self->_ix_rclass;
-  #
-  # XXX: this is garbage, fix it -- rjbs, 2016-02-18
+
   my $type_key   = $rclass->ix_type_key;
-  my $next_state = $ctx->{ix_ephemera}{next_state}{$type_key};
+  my $next_state = $ctx->state->next_state_for($type_key);
 
   my %result;
 
@@ -504,17 +500,13 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
-  my $state_row  = $self->_curr_state_row($ctx, $rclass);
-  my $curr_state = $state_row->highestModSeq;
-  my $next_state = $curr_state + 1;
-
-  # XXX THIS IS GARBAGE, fixed by putting state on context or something...
-  # -- rjbs, 2016-02-18
-  $ctx->{ix_ephemera}{next_state}{$type_key} = $next_state;
+  my $state = $ctx->state;
+  my $curr_state = $state->state_for($type_key);
 
   # TODO validate everything
 
   if (($arg->{ifInState} // $curr_state) ne $curr_state) {
+    warn "--> $arg->{ifInState} vs. $curr_state";
     return error('stateMismatch');
   }
 
@@ -528,7 +520,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
     $result{created}     = $create_result->{created};
     $result{not_created} = $create_result->{not_created};
 
-    $state_row->highestModSeq($next_state) if keys $result{created}->%*;
+    $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
   }
 
   if ($arg->{update}) {
@@ -536,7 +528,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
     $result{updated} = $update_result->{updated};
     $result{not_updated} = $update_result->{not_updated};
-    $state_row->highestModSeq($next_state) if $result{updated} && $result{updated}->@*;
+    $state->ensure_state_bumped($type_key) if $result{updated} && $result{updated}->@*;
   }
 
   if ($arg->{destroy}) {
@@ -544,15 +536,13 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
     $result{destroyed} = $destroy_result->{destroyed};
     $result{not_destroyed} = $destroy_result->{not_destroyed};
-    $state_row->highestModSeq($next_state) if $result{destroyed} && $result{destroyed}->@*;
+    $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
   }
-
-  $state_row->update;
 
   return Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,
-    new_state => $state_row->highestModSeq,
+    new_state => $state->state_for($type_key),
     %result,
   });
 }

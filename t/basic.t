@@ -224,7 +224,7 @@ my $ctx = $Bakesale->get_context({
   my $res = $ctx->process_request([
     [
       setCakes => {
-        ifInState => 1,
+        ifInState => 0,
         create    => {
           yum => { type => 'wedding', layer_count => 4 }
         }
