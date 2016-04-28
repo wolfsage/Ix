@@ -73,10 +73,15 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
-    state => "" . $ctx->state->state_for($rclass->ix_type_key),
+    state => $self->ix_state_string($ctx->state),
     list  => \@rows,
     notFound => undef, # TODO
   });
+}
+
+sub ix_state_string ($self, $state, $override = undef) {
+  return "$override" if defined $override;
+  return $state->state_for( $self->_ix_rclass->ix_type_key ) . "";
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
@@ -110,13 +115,13 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   }
 
   if ($state_row->highestModSeq < $since) {
-    return error(invalidArguments => { description => "invalid sinceState" });
+    error(invalidArguments => { description => "invalid sinceState" })->throw;
   }
 
   if ($state_row->lowestModSeq >= $since) {
-    return error(cannotCalculateChanges => {
+    error(cannotCalculateChanges => {
       description => "client cache must be reconstucted"
-    })
+    })->throw
   }
 
   my %is_prop = map  {; $_ => 1 }
@@ -205,7 +210,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my @return = result($res_type => {
     oldState => "$since",
-    newState => "$highestModSeq",
+    newState => $self->ix_state_string($ctx->state, $highestModSeq),
     hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
     changed => [ map {; "$_->{id}" } @changed ],
     removed => \@removed,
@@ -222,7 +227,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       $self->_ix_wash_rows(\@rows);
 
       push @return, result($type_key => {
-        state => "" . $state_row->highestModSeq,
+        state => $self->ix_state_string($ctx->state),
         list  => \@rows,
         notFound => undef, # TODO
       });
@@ -506,7 +511,6 @@ sub ix_set ($self, $ctx, $arg = {}) {
   # TODO validate everything
 
   if (($arg->{ifInState} // $curr_state) ne $curr_state) {
-    warn "--> $arg->{ifInState} vs. $curr_state";
     return error('stateMismatch');
   }
 
@@ -542,7 +546,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
   return Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,
-    new_state => $state->state_for($type_key),
+    new_state => $self->ix_state_string($state),
     %result,
   });
 }

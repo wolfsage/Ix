@@ -200,6 +200,32 @@ my $jmap_tester = JMAP::Tester->new({
   ) or diag explain( $res->as_struct );
 }
 
+subtest "invalid sinceState" => sub {
+  subtest "too high" => sub {
+    my $res = $jmap_tester->request([
+      [ getCookieUpdates => { sinceState => 999 } ],
+    ]);
+
+    cmp_deeply(
+      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      [ error => superhashof({ type => 'invalidArguments' }) ],
+      "updates can't be got for invalid sinceState",
+    ) or diag explain($res);
+  };
+
+  subtest "too low" => sub {
+    my $res = $jmap_tester->request([
+      [ getCookieUpdates => { sinceState => 1 } ],
+    ]);
+
+    cmp_deeply(
+      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      [ error => superhashof({ type => 'cannotCalculateChanges' }), ],
+      "updates can't be got for invalid sinceState",
+    ) or diag explain($res);
+  };
+};
+
 {
   my $get_res = $jmap_tester->request([
     [ getCookies => { ids => [ 1, 6, 7 ] } ],
@@ -231,7 +257,7 @@ my $jmap_tester = JMAP::Tester->new({
   my $res = $jmap_tester->request([
     [
       setCakes => {
-        ifInState => 1,
+        ifInState => 0,
         create    => {
           yum => { type => 'wedding', layer_count => 4 }
         }

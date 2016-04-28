@@ -192,6 +192,42 @@ my $ctx = $Bakesale->get_context({
   ) or diag explain($res);
 }
 
+subtest "invalid sinceState" => sub {
+  subtest "too high" => sub {
+    my $res = $ctx->process_request([
+      [ getCookieUpdates => { sinceState => 999 }, 'a' ],
+    ]);
+
+    cmp_deeply(
+      $res,
+      [
+        [
+          error => superhashof({ type => 'invalidArguments' }),
+          'a',
+        ],
+      ],
+      "updates can't be got for invalid sinceState",
+    ) or diag explain($res);
+  };
+
+  subtest "too low" => sub {
+    my $res = $ctx->process_request([
+      [ getCookieUpdates => { sinceState => 1 }, 'a' ],
+    ]);
+
+    cmp_deeply(
+      $res,
+      [
+        [
+          error => superhashof({ type => 'cannotCalculateChanges' }),
+          'a',
+        ],
+      ],
+      "updates can't be got for invalid sinceState",
+    ) or diag explain($res);
+  };
+};
+
 {
   my $get_res = $ctx->process_request([
     [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
