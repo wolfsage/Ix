@@ -46,6 +46,18 @@ sub state_for ($self, $type) {
   return $row->highestModSeq;
 }
 
+sub lowest_modseq_for ($self, $type) {
+  my $row = $self->_state_rows->{$type};
+  return $row->lowestModSeq if $row;
+  return 0;
+}
+
+sub highest_modseq_for ($self, $type) {
+  my $row = $self->_state_rows->{$type};
+  return $row->highestModSeq if $row;
+  return 0;
+}
+
 sub ensure_state_bumped ($self, $type) {
   return if defined $self->_pending_state_for($type);
   $self->_pending_states->{$type} = $self->next_state_for($type);

@@ -85,7 +85,7 @@ sub ix_state_string ($self, $state, $override = undef) {
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $since = $arg->{sinceState};
 
@@ -102,9 +102,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
 
-  my $state_row = $self->_curr_state_row($ctx, $rclass);
+  my $high_ms = $ctx->state->highest_modseq_for($type_key);
+  my $low_ms  = $ctx->state->lowest_modseq_for($type_key);
 
-  if ($state_row->highestModSeq == $since) {
+  if ($high_ms == $since) {
     return result($res_type => {
       oldState => "$since",
       newState => "$since",
@@ -114,11 +115,11 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     });
   }
 
-  if ($state_row->highestModSeq < $since) {
+  if ($high_ms < $since) {
     error(invalidArguments => { description => "invalid sinceState" })->throw;
   }
 
-  if ($state_row->lowestModSeq >= $since) {
+  if ($low_ms >= $since) {
     error(cannotCalculateChanges => {
       description => "client cache must be reconstucted"
     })->throw
@@ -145,18 +146,19 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my @rows = $self->search(
     {
-      accountId     => $accountId,
-      modSeqChanged => { '>' => $since },
+      'me.accountId'     => $accountId,
+      'me.modSeqChanged' => { '>' => $since },
     },
     {
       select => [ @props, 'dateDeleted' ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       ($limit ? (rows => $limit + 1) : ()),
-      order_by => 'modSeqChanged',
+      order_by => 'me.modSeqChanged',
+      join => $rclass->ix_update_joins,
     },
   )->all;
 
-  my $highestModSeq  = $state_row->highestModSeq;
+  my $highestModSeq  = $ctx->state->highest_modseq_for($type_key);
   my $hasMoreUpdates = 0;
 
   if ($limit && @rows > $limit) {
@@ -255,7 +257,8 @@ sub ix_purge ($self, $ctx) {
 
   $rs->delete;
 
-  my $state_row = $self->_curr_state_row($ctx, $rclass);
+  # XXX: violating encapsulation
+  my $state_row = $ctx->state->_state_rows->{$type_key};
 
   $state_row->lowestModSeq( $maxDeletedModSeq )
     if $maxDeletedModSeq > $state_row->lowestModSeq;
@@ -475,27 +478,6 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   $result{destroyed} = \@destroyed;
 
   return \%result;
-}
-
-sub _curr_state_row ($self, $ctx, $rclass) {
-  # This whole mechanism should be provided by context -- rjbs, 2016-02-16
-  # Really, should it? 😕  -- rjbs, 2016-02-18
-  # Anyway, we need to create a row if none exists.
-  my $accountId = $ctx->{accountId};
-
-  my $states_rs = $self->result_source->schema->resultset('States');
-
-  my $state_row = $states_rs->search({
-    accountId => $accountId,
-    type      => $rclass->ix_type_key,
-  })->first;
-
-  $state_row //= $states_rs->create({
-    accountId => $accountId,
-    type      => $rclass->ix_type_key,
-    highestModSeq => 1,
-    lowestModSeq  => 1,
-  });
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {

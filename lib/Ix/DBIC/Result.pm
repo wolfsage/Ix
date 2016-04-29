@@ -26,4 +26,8 @@ sub ix_add_columns ($class) {
   );
 }
 
+sub ix_update_joins {
+  return [];
+}
+
 1;
