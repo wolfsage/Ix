@@ -6,6 +6,8 @@ use parent 'DBIx::Class';
 
 use experimental qw(signatures postderef);
 
+use Ix::StateComparison;
+
 sub ix_type_key { Carp::confess("ix_type_key not implemented") }
 sub ix_type_key_singular ($self) {
   $self->ix_type_key =~ s/s\z//r;
@@ -28,6 +30,17 @@ sub ix_add_columns ($class) {
 
 sub ix_update_joins {
   return [];
+}
+
+sub ix_compare_state ($self, $since, $state) {
+  my $high_ms = $state->highest_modseq_for($self->ix_type_key);
+  my $low_ms  = $state->lowest_modseq_for($self->ix_type_key);
+
+  if ($high_ms  < $since) { return Ix::StateComparison->bogus;   }
+  if ($low_ms  >= $since) { return Ix::StateComparison->resync;  }
+  if ($high_ms == $since) { return Ix::StateComparison->in_sync; }
+
+  return Ix::StateComparison->okay;
 }
 
 1;

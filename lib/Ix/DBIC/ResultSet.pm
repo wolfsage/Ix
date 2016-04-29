@@ -102,10 +102,11 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
 
-  my $high_ms = $ctx->state->highest_modseq_for($type_key);
-  my $low_ms  = $ctx->state->lowest_modseq_for($type_key);
+  my $statecmp = $rclass->ix_compare_state($since, $ctx->state);
 
-  if ($high_ms == $since) {
+  die "wtf happened" unless $statecmp->$_isa('Ix::StateComparison');
+
+  if ($statecmp->is_in_sync) {
     return result($res_type => {
       oldState => "$since",
       newState => "$since",
@@ -115,11 +116,11 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     });
   }
 
-  if ($high_ms < $since) {
+  if ($statecmp->is_bogus) {
     error(invalidArguments => { description => "invalid sinceState" })->throw;
   }
 
-  if ($low_ms >= $since) {
+  if ($statecmp->is_resync) {
     error(cannotCalculateChanges => {
       description => "client cache must be reconstucted"
     })->throw
