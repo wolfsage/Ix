@@ -35,6 +35,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my $rclass    = $self->_ix_rclass;
 
+  # XXX This is crap. -- rjbs, 2016-04-29
+  $arg = $rclass->ix_preprocess_get_arg($arg)
+    if $rclass->can('ix_preprocess_get_arg');
+
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
 
