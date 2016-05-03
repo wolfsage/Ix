@@ -84,7 +84,7 @@ sub _save_states ($self) {
         accountId => $self->accountId,
         type      => $type,
         highestModSeq => $pend->{$type},
-        lowestModSeq  => $pend->{$type},
+        lowestModSeq  => 0,
       });
 
       $rows->{$type} = $row;
