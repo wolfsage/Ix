@@ -5,28 +5,13 @@ use experimental qw(signatures postderef);
 use lib 't/lib';
 
 use Bakesale;
+use Bakesale::App;
 use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 
-my $conn_info = Bakesale::Test->test_schema_connect_info;
-Bakesale::Test->load_trivial_dataset($conn_info);
-
-require Bakesale::App;
-my $app = Bakesale::App->new({ connect_info => $conn_info })->app;
-
-use Plack::Test;
-
-my $plack_test = Plack::Test->create($app);
-
-use JMAP::Tester;
-
-my $jmap_tester = JMAP::Tester->new({
-  jmap_uri => 'https://localhost/jmap',
-  _request_callback => sub {
-    shift; $plack_test->request(@_);
-  },
-});
+my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
+Bakesale::Test->load_trivial_dataset($app->connect_info);
 
 {
   my $res = $jmap_tester->request([

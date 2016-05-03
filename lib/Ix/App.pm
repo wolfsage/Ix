@@ -32,7 +32,7 @@ has _logger => (
   default => sub { sub {} },
 );
 
-sub app ($self) {
+sub to_app ($self) {
   return sub ($env) {
     state $request_number;
     $request_number++;

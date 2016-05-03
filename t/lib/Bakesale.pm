@@ -5,6 +5,26 @@ use experimental qw(lexical_subs signatures postderef);
 package Bakesale::Test {
   use File::Temp qw(tempdir);
 
+  sub new_test_app_and_tester {
+    require JMAP::Tester;
+    require Plack::Test;
+
+    my $conn_info = Bakesale::Test->test_schema_connect_info;
+
+    my $app = Bakesale::App->new({ connect_info => $conn_info });
+
+    my $plack_test = Plack::Test->create($app->to_app);
+
+    my $jmap_tester = JMAP::Tester->new({
+      jmap_uri => 'https://localhost/jmap',
+      _request_callback => sub {
+        shift; $plack_test->request(@_);
+      },
+    });
+
+    return ($app, $jmap_tester);
+  }
+
   sub test_schema_connect_info {
     my $dir = tempdir(CLEANUP => 1);
 
