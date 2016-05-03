@@ -149,29 +149,40 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     @props = 'id';
   }
 
-  my @rows = $self->search(
+  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search;
+  my $state_string_field = $rclass->ix_update_state_string_field;
+
+  my $search = $self->search(
     {
       'me.accountId'     => $accountId,
       'me.modSeqChanged' => { '>' => $since },
+      %$extra_search,
     },
     {
-      select => [ @props, 'dateDeleted' ],
+      select => [ $rclass->ix_update_extra_select->@*, @props, 'dateDeleted' ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       ($limit ? (rows => $limit + 1) : ()),
       order_by => 'me.modSeqChanged',
-      join => $rclass->ix_update_joins,
+      %$extra_attr,
+    },
+  );
+
+  my @rows = $search->search(
+    {},
+    {
+      ($limit ? (rows => $limit + 1) : ()),
     },
   )->all;
 
-  my $highestModSeq  = $ctx->state->highest_modseq_for($type_key);
+  my $highestModSeq  = $rclass->ix_current_state($ctx->state);
   my $hasMoreUpdates = 0;
 
   if ($limit && @rows > $limit) {
-    if ($rows[-2]{modSeqChanged} == $rows[-1]{modSeqChanged}) {
+    if ($rows[-2]{$state_string_field} eq $rows[-1]{$state_string_field}) {
       # The (limit+1)th element starts a new state.  Drop it and we're good to
       # go. -- rjbs, 2016-02-22
       $#rows = $limit - 1;
-      $highestModSeq = $rows[-1]{modSeqChanged};
+      $highestModSeq = $rows[-1]{$state_string_field};
     } else {
       # So, the user asked for (say) 100 rows.  We got 101 and found that the
       # 101st was the same state as the 100th.  We'll drop the whole set of
@@ -179,29 +190,23 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       # -- rjbs, 2016-02-22
       $hasMoreUpdates = 1;
 
-      my $maxState = $rows[$limit]{modSeqChanged};
-      @rows = grep { $_->{modSeqChanged} != $maxState } @rows;
+      my $maxState = $rows[$limit]{$state_string_field};
+      my @trimmed_rows = grep { $_->{$state_string_field} != $maxState } @rows;
 
-      if (@rows == 0) {
+      if (@trimmed_rows == 0) {
         # ... well, it turns out that the entire batch was in one state.  We
         # can't possibly provide a consistent update within the bounds that the
         # user requested.  When this happens, we're permitted to provide more
         # records than requested, so let's just fetch one state worth of
         # records. -- rjbs, 2016-02-22
-        @rows = $self->search(
-          {
-            accountId     => $accountId,
-            modSeqChanged => $maxState,
-          },
-          {
-            select => [ @props, 'dateDeleted' ],
-            result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-            order_by => 'modSeqChanged',
-          },
+        @rows = $search->search(
+          $rclass->ix_update_single_state_conds($rows[0])
         )->all;
+      } else {
+        @rows = @trimmed_rows;
       }
 
-      $highestModSeq = $rows[-1]{modSeqChanged};
+      $highestModSeq = $rows[-1]{$state_string_field};
     }
   }
 

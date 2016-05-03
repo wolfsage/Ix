@@ -28,8 +28,22 @@ sub ix_add_columns ($class) {
   );
 }
 
-sub ix_update_joins {
+sub ix_update_state_string_field { 'me.modSeqChanged' }
+
+sub ix_current_state ($self, $state) {
+  return $state->highest_modseq_for($self->ix_type_key);
+}
+
+sub ix_update_extra_search {
+  return ({}, {});
+}
+
+sub ix_update_extra_select {
   return [];
+}
+
+sub ix_update_single_state_conds ($self, $example_row) {
+  return { 'me.modSeqChanged' => $example_row->{modSeqChanged} }
 }
 
 sub ix_compare_state ($self, $since, $state) {
