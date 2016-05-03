@@ -5,61 +5,75 @@ use experimental qw(signatures postderef);
 use lib 't/lib';
 
 use Bakesale;
+use Bakesale::App;
 use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 
-my $conn_info = Bakesale::Test->test_schema_connect_info;
-Bakesale::Test->load_trivial_dataset($conn_info);
-my $Bakesale = Bakesale->new;
-
-my $ctx = $Bakesale->get_context({
-  accountId => 1,
-  connect_info => $conn_info,
-});
+my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
+Bakesale::Test->load_trivial_dataset($app->connect_info);
 
 {
-  my $res = $ctx->process_request([
-    [ pieTypes => { tasty => 1 }, 'a' ],
-    [ pieTypes => { tasty => 0 }, 'b' ],
+  my $res = $jmap_tester->request([
+    [ pieTypes => { tasty => 1 } ],
+    [ pieTypes => { tasty => 0 } ],
   ]);
 
-  is_deeply(
-    $res,
-    [
-      [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] }, 'a' ],
-      [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] }, 'b' ],
-    ],
-    "the most basic possible call works",
-  ) or diag explain($res);
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->sentence(0)->as_struct ),
+    [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
+    "first call response: as expected",
+  );
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->paragraph(1)->single->as_struct ),
+    [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
+    "second call response group: one item, as expected",
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ pieTypes => { tasty => 1 }, 'a' ],
-    [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] }, 'b' ],
-    [ pieTypes => { tasty => 0 }, 'c' ],
+  my $res = $jmap_tester->request([
+    [ pieTypes => { tasty => 1 } ],
+    [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] } ],
+    [ pieTypes => { tasty => 0 } ],
   ]);
 
-  is_deeply(
-    $res,
+  my ($pie1, $bake, $pie2) = $res->assert_n_paragraphs(3);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $pie1->as_struct ),
     [
-      [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] }, 'a' ],
-      [ pie   => { flavor => 'apple', bakeOrder => 1 }, 'b' ],
-      [ error => { type => 'noRecipe', requestedPie => 'eel' }, 'b' ],
-      [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] }, 'c' ],
+      [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
     ],
-    "a call with an error and a multi-value result",
-  ) or diag explain($res);
+    "pieTypes call 1 reply: as expected",
+  );
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $bake->as_struct ),
+    [
+      [ pie   => { flavor => 'apple', bakeOrder => 1 } ],
+      [ error => { type => 'noRecipe', requestedPie => 'eel' } ],
+    ],
+    "bakePies call reply: as expected",
+  );
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $pie2->as_struct ),
+    [
+      [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
+    ],
+    "pieTypes call 2 reply: as expected",
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookies => { sinceState => 2, properties => [ qw(type) ] } ],
   ]);
 
-  is_deeply(
-    $res,
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookies => {
@@ -70,29 +84,28 @@ my $ctx = $Bakesale->get_context({
             { id => 5, type => 'tim tam', }, # baked_at => 1455310000 },
           ],
         },
-        'a',
       ],
     ],
     "a getFoos call backed by the database",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ setCookies => { ifInState => 3, destroy => [ 4 ] }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ setCookies => { ifInState => 3, destroy => [ 4 ] } ],
   ]);
 
-  is_deeply(
-    $res,
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
-      [ error => { type => 'stateMismatch' }, 'a' ],
+      [ error => { type => 'stateMismatch' } ],
     ],
     "setCookies respects ifInState",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCookies => {
         ifInState => 8,
@@ -107,12 +120,11 @@ my $ctx = $Bakesale->get_context({
         },
         destroy => [ 4, 3 ],
       },
-      'a'
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookiesSet => superhashof({
@@ -135,48 +147,30 @@ my $ctx = $Bakesale->get_context({
             3 => superhashof({ type => ignore() }),
           },
         }),
-        'a'
       ],
     ],
     "we can create cookies with setCookies",
-  ) or diag explain($res);
-
-  my @rows = $ctx->schema->resultset('Cookies')->search(
-    { accountId => 1 },
-    {
-      order_by => 'id',
-      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-    },
   );
 
+  my $set = $res->single_sentence->as_set;
+
+  is($set->old_state, 8, "old state is 8");
+  is($set->new_state, 9, "new state is 9");
+
   cmp_deeply(
-    \@rows,
-    [
-      superhashof({ dateDeleted => undef, id => 1, type => 'half-eaten tim-tam' }),
-      superhashof({ dateDeleted => undef, id => 2, type => 'oreo' }),
-      superhashof({ dateDeleted => re(qr/T/), id => 4, type => 'samoa' }),
-      superhashof({ dateDeleted => undef, id => 5, type => 'tim tam' }),
-      superhashof({ dateDeleted => undef, id => 6, type => any(qw(shortbread anzac)) }),
-      superhashof({ dateDeleted => undef, id => 7, type => any(qw(shortbread anzac)) }),
-    ],
-    "the db matches our expectations",
-  ) or diag explain(\@rows);
-
-  my $state = $ctx->schema->resultset('States')->search({
-    accountId => 1,
-    type => 'cookies',
-  })->first;
-
-  is($state->highestModSeq, 9, "state ended got updated just once");
+    [ sort $set->created_creation_ids ],
+    [ qw(gold yellow) ],
+    "created the things we expected",
+  );
 }
 
 {
-  my $res = $ctx->process_request([
-    [ getCookieUpdates => { sinceState => 8 }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookieUpdates => { sinceState => 8 } ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookieUpdates => {
@@ -186,60 +180,49 @@ my $ctx = $Bakesale->get_context({
           changed  => bag(1, 6, 7),
           removed  => bag(4),
         },
-        'a',
       ],
     ],
     "updates can be got",
-  ) or diag explain($res);
+  ) or diag explain( $res->as_struct );
 }
 
 subtest "invalid sinceState" => sub {
   subtest "too high" => sub {
-    my $res = $ctx->process_request([
-      [ getCookieUpdates => { sinceState => 999 }, 'a' ],
+    my $res = $jmap_tester->request([
+      [ getCookieUpdates => { sinceState => 999 } ],
     ]);
 
     cmp_deeply(
-      $res,
-      [
-        [
-          error => superhashof({ type => 'invalidArguments' }),
-          'a',
-        ],
-      ],
+      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      [ error => superhashof({ type => 'invalidArguments' }) ],
       "updates can't be got for invalid sinceState",
     ) or diag explain($res);
   };
 
   subtest "too low" => sub {
-    my $res = $ctx->process_request([
-      [ getCookieUpdates => { sinceState => 1 }, 'a' ],
+    my $res = $jmap_tester->request([
+      [ getCookieUpdates => { sinceState => 1 } ],
     ]);
 
     cmp_deeply(
-      $res,
-      [
-        [
-          error => superhashof({ type => 'cannotCalculateChanges' }),
-          'a',
-        ],
-      ],
+      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      [ error => superhashof({ type => 'cannotCalculateChanges' }), ],
       "updates can't be got for invalid sinceState",
     ) or diag explain($res);
   };
 };
 
 {
-  my $get_res = $ctx->process_request([
-    [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
+  my $get_res = $jmap_tester->request([
+    [ getCookies => { ids => [ 1, 6, 7 ] } ],
   ]);
 
-  my $res = $ctx->process_request([
-    [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 }, 'a' ],
+  my $res = $jmap_tester->request([
+    [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 } ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookieUpdates => {
@@ -249,16 +232,15 @@ subtest "invalid sinceState" => sub {
           changed  => bag(1, 6, 7),
           removed  => bag(4),
         },
-        'a',
       ],
-      $get_res->[0],
+      $jmap_tester->strip_json_types( $get_res->single_sentence->as_struct ),
     ],
     "updates can be got (with implicit fetch)",
-  ) or diag explain($res);
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_struct ) );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCakes => {
         ifInState => 0,
@@ -266,12 +248,11 @@ subtest "invalid sinceState" => sub {
           yum => { type => 'wedding', layer_count => 4 }
         }
       },
-      'cake!',
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cakesSet => superhashof({
@@ -279,15 +260,14 @@ subtest "invalid sinceState" => sub {
             yum => superhashof({ baked_at => ignore() }),
           }
         }),
-        'cake!',
       ],
     ],
     "we can bake cakes",
-  ) or diag explain($res);
+  );
 }
 
 {
-  my $res = $ctx->process_request([
+  my $res = $jmap_tester->request([
     [
       setCookies => {
         ifInState => 9,
@@ -295,12 +275,11 @@ subtest "invalid sinceState" => sub {
         create    => { blue => {} },
         update    => { 2 => { delicious => 0 } },
       },
-      'poirot'
     ],
   ]);
 
   cmp_deeply(
-    $res,
+    $jmap_tester->strip_json_types( $res->as_struct ),
     [
       [
         cookiesSet => superhashof({
@@ -311,18 +290,10 @@ subtest "invalid sinceState" => sub {
           notUpdated   => { 2    => ignore() },
           notDestroyed => { 3    => ignore() },
         }),
-        'poirot'
       ],
     ],
     "no state change when no destruction",
-  ) or diag explain($res);
-
-  my $state = $ctx->schema->resultset('States')->search({
-    accountId => 1,
-    type => 'cookies',
-  })->first;
-
-  is($state->highestModSeq, 9, "no updates, no state change");
+  );
 }
 
 done_testing;
