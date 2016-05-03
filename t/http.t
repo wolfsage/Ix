@@ -10,9 +10,10 @@ use Test::Deep;
 use Test::More;
 
 my $conn_info = Bakesale::Test->test_schema_connect_info;
+Bakesale::Test->load_trivial_dataset($conn_info);
 
 require Bakesale::App;
-my $app = Bakesale::App->new->app;
+my $app = Bakesale::App->new({ connect_info => $conn_info })->app;
 
 use Plack::Test;
 

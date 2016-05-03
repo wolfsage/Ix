@@ -19,6 +19,12 @@ package Bakesale::Test {
 
     $schema->deploy;
 
+    return \@connect_info;
+  }
+
+  sub load_trivial_dataset ($self, $connect_info) {
+    my $schema = Bakesale::Schema->connect(@$connect_info);
+
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
     $schema->resultset('Cookies')->populate([
@@ -39,7 +45,7 @@ package Bakesale::Test {
       { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
-    return \@connect_info;
+    return;
   }
 }
 
