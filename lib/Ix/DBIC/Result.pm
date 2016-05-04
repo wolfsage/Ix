@@ -28,7 +28,7 @@ sub ix_add_columns ($class) {
   );
 }
 
-sub ix_update_state_string_field { 'me.modSeqChanged' }
+sub ix_update_state_string_field { 'modSeqChanged' }
 
 sub ix_current_state ($self, $state) {
   return $state->highest_modseq_for($self->ix_type_key);
