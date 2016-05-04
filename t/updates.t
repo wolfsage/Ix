@@ -12,7 +12,7 @@ use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 
-{
+subtest "simple state comparisons" => sub {
   # First up, we are going to set up fudge distinct states, each with 10
   # updates. -- rjbs, 2016-05-03
   my $last_set_res;
@@ -139,6 +139,6 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
     is($arg->{changed}->@*, 10, "10 items changed");
     ok(! $arg->{removed}->@*,   "no items removed");
   };
-}
+};
 
 done_testing;

@@ -47,7 +47,7 @@ package Bakesale::Test {
 
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
-    $schema->resultset('Cookies')->populate([
+    $schema->resultset('Cookie')->populate([
       { accountId => 1, modseq(1), id => 1, type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z' },
       { accountId => 1, modseq(1), id => 2, type => 'oreo',
@@ -60,7 +60,7 @@ package Bakesale::Test {
         baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
-    $schema->resultset('States')->populate([
+    $schema->resultset('State')->populate([
       { accountId => 1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
       { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
     ]);

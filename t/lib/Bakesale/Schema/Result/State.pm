@@ -1,4 +1,4 @@
-package Bakesale::Schema::Result::States;
+package Bakesale::Schema::Result::State;
 use base qw/DBIx::Class::Core/;
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::StatesResult/);

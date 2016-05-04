@@ -1,4 +1,4 @@
-package Bakesale::Schema::Result::Cakes;
+package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example

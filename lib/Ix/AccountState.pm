@@ -20,7 +20,7 @@ has _state_rows => (
   lazy => 1,
   init_arg => undef,
   default  => sub ($self) {
-    my @rows = $self->schema->resultset('States')->search({
+    my @rows = $self->schema->resultset('State')->search({
       accountId => $self->accountId,
     });
 
@@ -80,7 +80,7 @@ sub _save_states ($self) {
     if (my $row = $rows->{$type}) {
       $row->update({ highestModSeq => $pend->{$type} });
     } else {
-      my $row = $self->schema->resultset('States')->create({
+      my $row = $self->schema->resultset('State')->create({
         accountId => $self->accountId,
         type      => $type,
         highestModSeq => $pend->{$type},

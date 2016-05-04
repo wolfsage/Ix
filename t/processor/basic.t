@@ -141,7 +141,7 @@ my $ctx = $Bakesale->get_context({
     "we can create cookies with setCookies",
   ) or diag explain($res);
 
-  my @rows = $ctx->schema->resultset('Cookies')->search(
+  my @rows = $ctx->schema->resultset('Cookie')->search(
     { accountId => 1 },
     {
       order_by => 'id',
@@ -162,7 +162,7 @@ my $ctx = $Bakesale->get_context({
     "the db matches our expectations",
   ) or diag explain(\@rows);
 
-  my $state = $ctx->schema->resultset('States')->search({
+  my $state = $ctx->schema->resultset('State')->search({
     accountId => 1,
     type => 'cookies',
   })->first;
@@ -317,7 +317,7 @@ subtest "invalid sinceState" => sub {
     "no state change when no destruction",
   ) or diag explain($res);
 
-  my $state = $ctx->schema->resultset('States')->search({
+  my $state = $ctx->schema->resultset('State')->search({
     accountId => 1,
     type => 'cookies',
   })->first;
