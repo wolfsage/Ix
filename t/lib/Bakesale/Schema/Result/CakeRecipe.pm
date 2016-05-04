@@ -14,12 +14,12 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key('id');
 
-sub ix_type_key { 'cakeRecipe' }
+sub ix_type_key { 'cakeRecipes' }
 
-sub ix_user_property_names { qw(avg_review) }
+sub ix_user_property_names { qw(avg_review type) }
 
 sub ix_default_properties {
-  return { baked_at => Ix::DateTime->now };
+  return { };
 }
 
 1;

@@ -30,16 +30,28 @@ sub ix_add_columns ($class) {
 
 sub ix_update_state_string_field { 'modSeqChanged' }
 
-sub ix_current_state ($self, $state) {
-  return $state->highest_modseq_for($self->ix_type_key);
+sub ix_state_string ($self, $state) {
+  return $state->state_for( $self->ix_type_key ) . "";
 }
 
-sub ix_update_extra_search {
-  return ({}, {});
+sub ix_update_extra_search ($self, $arg) {
+  my $since = $arg->{since};
+
+  return (
+    {
+      'me.modSeqChanged' => { '>' => $since },
+    },
+    {},
+  );
 }
 
 sub ix_update_extra_select {
   return [];
+}
+
+sub ix_highest_state ($self, $since, $rows) {
+  my $state_string_field = $self->ix_update_state_string_field;
+  return $rows->[-1]{$state_string_field};
 }
 
 sub ix_update_single_state_conds ($self, $example_row) {

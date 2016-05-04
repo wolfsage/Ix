@@ -51,6 +51,7 @@ sub process_request ($self, $ctx, $calls) {
       if ($_->$_DOES('Ix::Error')) {
         return $_;
       } else {
+        warn $_;
         die $_;
       }
     };

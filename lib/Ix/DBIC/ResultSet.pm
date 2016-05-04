@@ -77,15 +77,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # TODO: populate notFound result property
   return result($rclass->ix_type_key => {
-    state => $self->ix_state_string($ctx->state),
+    state => $rclass->ix_state_string($ctx->state),
     list  => \@rows,
     notFound => undef, # TODO
   });
-}
-
-sub ix_state_string ($self, $state, $override = undef) {
-  return "$override" if defined $override;
-  return $state->state_for( $self->_ix_rclass->ix_type_key ) . "";
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
@@ -149,13 +144,15 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     @props = 'id';
   }
 
-  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search;
+  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search({
+    since => $since,
+  });
+
   my $state_string_field = $rclass->ix_update_state_string_field;
 
   my $search = $self->search(
     {
       'me.accountId'     => $accountId,
-      'me.modSeqChanged' => { '>' => $since },
       %$extra_search,
     },
     {
@@ -177,7 +174,6 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     },
   )->all;
 
-  my $highestModSeq  = $rclass->ix_current_state($ctx->state);
   my $hasMoreUpdates = 0;
 
   if ($limit && @rows > $limit) {
@@ -203,8 +199,6 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     } else {
       @rows = @trimmed_rows;
     }
-
-    $highestModSeq = $rows[-1]{$state_string_field};
   }
 
   my @changed;
@@ -219,7 +213,9 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my @return = result($res_type => {
     oldState => "$since",
-    newState => $self->ix_state_string($ctx->state, $highestModSeq),
+    newState => ($hasMoreUpdates
+              ? $rclass->ix_highest_state($since, \@rows)
+              : $rclass->ix_state_string($ctx->state)),
     hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
     changed => [ map {; "$_->{id}" } @changed ],
     removed => \@removed,
@@ -236,7 +232,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       $self->_ix_wash_rows(\@rows);
 
       push @return, result($type_key => {
-        state => $self->ix_state_string($ctx->state),
+        state => $rclass->ix_state_string($ctx->state),
         list  => \@rows,
         notFound => undef, # TODO
       });
@@ -295,7 +291,9 @@ sub ix_create ($self, $ctx, $to_create) {
   my @date_fields = grep {; ($info->{$_}{data_type} // '') eq 'datetime' }
                     keys %$info;
 
-  TO_CREATE: for my $id (keys $to_create->%*) {
+  my @keys = keys $to_create->%*;
+
+  TO_CREATE: for my $id (@keys) {
     my %user_props = @user_props ? $to_create->{$id}->%{@user_props} : ();
     if (my @bogus = grep {; ref $user_props{$_} && ! $user_props{$_}->$_isa('Ix::DateTime') } keys %user_props) {
       $result{not_created}{$id} = error(invalidProperty => {
@@ -535,7 +533,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
   return Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,
-    new_state => $self->ix_state_string($state),
+    new_state => $rclass->ix_state_string($state),
     %result,
   });
 }

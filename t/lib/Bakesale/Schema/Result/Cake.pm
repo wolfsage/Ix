@@ -1,5 +1,10 @@
+use strict;
+use warnings;
+use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
+
+use List::Util qw(max);
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
 
@@ -22,6 +27,99 @@ sub ix_user_property_names { qw(type layer_count recipeId) }
 
 sub ix_default_properties {
   return { baked_at => Ix::DateTime->now };
+}
+
+sub ix_state_string ($self, $state) {
+  return join q{-},
+    $state->state_for($self->ix_type_key),
+    $state->state_for('cakeRecipes');
+}
+
+sub ix_compare_state ($self, $since, $state) {
+  my ($cake_since, $recipe_since) = split /-/, $since, 2;
+
+  return Ix::StateComparison->bogus
+    unless ($cake_since//'')    =~ /\A[0-9]+\z/
+        && ($recipe_since//'')  =~ /\A[0-9]+\z/;
+
+  my $cake_high   = $state->highest_modseq_for('cakes');
+  my $recipe_high = $state->highest_modseq_for('cakeRecipes');
+
+  my $cake_low    = $state->lowest_modseq_for('cakes');
+  my $recipe_low  = $state->lowest_modseq_for('cakeRecipes');
+
+  if ($cake_high < $cake_since || $recipe_high < $recipe_since) {
+    return Ix::StateComparison->bogus;
+  }
+
+  if ($cake_low >= $cake_since || $recipe_low >= $recipe_since) {
+    return Ix::StateComparison->resync;
+  }
+
+  if ($cake_high == $cake_since && $recipe_high == $recipe_since) {
+    return Ix::StateComparison->in_sync;
+  }
+
+  return Ix::StateComparison->okay;
+}
+
+sub ix_update_state_string_field { 'jointModSeq' }
+
+sub ix_highest_state ($self, $since, $rows) {
+  my ($cake_since,  $recipe_since)  = split /-/, $since, 2;
+
+  my @r_updates = grep { $_->{jointModSeq} =~ /A-/ } @$rows;
+  my @c_updates = grep { $_->{jointModSeq} =~ /B-/ } @$rows;
+
+  my ($r_max) = @r_updates ? ($r_updates[-1]{jointModSeq} =~ /-([0-9]+)\z/) : $recipe_since;
+  my ($c_max) = @c_updates ? ($c_updates[-1]{jointModSeq} =~ /-([0-9]+)\z/) : $cake_since;
+
+  return "$c_max-$r_max";
+}
+
+sub ix_update_extra_search ($self, $arg) {
+  my $since = $arg->{since};
+
+  my ($cake_since, $recipe_since) = split /-/, $since, 2;
+  die "bogus state?!"
+    unless ($cake_since//'')    =~ /\A[0-9]+\z/
+        && ($recipe_since//'')  =~ /\A[0-9]+\z/;
+
+  return(
+    {
+      -or => [
+        'me.modSeqChanged'     => { '>' => $cake_since },
+        'recipe.modSeqChanged' => { '>' => $recipe_since },
+      ],
+    },
+    {
+      '+columns' => {
+        jointModSeq  => \[
+          "(CASE WHEN ? < recipe.modSeqChanged THEN ('A-' || recipe.modSeqChanged) ELSE ('B-' || me.modSeqChanged) END)",
+          $recipe_since,
+        ],
+        recipeModSeq => 'recipe.modSeqChanged',
+      },
+      join => [ 'recipe' ],
+
+      order_by => [
+        \[
+          "(CASE WHEN ? < recipe.modSeqChanged THEN ('A-' || recipe.modSeqChanged) ELSE ('B-' || me.modSeqChanged) END)",
+          $recipe_since,
+        ],
+      ],
+    },
+  );
+}
+
+sub ix_update_single_state_conds ($self, $example_row) {
+  if ($example_row->{jointModSeq} =~ /\AA-([0-9]+)\z/) {
+    return { 'recipe.modSeqChanged' => "$1" }
+  } elsif ($example_row->{jointModSeq} =~ /\AA-([0-9]+)\z/) {
+    return { 'me.modSeqChanged' => "$1" }
+  }
+
+  Carp::confess("Unreachable code reached.");
 }
 
 __PACKAGE__->belongs_to(
