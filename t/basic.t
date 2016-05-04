@@ -245,7 +245,7 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => 0,
         create    => {
-          yum => { type => 'wedding', layer_count => 4 }
+          yum => { type => 'wedding', layer_count => 4, recipeId => 1 }
         }
       },
     ],

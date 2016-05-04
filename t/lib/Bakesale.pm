@@ -60,6 +60,11 @@ package Bakesale::Test {
         baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
+    $schema->resultset('CakeRecipe')->populate([
+      { accountId => 1, modseq(1),
+        id => 1, type => 'seven-layer', avg_review => 91 },
+    ]);
+
     $schema->resultset('State')->populate([
       { accountId => 1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
       { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
