@@ -25,7 +25,7 @@ package Bakesale::Test {
     return ($app, $jmap_tester);
   }
 
-  sub test_schema_connect_info {
+  sub old_test_schema_connect_info {
     my $dir = tempdir(CLEANUP => 1);
 
     require Bakesale::Schema;
@@ -37,6 +37,19 @@ package Bakesale::Test {
     );
     my $schema = Bakesale::Schema->connect(@connect_info);
 
+    $schema->deploy;
+
+    return \@connect_info;
+  }
+
+  sub test_schema_connect_info {
+    require Test::Database;
+    my $handle = Test::Database->handle({ dbd => 'Pg' });
+    Carp::confess("can't get a handle for a test database") unless $handle;
+    my @connect_info = $handle->connection_info;
+    push @connect_info, { auto_savepoint => 1, quote_names => 1 };
+
+    my $schema = Bakesale::Schema->connect(@connect_info);
     $schema->deploy;
 
     return \@connect_info;
