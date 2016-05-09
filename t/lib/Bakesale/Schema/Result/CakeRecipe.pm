@@ -8,8 +8,8 @@ __PACKAGE__->table('cake_recipes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->add_columns(
-  type        => { is_nullable => 0 },
-  avg_review  => { data_type => 'integer', is_nullable => 0 },
+  type        => { data_type => 'text'    },
+  avg_review  => { data_type => 'integer' },
 );
 
 __PACKAGE__->set_primary_key('id');

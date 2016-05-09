@@ -13,10 +13,10 @@ __PACKAGE__->table('cakes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->add_columns(
-  type        => { is_nullable => 0 },
-  layer_count => { data_type => 'integer',  is_nullable => 0 },
-  baked_at    => { data_type => 'datetime', is_nullable => 0 },
-  recipeId    => { data_type => 'integer' },
+  type        => { data_type => 'text'     },
+  layer_count => { data_type => 'integer'  },
+  baked_at    => { data_type => 'datetime' },
+  recipeId    => { data_type => 'integer'  },
 );
 
 __PACKAGE__->set_primary_key('id');

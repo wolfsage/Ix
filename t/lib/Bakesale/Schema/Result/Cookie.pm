@@ -8,8 +8,8 @@ __PACKAGE__->table('cookies');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->add_columns(
-  type       => { is_nullable => 0 },
-  baked_at   => { data_type => 'datetime', is_nullable => 0 },
+  type       => { data_type => 'text'     },
+  baked_at   => { data_type => 'datetime' },
 );
 
 __PACKAGE__->set_primary_key('id');
