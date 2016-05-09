@@ -344,7 +344,11 @@ sub ix_create ($self, $ctx, $to_create) {
       next TO_CREATE;
     }
 
-    my $row = eval { $self->create(\%rec); };
+    my $row = eval {
+      $ctx->schema->txn_do(sub {
+        $self->create(\%rec);
+      });
+    };
 
     if ($row) {
       # This is silly.  Can we get a pair slice out of a Row?
@@ -421,11 +425,12 @@ sub ix_update ($self, $ctx, $to_update) {
 
     # TODO: validate the update -- rjbs, 2016-02-16
     my $ok = eval {
-      $row->update({
-        $to_update->{$id}->%*,
-        modSeqChanged => $next_state,
+      $ctx->schema->txn_do(sub {
+        $row->update({
+          $to_update->{$id}->%*,
+          modSeqChanged => $next_state,
+        });
       });
-      1;
     };
 
     if ($ok) {
@@ -466,11 +471,13 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     }
 
     my $ok = eval {
-      $row->update({
-        modSeqChanged => $next_state,
-        dateDeleted   => Ix::DateTime->now,
+      $ctx->schema->txn_do(sub {
+        $row->update({
+          modSeqChanged => $next_state,
+          dateDeleted   => Ix::DateTime->now,
+        });
+        return 1;
       });
-      1;
     };
 
     if ($ok) {
