@@ -104,6 +104,8 @@ Bakesale::Test->load_trivial_dataset($app->connect_info);
   );
 }
 
+my @created_ids;
+
 {
   my $res = $jmap_tester->request([
     [
@@ -162,6 +164,10 @@ Bakesale::Test->load_trivial_dataset($app->connect_info);
     [ qw(gold yellow) ],
     "created the things we expected",
   );
+
+  my $struct = $jmap_tester->strip_json_types( $set->arguments );
+  @created_ids = map {; $struct->{created}{$_}{id} }
+                 $set->created_creation_ids;
 }
 
 {
@@ -177,7 +183,7 @@ Bakesale::Test->load_trivial_dataset($app->connect_info);
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, 6, 7),
+          changed  => bag(1, @created_ids),
           removed  => bag(4),
         },
       ],
@@ -214,12 +220,16 @@ subtest "invalid sinceState" => sub {
 
 {
   my $get_res = $jmap_tester->request([
-    [ getCookies => { ids => [ 1, 6, 7 ] } ],
+    [ getCookies => { ids => [ 1, @created_ids ] } ],
   ]);
 
   my $res = $jmap_tester->request([
     [ getCookieUpdates => { sinceState => 8, fetchRecords => 1 } ],
   ]);
+
+  my $get_payloads = $jmap_tester->strip_json_types(
+    $get_res->single_sentence->arguments
+  );
 
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_struct ),
@@ -229,11 +239,16 @@ subtest "invalid sinceState" => sub {
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, 6, 7),
+          changed  => bag(1, @created_ids),
           removed  => bag(4),
         },
       ],
-      $jmap_tester->strip_json_types( $get_res->single_sentence->as_struct ),
+      [
+        cookies => {
+          $get_payloads->%*,
+          list => bag( $get_payloads->{list}->@* ),
+        },
+      ],
     ],
     "updates can be got (with implicit fetch)",
   ) or diag explain( $jmap_tester->strip_json_types( $res->as_struct ) );
