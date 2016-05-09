@@ -103,8 +103,16 @@ sub ix_update_extra_search ($self, $arg) {
       join => [ 'recipe' ],
 
       order_by => [
+        # Here, we only do A/B because we can't sort by A-n/B-n, because A-11
+        # will sort before A-2.  On the other hand, we only use the jointModSeq
+        # above for checking equality, not ordering, so it is appropriate to
+        # use a string. -- rjbs, 2016-05-09
         \[
-          "(CASE WHEN ? < recipe.modSeqChanged THEN ('A-' || recipe.modSeqChanged) ELSE ('B-' || me.modSeqChanged) END)",
+          "(CASE WHEN ? < recipe.modSeqChanged THEN 'A' ELSE 'B-' END)",
+          $recipe_since,
+        ],
+        \[
+          "(CASE WHEN ? < recipe.modSeqChanged THEN recipe.modSeqChanged ELSE me.modSeqChanged END)",
           $recipe_since,
         ],
       ],
