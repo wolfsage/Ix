@@ -95,7 +95,7 @@ sub ix_update_extra_search ($self, $arg) {
     {
       '+columns' => {
         jointModSeq  => \[
-          "(CASE WHEN ? < recipe.modSeqChanged THEN ('A-' || recipe.modSeqChanged) ELSE ('B-' || me.modSeqChanged) END)",
+          q{(CASE WHEN ? < recipe."modSeqChanged" THEN ('A-' || recipe."modSeqChanged") ELSE ('B-' || me."modSeqChanged") END)},
           $recipe_since,
         ],
         recipeModSeq => 'recipe.modSeqChanged',
@@ -108,11 +108,11 @@ sub ix_update_extra_search ($self, $arg) {
         # above for checking equality, not ordering, so it is appropriate to
         # use a string. -- rjbs, 2016-05-09
         \[
-          "(CASE WHEN ? < recipe.modSeqChanged THEN 'A' ELSE 'B-' END)",
+          q{(CASE WHEN ? < recipe."modSeqChanged" THEN 'A' ELSE 'B-' END)},
           $recipe_since,
         ],
         \[
-          "(CASE WHEN ? < recipe.modSeqChanged THEN recipe.modSeqChanged ELSE me.modSeqChanged END)",
+          q{(CASE WHEN ? < recipe."modSeqChanged" THEN recipe."modSeqChanged" ELSE me."modSeqChanged" END)},
           $recipe_since,
         ],
       ],
