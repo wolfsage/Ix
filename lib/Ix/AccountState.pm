@@ -1,6 +1,7 @@
 use 5.20.0;
 use warnings;
 package Ix::AccountState;
+
 use Moose;
 
 use experimental qw(signatures postderef);
