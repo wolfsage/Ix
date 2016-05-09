@@ -61,21 +61,21 @@ package Bakesale::Test {
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
     $schema->resultset('Cookie')->populate([
-      { accountId => 1, modseq(1), id => 1, type => 'tim tam',
+      { accountId => 1, modseq(1), type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z' },
-      { accountId => 1, modseq(1), id => 2, type => 'oreo',
+      { accountId => 1, modseq(1), type => 'oreo',
         baked_at => '2016-01-02T23:45:60Z' },
-      { accountId => 2, modseq(1), id => 3, type => 'thin mint',
+      { accountId => 2, modseq(1), type => 'thin mint',
         baked_at => '2016-01-23T01:02:03Z' },
-      { accountId => 1, modseq(3), id => 4, type => 'samoa',
+      { accountId => 1, modseq(3), type => 'samoa',
         baked_at => '2016-02-01T12:00:01Z' },
-      { accountId => 1, modseq(8), id => 5, type => 'tim tam',
+      { accountId => 1, modseq(8), type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
     $schema->resultset('CakeRecipe')->populate([
       { accountId => 1, modseq(1),
-        id => 1, type => 'seven-layer', avg_review => 91 },
+        type => 'seven-layer', avg_review => 91 },
     ]);
 
     $schema->resultset('State')->populate([
