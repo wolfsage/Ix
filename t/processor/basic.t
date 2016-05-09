@@ -91,6 +91,7 @@ my $ctx = $Bakesale->get_context({
   ) or diag explain($res);
 }
 
+my @created_ids;
 {
   my $res = $ctx->process_request([
     [
@@ -141,6 +142,8 @@ my $ctx = $Bakesale->get_context({
     "we can create cookies with setCookies",
   ) or diag explain($res);
 
+  @created_ids = map {; $_->{id} } values %{ $res->[0][1]{created} };
+
   my @rows = $ctx->schema->resultset('Cookie')->search(
     { accountId => 1 },
     {
@@ -154,10 +157,10 @@ my $ctx = $Bakesale->get_context({
     [
       superhashof({ dateDeleted => undef, id => 1, type => 'half-eaten tim-tam' }),
       superhashof({ dateDeleted => undef, id => 2, type => 'oreo' }),
-      superhashof({ dateDeleted => re(qr/T/), id => 4, type => 'samoa' }),
+      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => 4, type => 'samoa' }),
       superhashof({ dateDeleted => undef, id => 5, type => 'tim tam' }),
-      superhashof({ dateDeleted => undef, id => 6, type => any(qw(shortbread anzac)) }),
-      superhashof({ dateDeleted => undef, id => 7, type => any(qw(shortbread anzac)) }),
+      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)) }),
+      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)) }),
     ],
     "the db matches our expectations",
   ) or diag explain(\@rows);
@@ -183,7 +186,7 @@ my $ctx = $Bakesale->get_context({
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, 6, 7),
+          changed  => bag(1, @created_ids),
           removed  => bag(4),
         },
         'a',
@@ -231,7 +234,7 @@ subtest "invalid sinceState" => sub {
 
 {
   my $get_res = $ctx->process_request([
-    [ getCookies => { ids => [ 1, 6, 7 ] }, 'a' ],
+    [ getCookies => { ids => [ 1, @created_ids ] }, 'a' ],
   ]);
 
   my $res = $ctx->process_request([
@@ -246,12 +249,18 @@ subtest "invalid sinceState" => sub {
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, 6, 7),
+          changed  => bag(1, @created_ids),
           removed  => bag(4),
         },
         'a',
       ],
-      $get_res->[0],
+      [
+        cookies => {
+          $get_res->[0][1]->%*,
+          list => bag( $get_res->[0][1]{list}->@* ),
+        },
+        'a',
+      ]
     ],
     "updates can be got (with implicit fetch)",
   ) or diag explain($res);
