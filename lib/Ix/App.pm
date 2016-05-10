@@ -53,9 +53,11 @@ sub to_app ($self) {
       ];
     }
 
+    my @connect_info = $self->connect_info->@*;
+
     my $ctx = $self->processor->get_context({
       accountId => 1,
-      connect_info => $self->connect_info,
+      connect_info => \@connect_info,
     });
 
     my $content = $req->raw_body;

@@ -5,13 +5,15 @@ use experimental qw(lexical_subs signatures postderef);
 package Bakesale::Test {
   use File::Temp qw(tempdir);
 
-  sub new_test_app_and_tester {
+  sub new_test_app_and_tester ($self) {
     require JMAP::Tester;
     require Plack::Test;
 
     my $conn_info = Bakesale::Test->test_schema_connect_info;
 
-    my $app = Bakesale::App->new({ connect_info => $conn_info });
+    my $app = Bakesale::App->new({
+      connect_info => $conn_info,
+    });
 
     my $plack_test = Plack::Test->create($app->to_app);
 
@@ -25,15 +27,20 @@ package Bakesale::Test {
     return ($app, $jmap_tester);
   }
 
+  my @TEST_DBS;
+  END { $_->cleanup for @TEST_DBS; }
+
   sub test_schema_connect_info {
     require Test::DBMonster;
-    my @connect_info = Test::DBMonster->new->create_database;
-    push @connect_info, { auto_savepoint => 1, quote_names => 1 };
+    my $db = Test::DBMonster->new->create_database;
+    push @TEST_DBS, $db;
 
-    my $schema = Bakesale::Schema->connect(@connect_info);
+    my $schema = Bakesale::Schema->connect(
+      $db->connect_info,
+    );
     $schema->deploy;
 
-    return \@connect_info;
+    return [ $db->connect_info ];
   }
 
   sub load_trivial_dataset ($self, $connect_info) {

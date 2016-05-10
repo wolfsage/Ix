@@ -7,6 +7,7 @@ use lib 't/lib';
 use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
+use Test::DBMonster;
 use Test::Deep;
 use Test::More;
 

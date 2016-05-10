@@ -6,6 +6,47 @@ use experimental qw(postderef signatures);
 
 use DBI;
 
+use namespace::autoclean;
+
+package Test::DBMonster::TempDB {
+  use Moose;
+  use experimental qw(postderef signatures);
+  use namespace::autoclean;
+
+  has dsn      => (is => 'ro', required => 1);
+  has dbname   => (is => 'ro', required => 1);
+  has username => (is => 'ro', required => 1);
+  has password => (is => 'ro', required => 1);
+
+  has monster  => (is => 'ro', required => 1);
+
+  has _is_dead => (is => 'rw', default  => 0);
+
+  sub connect_info ($self) {
+    return (
+      $self->dsn,
+      $self->username,
+      $self->password,
+      {
+        auto_savepoint => 1,
+        quote_names    => 1,
+      },
+    );
+  }
+
+  sub cleanup ($self) {
+    my $dbh = $self->monster->master_dbh;
+    $dbh->do("DROP DATABASE " . $self->dbname);
+    $dbh->do("DROP USER " . $self->username);
+    $self->_is_dead(1);
+  }
+
+  sub DEMOLISH ($self, @) {
+    return if $self->_is_dead;
+    $self->cleanup;
+  }
+}
+
 has dsn      => (is => 'ro', default => 'dbi:Pg:');
 has username => (is => 'ro', default => 'postgres');
 has password => (is => 'ro', default => undef);
@@ -59,11 +100,13 @@ sub create_database ($self) {
 
   $self->master_dbh->do("CREATE DATABASE $name WITH OWNER $name");
 
-  return (
-    $self->dsn . "dbname=$name",
-    $name,
-    $name,
-  );
+  return Test::DBMonster::TempDB->new({
+    dsn      => $self->dsn . "dbname=$name",
+    dbname   => $name,
+    username => $name,
+    password => $name,
+    monster  => $self,
+  });
 }
 
 sub clean_house ($self) {
