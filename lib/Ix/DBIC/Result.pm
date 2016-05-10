@@ -20,12 +20,25 @@ sub ix_default_properties { return {} }
 
 sub ix_add_columns ($class) {
   $class->add_columns(
-    id            => { data_type => 'integer', is_auto_increment => 1 },
+    id            => {
+      data_type         => 'integer',
+      ix_data_type      => 'string',
+      is_auto_increment => 1
+    },
     accountId     => { data_type => 'integer' },
     modSeqCreated => { data_type => 'integer' },
     modSeqChanged => { data_type => 'integer' },
     dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
   );
+}
+
+sub ix_finalize ($class) {
+  my $columns = $class->columns_info;
+
+  for my $name ($class->columns) {
+    # Skip doing this for hidden columns. -- rjbs, 2016-05-10
+    $columns->{$name}{ix_data_type} //= $columns->{$name}{data_type};
+  }
 }
 
 sub ix_update_state_string_field { 'modSeqChanged' }

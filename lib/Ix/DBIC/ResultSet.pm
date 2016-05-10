@@ -13,6 +13,7 @@ use Safe::Isa;
 
 use namespace::clean;
 
+# XXX Worth caching?  Probably. -- rjbs, 2016-05-10
 sub _ix_rclass ($self) {
   my $rclass = $self->result_source->result_class;
 
@@ -369,27 +370,27 @@ sub _ix_wash_rows ($self, $rows) {
   my $rclass = $self->_ix_rclass;
   my $info   = $self->result_source->columns_info;
 
-  my @num_fields = grep {; ($info->{$_}{data_type} // '') eq 'integer' } keys %$info;
-  my @str_fields = grep {; ($info->{$_}{data_type} // '') eq 'text' }    keys %$info;
-  my @boo_fields = grep {; ($info->{$_}{data_type} // '') eq 'boolean' } keys %$info;
+  my %by_type;
+  for my $key (keys %$info) {
+    my $type = $info->{$key}{ix_data_type};
+    push $by_type{$type}->@*, $key if $type;
+  }
 
   my $true  = JSON::true();
   my $false = JSON::false();
 
   for my $row (@$rows) {
-    for my $key (@num_fields) {
+    for my $key ($by_type{integer}->@*) {
       $row->{$key} = 0 + $row->{$key} if defined $row->{$key};
     }
 
-    for my $key (@str_fields) {
+    for my $key ($by_type{text}->@*) {
       $row->{$key} = "$row->{$key}" if defined $row->{$key};
     }
 
-    for my $key (@boo_fields) {
+    for my $key ($by_type{boolean}->@*) {
       $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
     }
-
-    $row->{id} = "$row->{id}" if defined $row->{id};
   }
 
   $rclass->_ix_wash_rows($rows) if $rclass->can('_ix_wash_rows');
