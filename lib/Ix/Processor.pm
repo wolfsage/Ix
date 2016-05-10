@@ -23,15 +23,9 @@ around handler_for => sub ($orig, $self, $method, @rest) {
 
 requires 'schema_class';
 
-sub context_class { 'Ix::Context' }
+requires 'context_class';
 
-sub get_context ($self, $arg) {
-  Ix::Context->new({
-    accountId => $arg->{accountId},
-    schema    => $self->schema_class->connect($arg->{connect_info}->@*),
-    processor => $self,
-  });
-}
+requires 'get_context'; # ???
 
 has _dbic_handlers => (
   is   => 'ro',

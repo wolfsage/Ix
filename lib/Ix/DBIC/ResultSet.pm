@@ -32,7 +32,7 @@ my %HIDDEN_COLUMN = map {; $_ => 1 } qw(
 );
 
 sub ix_get ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass    = $self->_ix_rclass;
 
@@ -244,7 +244,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 }
 
 sub ix_purge ($self, $ctx) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -399,7 +399,7 @@ sub _ix_wash_rows ($self, $rows) {
 }
 
 sub ix_update ($self, $ctx, $to_update) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -447,7 +447,7 @@ sub ix_update ($self, $ctx, $to_update) {
 }
 
 sub ix_destroy ($self, $ctx, $to_destroy) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -494,7 +494,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->{accountId};
+  my $accountId = $ctx->accountId;
 
   my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;

@@ -14,7 +14,7 @@ Bakesale::Test->load_trivial_dataset($conn_info);
 my $Bakesale = Bakesale->new;
 
 my $ctx = $Bakesale->get_context({
-  accountId => 1,
+  userId => 1,
   connect_info => $conn_info,
 });
 

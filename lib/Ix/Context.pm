@@ -1,18 +1,15 @@
 use 5.20.0;
 package Ix::Context;
 
-use Moose;
+use Moose::Role;
 use experimental qw(signatures postderef);
 
 use namespace::autoclean;
 
-has accountId => (
-  is => 'ro',
-  required => 1,
-);
+requires 'accountId';
 
 has schema => (
-  is => 'ro',
+  is   => 'ro',
   required => 1,
 );
 
@@ -38,5 +35,4 @@ sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
 }
 
-__PACKAGE__->meta->make_immutable;
 1;

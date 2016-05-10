@@ -40,6 +40,11 @@ package Bakesale::Test {
     );
     $schema->deploy;
 
+    my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
+    my $rows = $schema->resultset('User')->populate([
+      { accountId => 1, username => 'rjbs',  modseq(1) },
+    ]);
+
     return [ $db->connect_info ];
   }
 
@@ -47,6 +52,10 @@ package Bakesale::Test {
     my $schema = Bakesale::Schema->connect(@$connect_info);
 
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
+
+    my $rows = $schema->resultset('User')->populate([
+      { accountId => 2, username => 'neilj', modseq(1) },
+    ]);
 
     $schema->resultset('Cookie')->populate([
       { accountId => 1, modseq(1), type => 'tim tam', baked_at => '2016-01-01T12:34:56Z' },
@@ -64,6 +73,8 @@ package Bakesale::Test {
     $schema->resultset('State')->populate([
       { accountId => 1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
       { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => 1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => 2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
     return;
@@ -72,12 +83,24 @@ package Bakesale::Test {
 
 package Bakesale {
   use Moose;
-  with 'Ix::Processor::WithSchema';
+  with 'Ix::Processor';
+
+  use Bakesale::Context;
 
   use Ix::Util qw(error result);
 
   use experimental qw(signatures postderef);
   use namespace::autoclean;
+
+  sub context_class { 'Bakesale::Context' }
+
+  sub get_context ($self, $arg) {
+    $self->context_class->new({
+      userId    => $arg->{userId},
+      schema    => $self->schema_class->connect($arg->{connect_info}->@*),
+      processor => $self,
+    });
+  }
 
   sub schema_class { 'Bakesale::Schema' }
 
