@@ -79,10 +79,6 @@ sub process_request ($self, $ctx, $calls) {
 
   $ctx->schema->txn_begin;
 
-  # I believe this will end up used as a sideband to communicate things like
-  # objects created for temporary ids.  -- rjbs, 2016-02-11
-  local $ctx->{ix_ephemera} = {};
-
   CALL: for my $call (@$calls) {
     # On one hand, I am tempted to disallow ambiguous cids here.  On the other
     # hand, the spec does not. -- rjbs, 2016-02-11

@@ -31,6 +31,21 @@ has state => (
   },
 );
 
+has created_ids => (
+  is => 'ro',
+  reader   => '_created_ids',
+  init_arg => undef,
+  default  => sub {  {}  },
+);
+
+sub log_created_id ($self, $type, $creation_id, $id) {
+  $self->_created_ids->{$type}{$creation_id} = $id;
+}
+
+sub get_created_id ($self, $type, $creation_id) {
+  return $self->_created_ids->{$type}{$creation_id};
+}
+
 sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
 }

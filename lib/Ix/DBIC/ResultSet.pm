@@ -314,6 +314,20 @@ sub ix_create ($self, $ctx, $to_create) {
         next PROP;
       }
 
+      if (
+        # Probably we can intuit this from foreign keys or relationships?
+        (my $xref_type = $col_info->{$prop}{ix_xref_to})
+        &&
+        $col_info->{$prop} && $col_info->{$prop} =~ /\A#(.+)\z/
+      ) {
+        if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
+          $this->{$prop} = $xref;
+        } else {
+          $property_error{$prop} = "can't resolve creation id";
+          next PROP;
+        }
+      }
+
       if (my $validator = $col_info->{$prop}{ix_validator}) {
         if (my $error = $validator->($this->{$prop})) {
           $property_error{$prop} = $error;
@@ -383,7 +397,7 @@ sub ix_create ($self, $ctx, $to_create) {
       # This is silly.  Can we get a pair slice out of a Row?
       $result{created}{$id} = { id => $row->id, %default_properties };
 
-      $ctx->{ix_ephemera}{$type_key}{$id} = $row->id;
+      $ctx->log_created_id($type_key, $id, $row->id);
     } else {
       $result{not_created}{$id} = $error;
     }
