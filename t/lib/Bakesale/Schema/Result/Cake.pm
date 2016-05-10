@@ -4,6 +4,7 @@ use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
 
+use Ix::Validators qw(integer simplestr);
 use List::Util qw(max);
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
@@ -14,7 +15,7 @@ __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->add_columns(
   type        => { data_type => 'text'     },
-  layer_count => { data_type => 'integer'  },
+  layer_count => { data_type => 'integer', ix_validator => integer(1, 10)  },
   baked_at    => { data_type => 'datetime' },
   recipeId    => { data_type => 'integer'  },
 );

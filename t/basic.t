@@ -260,7 +260,8 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => 0,
         create    => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => 1 }
+          yum => { type => 'wedding', layer_count => 4, recipeId => 1 },
+          yow => { type => 'croquembouche', layer_count => 99, recipeId => 1 }
         }
       },
     ],
@@ -273,7 +274,13 @@ subtest "invalid sinceState" => sub {
         cakesSet => superhashof({
           created => {
             yum => superhashof({ baked_at => ignore() }),
-          }
+          },
+          notCreated => {
+            yow => superhashof({
+              type => 'invalidProperty',
+              propertyErrors => { layer_count => re(qr/above max/) },
+            }),
+          },
         }),
       ],
     ],

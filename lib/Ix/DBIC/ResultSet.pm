@@ -286,7 +286,8 @@ sub ix_create ($self, $ctx, $to_create) {
 
   my $now = time; # pull off of context? -- rjbs, 2016-02-18
 
-  my @user_props = $rclass->ix_user_property_names;
+  # TODO do this once during ix_finalize -- rjbs, 2016-05-10
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
 
   my $info = $self->result_source->columns_info;
   my @date_fields = grep {; ($info->{$_}{data_type} // '') eq 'datetime' }
@@ -294,12 +295,39 @@ sub ix_create ($self, $ctx, $to_create) {
 
   my @keys = keys $to_create->%*;
 
+  my $col_info = $rclass->columns_info;
+
   TO_CREATE: for my $id (@keys) {
-    my %user_props = @user_props ? $to_create->{$id}->%{@user_props} : ();
-    if (my @bogus = grep {; ref $user_props{$_} && ! $user_props{$_}->$_isa('Ix::DateTime') } keys %user_props) {
+    my $this = $to_create->{$id};
+
+    my %user_props;
+    my %property_error;
+
+    PROP: for my $prop (keys %$this) {
+      unless ($is_user_prop{$prop}) {
+        $property_error{$prop} = "unknown property";
+        next PROP;
+      }
+
+      if (ref $this->{$prop} && ! $this->{$prop}->$_isa('Ix::DateTime')) {
+        $property_error{$prop} = "invalid property value";
+        next PROP;
+      }
+
+      if (my $validator = $col_info->{$prop}{ix_validator}) {
+        if (my $error = $validator->($this->{$prop})) {
+          $property_error{$prop} = $error;
+          next PROP;
+        }
+      }
+
+      $user_props{$prop} = $this->{$prop};
+    }
+
+    if (%property_error) {
       $result{not_created}{$id} = error(invalidProperty => {
         description => "invalid property values",
-        invalidProperties => \@bogus,
+        propertyErrors => \%property_error,
       });
       next TO_CREATE;
     }
