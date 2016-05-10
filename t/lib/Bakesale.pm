@@ -25,28 +25,9 @@ package Bakesale::Test {
     return ($app, $jmap_tester);
   }
 
-  sub old_test_schema_connect_info {
-    my $dir = tempdir(CLEANUP => 1);
-
-    require Bakesale::Schema;
-    my @connect_info = (
-      "dbi:SQLite:dbname=$dir/bakesale.sqlite",
-      undef,
-      undef,
-      { quote_names => 1 },
-    );
-    my $schema = Bakesale::Schema->connect(@connect_info);
-
-    $schema->deploy;
-
-    return \@connect_info;
-  }
-
   sub test_schema_connect_info {
-    require Test::Database;
-    my $handle = Test::Database->handle({ dbd => 'Pg' });
-    Carp::confess("can't get a handle for a test database") unless $handle;
-    my @connect_info = $handle->connection_info;
+    require Test::DBMonster;
+    my @connect_info = Test::DBMonster->new->create_database;
     push @connect_info, { auto_savepoint => 1, quote_names => 1 };
 
     my $schema = Bakesale::Schema->connect(@connect_info);
@@ -61,16 +42,11 @@ package Bakesale::Test {
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
     $schema->resultset('Cookie')->populate([
-      { accountId => 1, modseq(1), type => 'tim tam',
-        baked_at => '2016-01-01T12:34:56Z' },
-      { accountId => 1, modseq(1), type => 'oreo',
-        baked_at => '2016-01-02T23:45:60Z' },
-      { accountId => 2, modseq(1), type => 'thin mint',
-        baked_at => '2016-01-23T01:02:03Z' },
-      { accountId => 1, modseq(3), type => 'samoa',
-        baked_at => '2016-02-01T12:00:01Z' },
-      { accountId => 1, modseq(8), type => 'tim tam',
-        baked_at => '2016-02-09T09:09:09Z' },
+      { accountId => 1, modseq(1), type => 'tim tam', baked_at => '2016-01-01T12:34:56Z' },
+      { accountId => 1, modseq(1), type => 'oreo', baked_at => '2016-01-02T23:45:60Z' },
+      { accountId => 2, modseq(1), type => 'thin mint', baked_at => '2016-01-23T01:02:03Z' },
+      { accountId => 1, modseq(3), type => 'samoa', baked_at => '2016-02-01T12:00:01Z' },
+      { accountId => 1, modseq(8), type => 'tim tam', baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
     $schema->resultset('CakeRecipe')->populate([
