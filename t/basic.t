@@ -72,6 +72,12 @@ Bakesale::Test->load_trivial_dataset($app->connect_info);
     [ getCookies => { sinceState => 2, properties => [ qw(type) ] } ],
   ]);
 
+  isa_ok(
+    $res->as_struct->[0][1]{list}[0]{id},
+    'JSON::Typist::String',
+    "we return ids as strings",
+  );
+
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_struct ),
     [
