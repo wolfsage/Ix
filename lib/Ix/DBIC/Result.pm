@@ -41,7 +41,6 @@ sub ix_finalize ($class) {
 
     $columns->{$name}{ix_data_type} = 'string'
       if $columns->{$name}{ix_data_type} eq 'text';
-    warn "ix_data_type for " . $class->ix_type_key . ".$name is $columns->{$name}{ix_data_type}\n";
   }
 }
 
