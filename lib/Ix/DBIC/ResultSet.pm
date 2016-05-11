@@ -439,7 +439,7 @@ sub _ix_wash_rows ($self, $rows) {
       $row->{$key} = 0 + $row->{$key} if defined $row->{$key};
     }
 
-    for my $key ($by_type{text}->@*) {
+    for my $key ($by_type{string}->@*) {
       $row->{$key} = "$row->{$key}" if defined $row->{$key};
     }
 
