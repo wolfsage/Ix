@@ -7,6 +7,7 @@ use parent 'DBIx::Class';
 use experimental qw(signatures postderef);
 
 use Ix::StateComparison;
+use Ix::Validators;
 
 sub ix_type_key { Carp::confess("ix_type_key not implemented") }
 sub ix_type_key_singular ($self) {
@@ -32,15 +33,24 @@ sub ix_add_columns ($class) {
   );
 }
 
+my %DEFAULT_VALIDATOR = (
+  integer => Ix::Validators::integer(),
+  string  => Ix::Validators::simplestr(),
+);
+
 sub ix_finalize ($class) {
   my $columns = $class->columns_info;
 
   for my $name ($class->columns) {
-    # Skip doing this for hidden columns. -- rjbs, 2016-05-10
-    $columns->{$name}{ix_data_type} //= $columns->{$name}{data_type};
+    my $col = $columns->{$name};
 
-    $columns->{$name}{ix_data_type} = 'string'
-      if $columns->{$name}{ix_data_type} eq 'text';
+    # Skip doing this for hidden columns. -- rjbs, 2016-05-10
+    $col->{ix_data_type} //= $col->{data_type};
+
+    $col->{ix_data_type} = 'string'
+      if $col->{ix_data_type} eq 'text';
+
+    $col->{ix_validator} //= $DEFAULT_VALIDATOR{ $col->{ix_data_type} };
   }
 }
 
