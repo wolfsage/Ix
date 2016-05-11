@@ -41,6 +41,10 @@ sub ix_finalize ($class) {
   }
 }
 
+sub ix_create_check  { } # ($self, $ctx, \%rec)
+sub ix_update_check  { } # ($self, $ctx, \%rec)
+sub ix_destroy_check { } # ($self, $ctx, \%rec)
+
 sub ix_update_state_string_field { 'modSeqChanged' }
 
 sub ix_state_string ($self, $state) {

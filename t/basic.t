@@ -142,7 +142,7 @@ my @created_ids;
           },
           updated => [ 1 ],
           notUpdated => {
-            2 => superhashof({ type => 'invalidRecord' }),
+            2 => superhashof({ type => 'invalidProperties' }),
           },
           destroyed => [ 4 ],
           notDestroyed => {
@@ -277,7 +277,7 @@ subtest "invalid sinceState" => sub {
           },
           notCreated => {
             yow => superhashof({
-              type => 'invalidProperty',
+              type => 'invalidProperties',
               propertyErrors => { layer_count => re(qr/above max/) },
             }),
           },

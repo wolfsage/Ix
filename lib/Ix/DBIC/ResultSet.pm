@@ -284,64 +284,32 @@ sub ix_create ($self, $ctx, $to_create) {
 
   my %result;
 
-  my $now = time; # pull off of context? -- rjbs, 2016-02-18
-
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
 
-  my $info = $self->result_source->columns_info;
-  my @date_fields = grep {; ($info->{$_}{data_type} // '') eq 'datetime' }
-                    keys %$info;
+  my $col_info = $rclass->columns_info;
+  my @date_fields = grep {; ($col_info->{$_}{data_type} // '') eq 'datetime' }
+                    keys %$col_info;
 
+  # TODO: sort these in dependency order, so if item A references item B, B is
+  # created first -- rjbs, 2016-05-10
   my @keys = keys $to_create->%*;
 
-  my $col_info = $rclass->columns_info;
 
   TO_CREATE: for my $id (@keys) {
     my $this = $to_create->{$id};
 
-    my %user_props;
-    my %property_error;
+    my ($user_prop, $property_error) = $self->_ix_check_user_properties(
+      $ctx,
+      $this,
+      \%is_user_prop,
+      $col_info,
+    );
 
-    PROP: for my $prop (keys %$this) {
-      unless ($is_user_prop{$prop}) {
-        $property_error{$prop} = "unknown property";
-        next PROP;
-      }
-
-      if (ref $this->{$prop} && ! $this->{$prop}->$_isa('Ix::DateTime')) {
-        $property_error{$prop} = "invalid property value";
-        next PROP;
-      }
-
-      if (
-        # Probably we can intuit this from foreign keys or relationships?
-        (my $xref_type = $col_info->{$prop}{ix_xref_to})
-        &&
-        $col_info->{$prop} && $col_info->{$prop} =~ /\A#(.+)\z/
-      ) {
-        if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
-          $this->{$prop} = $xref;
-        } else {
-          $property_error{$prop} = "can't resolve creation id";
-          next PROP;
-        }
-      }
-
-      if (my $validator = $col_info->{$prop}{ix_validator}) {
-        if (my $error = $validator->($this->{$prop})) {
-          $property_error{$prop} = $error;
-          next PROP;
-        }
-      }
-
-      $user_props{$prop} = $this->{$prop};
-    }
-
-    if (%property_error) {
-      $result{not_created}{$id} = error(invalidProperty => {
+    if (%$property_error) {
+      $result{not_created}{$id} = error(invalidProperties => {
         description => "invalid property values",
-        propertyErrors => \%property_error,
+        propertyErrors => $property_error,
       });
       next TO_CREATE;
     }
@@ -353,9 +321,7 @@ sub ix_create ($self, $ctx, $to_create) {
     );
 
     my %rec = (
-      # barf if there are unexpected properties, don't just drop them
-      # -- rjbs, 2016-02-18
-      %user_props,
+      %$user_prop,
       %default_properties,
 
       accountId => $accountId,
@@ -380,10 +346,15 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     if (@bogus_dates) {
-      $result{not_created}{$id} = error(invalidProperty => {
+      $result{not_created}{$id} = error(invalidProperties => {
         description => "invalid date values",
-        invalidProperties => \@bogus_dates,
+        properties  => \@bogus_dates,
       });
+      next TO_CREATE;
+    }
+
+    if (my $error = $rclass->ix_create_check($ctx, \%rec)) {
+      $result{not_created}{$id} = $error;
       next TO_CREATE;
     }
 
@@ -406,6 +377,48 @@ sub ix_create ($self, $ctx, $to_create) {
   $self->_ix_wash_rows([ values $result{created}->%* ]);
 
   return \%result;
+}
+
+sub _ix_check_user_properties ($self, $ctx, $rec, $is_user_prop, $col_info) {
+  my %user_prop;
+  my %property_error;
+
+  PROP: for my $prop (keys %$rec) {
+    unless ($is_user_prop->{$prop}) {
+      $property_error{$prop} = "unknown property";
+      next PROP;
+    }
+
+    if (ref $rec->{$prop} && ! $rec->{$prop}->$_isa('Ix::DateTime')) {
+      $property_error{$prop} = "invalid property value";
+      next PROP;
+    }
+
+    if (
+      # Probably we can intuit this from foreign keys or relationships?
+      (my $xref_type = $col_info->{$prop}{ix_xref_to})
+      &&
+      $col_info->{$prop} && $col_info->{$prop} =~ /\A#(.+)\z/
+    ) {
+      if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
+        $rec->{$prop} = $xref;
+      } else {
+        $property_error{$prop} = "can't resolve creation id";
+        next PROP;
+      }
+    }
+
+    if (my $validator = $col_info->{$prop}{ix_validator}) {
+      if (my $error = $validator->($rec->{$prop})) {
+        $property_error{$prop} = $error;
+        next PROP;
+      }
+    }
+
+    $user_prop{$prop} = $rec->{$prop};
+  }
+
+  return (\%user_prop, \%property_error);
 }
 
 sub _ix_wash_rows ($self, $rows) {
@@ -452,6 +465,11 @@ sub ix_update ($self, $ctx, $to_update) {
 
   my @updated;
   my $error = error('invalidRecord', { description => "could not update" });
+
+  # TODO do this once during ix_finalize -- rjbs, 2016-05-10
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
+  my $col_info = $rclass->columns_info;
+
   UPDATE: for my $id (keys $to_update->%*) {
     my $row = $self->find({
       id => $id,
@@ -466,11 +484,30 @@ sub ix_update ($self, $ctx, $to_update) {
       next UPDATE;
     }
 
-    # TODO: validate the update -- rjbs, 2016-02-16
+    my ($user_prop, $property_error) = $self->_ix_check_user_properties(
+      $ctx,
+      $to_update->{$id},
+      \%is_user_prop,
+      $col_info,
+    );
+
+    if (%$property_error) {
+      $result{not_updated}{$id} = error(invalidProperties => {
+        description => "invalid property values",
+        propertyErrors => $property_error,
+      });
+      next UPDATE;
+    }
+
+    if (my $error = $rclass->ix_update_check($ctx, $to_update->{$id})) {
+      $result{not_updated}{$id} = $error;
+      next UPDATE;
+    }
+
     my $ok = eval {
       $ctx->schema->txn_do(sub {
         $row->update({
-          $to_update->{$id}->%*,
+          %$user_prop,
           modSeqChanged => $next_state,
         });
       });
@@ -513,6 +550,11 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
       next DESTROY;
     }
 
+    if (my $error = $rclass->ix_destroy_check($ctx, $row)) {
+      $result{not_destroyed}{$id} = $error;
+      next DESTROY;
+    }
+
     my $ok = eval {
       $ctx->schema->txn_do(sub {
         $row->update({
@@ -552,8 +594,6 @@ sub ix_set ($self, $ctx, $arg = {}) {
   }
 
   my %result;
-
-  my $now = time;
 
   if ($arg->{create}) {
     my $create_result = $self->ix_create($ctx, $arg->{create});
