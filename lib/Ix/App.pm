@@ -4,6 +4,7 @@ package Ix::App;
 use Moose::Role;
 use experimental qw(signatures postderef);
 
+use Data::GUID qw(guid_string);
 use JSON;
 use Plack::Request;
 
@@ -28,16 +29,14 @@ has processor => (
 );
 
 has _logger => (
-  is => 'ro',
-  default => sub { sub {} },
+  is  => 'ro',
+  isa => 'CodeRef',
 );
 
 sub to_app ($self) {
-  return sub ($env) {
-    state $request_number;
-    $request_number++;
-    my $request_time = Ix::DateTime->now->iso8601;
+  my $logger = $self->_logger;
 
+  return sub ($env) {
     my $req = Plack::Request->new($env);
 
     if ($req->method eq 'OPTIONS') {
@@ -64,21 +63,29 @@ sub to_app ($self) {
 
     my $content = $req->raw_body;
 
-    $self->_logger->(
-      "$request_time Request $request_number (Request)\n\n"
-      . (length($content) ? ($content =~ s/^/  /mgr) : "  (no content)")
-      . "\n"
-    );
+    my $request_time = Ix::DateTime->now->iso8601;
+
+    if ($logger) {
+      state $request_number;
+      $request_number++;
+      my $guid = guid_string;
+      $logger->( "<<< BEGIN REQUEST $guid\n"
+               . "||| TIME: $request_time\n"
+               . "||| SEQ : $$ $request_number\n"
+               . ($content // "")
+               . "\n"
+               . ">>> END REQUEST $guid\n");
+    }
 
     my $calls   = $self->decode_json( $content );
     my $result  = $ctx->process_request( $calls );
     my $json    = $self->encode_json($result);
 
-    $self->_logger->(
-      "$request_time Request $request_number (Response)\n\n"
-      . ($json =~ s/^/  /mgr)
-      . "\n"
-    );
+    if ($logger) {
+      $logger->( "<<< BEGIN RESPONSE\n"
+               . "$json\n"
+               . ">>> END RESPONSE\n" );
+    }
 
     return [
       200,
