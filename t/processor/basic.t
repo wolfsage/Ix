@@ -9,13 +9,11 @@ use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 
-my $conn_info = Bakesale::Test->test_schema_connect_info;
-Bakesale::Test->load_trivial_dataset($conn_info);
 my $Bakesale = Bakesale->new;
+Bakesale::Test->load_trivial_dataset([ $Bakesale->connect_info ]);
 
 my $ctx = $Bakesale->get_context({
   userId => 1,
-  connect_info => $conn_info,
 });
 
 {

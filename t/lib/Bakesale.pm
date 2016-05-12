@@ -94,10 +94,20 @@ package Bakesale {
 
   sub context_class { 'Bakesale::Context' }
 
+  sub connect_info;
+  has connect_info => (
+    lazy    => 1,
+    traits  => [ 'Array' ],
+    handles => { connect_info => 'elements' },
+    default => sub {
+      my $info = Bakesale::Test->test_schema_connect_info;
+    },
+  );
+
   sub get_context ($self, $arg) {
     $self->context_class->new({
       userId    => $arg->{userId},
-      schema    => $self->schema_class->connect($arg->{connect_info}->@*),
+      schema    => $self->schema_connection,
       processor => $self,
     });
   }

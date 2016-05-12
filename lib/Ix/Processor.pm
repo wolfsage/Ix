@@ -23,6 +23,18 @@ around handler_for => sub ($orig, $self, $method, @rest) {
 
 requires 'schema_class';
 
+requires 'connect_info';
+
+sub schema_connection ($self) {
+  $self->schema_class->connect(
+    $self->connect_info,
+    {
+      auto_savepoint => 1,
+      quote_names    => 1,
+    },
+  );
+}
+
 requires 'context_class';
 
 requires 'get_context'; # ???

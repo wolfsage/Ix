@@ -21,8 +21,6 @@ has json_codec => (
   },
 );
 
-requires 'connect_info';
-
 has processor => (
   is => 'ro',
   required => 1,
@@ -52,13 +50,10 @@ sub to_app ($self) {
       ];
     }
 
-    my @connect_info = $self->connect_info->@*;
-
     my $ctx = $self->processor->get_context({
       # XXX SUPER BOGUS -- rjbs, 2016-05-10
       # accountId => 1,
       userId => 1,
-      connect_info => \@connect_info,
     });
 
     my $content = $req->raw_body;
