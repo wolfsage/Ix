@@ -60,10 +60,11 @@ sub to_app ($self) {
 
     my $request_time = Ix::DateTime->now->iso8601;
 
+    my $guid;
     if ($logger) {
       state $request_number;
       $request_number++;
-      my $guid = guid_string;
+      $guid = guid_string;
       $logger->( "<<< BEGIN REQUEST $guid\n"
                . "||| TIME: $request_time\n"
                . "||| SEQ : $$ $request_number\n"
@@ -87,6 +88,7 @@ sub to_app ($self) {
       [
         'Content-Type', 'application/json',
         'Access-Control-Allow-Origin' => '*',
+        ($guid ? ('Ix-Request-GUID' => $guid) : ()),
       ],
       [ $json ],
     ];
