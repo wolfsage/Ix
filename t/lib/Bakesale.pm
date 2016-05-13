@@ -31,13 +31,14 @@ package Bakesale::Test {
   END { $_->cleanup for @TEST_DBS; }
 
   sub test_schema_connect_info {
-    require Test::DBMonster;
-    my $db = Test::DBMonster->new->create_database;
+    require Test::PgMonger;
+    my $db = Test::PgMonger->new->create_database;
     push @TEST_DBS, $db;
 
-    my $schema = Bakesale::Schema->connect(
-      $db->connect_info,
-    );
+    my $schema = Bakesale->new({
+      connect_info => [ $db->connect_info ],
+    })->schema_connection;
+
     $schema->deploy;
 
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
@@ -48,9 +49,7 @@ package Bakesale::Test {
     return [ $db->connect_info ];
   }
 
-  sub load_trivial_dataset ($self, $connect_info) {
-    my $schema = Bakesale::Schema->connect(@$connect_info);
-
+  sub load_trivial_dataset ($self, $schema) {
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
     my $rows = $schema->resultset('User')->populate([

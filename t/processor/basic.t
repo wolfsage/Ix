@@ -10,7 +10,7 @@ use Test::Deep;
 use Test::More;
 
 my $Bakesale = Bakesale->new;
-Bakesale::Test->load_trivial_dataset([ $Bakesale->connect_info ]);
+Bakesale::Test->load_trivial_dataset($Bakesale->schema_connection);
 
 my $ctx = $Bakesale->get_context({
   userId => 1,
