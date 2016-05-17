@@ -145,7 +145,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     @props = 'id';
   }
 
-  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search({
+  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search($ctx, {
     since => $since,
   });
 

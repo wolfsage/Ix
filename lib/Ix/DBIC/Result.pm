@@ -64,7 +64,7 @@ sub ix_state_string ($self, $state) {
   return $state->state_for( $self->ix_type_key ) . "";
 }
 
-sub ix_update_extra_search ($self, $arg) {
+sub ix_update_extra_search ($self, $ctx, $arg) {
   my $since = $arg->{since};
 
   return (

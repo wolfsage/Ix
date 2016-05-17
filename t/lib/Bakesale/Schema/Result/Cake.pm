@@ -78,7 +78,7 @@ sub ix_highest_state ($self, $since, $rows) {
   return "$c_max-$r_max";
 }
 
-sub ix_update_extra_search ($self, $arg) {
+sub ix_update_extra_search ($self, $ctx, $arg) {
   my $since = $arg->{since};
 
   my ($cake_since, $recipe_since) = split /-/, $since, 2;
@@ -124,7 +124,7 @@ sub ix_update_extra_search ($self, $arg) {
 sub ix_update_single_state_conds ($self, $example_row) {
   if ($example_row->{jointModSeq} =~ /\AA-([0-9]+)\z/) {
     return { 'recipe.modSeqChanged' => "$1" }
-  } elsif ($example_row->{jointModSeq} =~ /\AA-([0-9]+)\z/) {
+  } elsif ($example_row->{jointModSeq} =~ /\AB-([0-9]+)\z/) {
     return { 'me.modSeqChanged' => "$1" }
   }
 
