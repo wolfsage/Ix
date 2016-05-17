@@ -99,7 +99,6 @@ sub ix_update_extra_search ($self, $ctx, $arg) {
           q{(CASE WHEN ? < recipe."modSeqChanged" THEN ('A-' || recipe."modSeqChanged") ELSE ('B-' || me."modSeqChanged") END)},
           $recipe_since,
         ],
-        recipeModSeq => 'recipe.modSeqChanged',
       },
       join => [ 'recipe' ],
 
@@ -109,7 +108,7 @@ sub ix_update_extra_search ($self, $ctx, $arg) {
         # above for checking equality, not ordering, so it is appropriate to
         # use a string. -- rjbs, 2016-05-09
         \[
-          q{(CASE WHEN ? < recipe."modSeqChanged" THEN 'A' ELSE 'B-' END)},
+          q{(CASE WHEN ? < recipe."modSeqChanged" THEN 'A' ELSE 'B' END)},
           $recipe_since,
         ],
         \[
