@@ -20,13 +20,13 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->sentence(0)->as_struct ),
+    $jmap_tester->strip_json_types( $res->sentence(0)->as_pair ),
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
     "first call response: as expected",
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->paragraph(1)->single->as_struct ),
+    $jmap_tester->strip_json_types( $res->paragraph(1)->single->as_pair ),
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     "second call response group: one item, as expected",
   );
@@ -42,7 +42,7 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   my ($pie1, $bake, $pie2) = $res->assert_n_paragraphs(3);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $pie1->as_struct ),
+    $jmap_tester->strip_json_types( $pie1->as_pairs ),
     [
       [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
     ],
@@ -50,7 +50,7 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $bake->as_struct ),
+    $jmap_tester->strip_json_types( $bake->as_pairs ),
     [
       [ pie   => { flavor => 'apple', bakeOrder => 1 } ],
       [ error => { type => 'noRecipe', requestedPie => 'eel' } ],
@@ -59,7 +59,7 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $pie2->as_struct ),
+    $jmap_tester->strip_json_types( $pie2->as_pairs ),
     [
       [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     ],
@@ -79,7 +79,7 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookies => {
@@ -102,7 +102,7 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [ error => { type => 'stateMismatch' } ],
     ],
@@ -132,7 +132,7 @@ my @created_ids;
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookiesSet => superhashof({
@@ -182,7 +182,7 @@ my @created_ids;
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookieUpdates => {
@@ -195,7 +195,7 @@ my @created_ids;
       ],
     ],
     "updates can be got",
-  ) or diag explain( $res->as_struct );
+  ) or diag explain( $res->as_pairs );
 }
 
 subtest "invalid sinceState" => sub {
@@ -205,7 +205,7 @@ subtest "invalid sinceState" => sub {
     ]);
 
     cmp_deeply(
-      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      $jmap_tester->strip_json_types( $res->single_sentence->as_pair ),
       [ error => superhashof({ type => 'invalidArguments' }) ],
       "updates can't be got for invalid sinceState",
     ) or diag explain($res);
@@ -217,7 +217,7 @@ subtest "invalid sinceState" => sub {
     ]);
 
     cmp_deeply(
-      $jmap_tester->strip_json_types( $res->single_sentence->as_struct ),
+      $jmap_tester->strip_json_types( $res->single_sentence->as_pair ),
       [ error => superhashof({ type => 'cannotCalculateChanges' }), ],
       "updates can't be got for invalid sinceState",
     ) or diag explain($res);
@@ -238,7 +238,7 @@ subtest "invalid sinceState" => sub {
   );
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookieUpdates => {
@@ -257,7 +257,7 @@ subtest "invalid sinceState" => sub {
       ],
     ],
     "updates can be got (with implicit fetch)",
-  ) or diag explain( $jmap_tester->strip_json_types( $res->as_struct ) );
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
 }
 
 {
@@ -274,7 +274,7 @@ subtest "invalid sinceState" => sub {
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cakesSet => superhashof({
@@ -307,7 +307,7 @@ subtest "invalid sinceState" => sub {
   ]);
 
   cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_struct ),
+    $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookiesSet => superhashof({
