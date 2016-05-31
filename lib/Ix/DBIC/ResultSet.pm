@@ -61,6 +61,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
     @props = keys %is_prop;
   }
 
+  if (my $error = $rclass->ix_get_check($ctx, \$arg)) {
+    return $error;
+  }
+
   my @rows = $self->search(
     {
       accountId => $accountId,
