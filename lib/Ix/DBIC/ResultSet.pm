@@ -289,7 +289,6 @@ sub ix_create ($self, $ctx, $to_create) {
 
   my $next_state = $ctx->state->next_state_for($type_key);
 
-  # TODO handle unknown properties
   my $error = error('invalidRecord', { description => "could not create" });
 
   my %result;
@@ -304,7 +303,6 @@ sub ix_create ($self, $ctx, $to_create) {
   # TODO: sort these in dependency order, so if item A references item B, B is
   # created first -- rjbs, 2016-05-10
   my @keys = keys $to_create->%*;
-
 
   TO_CREATE: for my $id (@keys) {
     my $this = $to_create->{$id};
