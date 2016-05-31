@@ -98,6 +98,34 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
 
 {
   my $res = $jmap_tester->request([
+    [ getCookies => { ids => [ 4, -1 ], properties => [ qw(type) ] } ],
+  ]);
+
+  isa_ok(
+    $res->as_struct->[0][1]{list}[0]{id},
+    'JSON::Typist::String',
+    "we return ids as strings",
+  );
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookies => {
+          notFound => [ "-1" ],
+          state => 8,
+          list  => [
+            { id => 4, type => 'samoa' }, # baked_at => 1455319240 },
+          ],
+        },
+      ],
+    ],
+    "a getFoos call with notFound entries",
+  );
+}
+
+{
+  my $res = $jmap_tester->request([
     [ setCookies => { ifInState => 3, destroy => [ 4 ] } ],
   ]);
 

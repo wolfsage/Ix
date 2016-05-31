@@ -76,11 +76,16 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   $self->_ix_wash_rows(\@rows);
 
-  # TODO: populate notFound result property
+  my @not_found;
+  if ($ids) {
+    my %found  = map  {; $_->{id} => 1 } @rows;
+    @not_found = grep {; ! $found{$_} } @$ids;
+  }
+
   return result($rclass->ix_type_key => {
     state => $rclass->ix_state_string($ctx->state),
     list  => \@rows,
-    notFound => undef, # TODO
+    notFound => (@not_found ? \@not_found : undef),
   });
 }
 
