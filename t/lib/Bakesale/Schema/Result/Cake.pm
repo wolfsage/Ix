@@ -4,6 +4,7 @@ use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
 
+use Ix::Util qw(error);
 use Ix::Validators qw(integer simplestr);
 use List::Util qw(max);
 
@@ -28,6 +29,14 @@ sub ix_user_property_names { qw(type layer_count recipeId) }
 
 sub ix_default_properties {
   return { baked_at => Ix::DateTime->now };
+}
+
+sub ix_get_check ($self, $ctx, $arg) {
+  return if $arg->{ids};
+
+  return error(invalidArguments => {
+    description => "required parameter 'ids' not present",
+  });
 }
 
 sub ix_state_string ($self, $state) {

@@ -61,7 +61,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
     @props = keys %is_prop;
   }
 
-  if (my $error = $rclass->ix_get_check($ctx, \$arg)) {
+  if (my $error = $rclass->ix_get_check($ctx, $arg)) {
     return $error;
   }
 

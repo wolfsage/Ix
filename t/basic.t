@@ -126,6 +126,25 @@ Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
 
 {
   my $res = $jmap_tester->request([
+    [ getCakes => { } ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        error => {
+          type => 'invalidArguments',
+          description => "required parameter 'ids' not present",
+        }
+      ]
+    ],
+    "a getCakes call without 'ids' argument",
+  );
+}
+
+{
+  my $res = $jmap_tester->request([
     [ setCookies => { ifInState => 3, destroy => [ 4 ] } ],
   ]);
 
