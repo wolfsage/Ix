@@ -237,10 +237,15 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       my @rows = map {; +{ $_->%{ @props } } } @changed;
       $self->_ix_wash_rows(\@rows);
 
+      my %found = map {; $_->{id} => 1 } @rows;
+      my @not_found = grep {; ! $found{ $_ } }
+                      map  {; "$_->{id}" }
+                      @changed;
+
       push @return, result($type_key => {
         state => $rclass->ix_state_string($ctx->state),
         list  => \@rows,
-        notFound => undef, # TODO
+        notFound => (@not_found ? \@not_found : undef),
       });
     }
   }
