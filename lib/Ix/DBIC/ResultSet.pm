@@ -337,7 +337,7 @@ sub ix_create ($self, $ctx, $to_create) {
     my %default_properties = (
       # XXX: this surely must require a lot more customizability; pass in
       # context, user props, blah blah blah
-      $rclass->ix_default_properties->%*,
+      $rclass->ix_default_properties($this)->%*,
     );
 
     my %rec = (
