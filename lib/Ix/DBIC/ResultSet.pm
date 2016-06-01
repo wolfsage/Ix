@@ -65,16 +65,20 @@ sub ix_get ($self, $ctx, $arg = {}) {
     return $error;
   }
 
+  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search($ctx);
+
   my @rows = $self->search(
     {
       accountId => $accountId,
       (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
       ($ids ? (id => $ids) : ()),
       dateDeleted => undef,
+      %$x_get_cond,
     },
     {
       select => \@props,
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+      %$x_get_attr,
     },
   )->all;
 
@@ -154,7 +158,9 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     @props = 'id';
   }
 
-  my ($extra_search, $extra_attr) = $rclass->ix_update_extra_search($ctx, {
+  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search($ctx);
+
+  my ($x_update_cond, $x_update_attr) = $rclass->ix_update_extra_search($ctx, {
     since => $since,
   });
 
@@ -163,7 +169,8 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $search = $self->search(
     {
       'me.accountId'     => $accountId,
-      %$extra_search,
+      %$x_get_cond,
+      %$x_update_cond,
     },
     {
       select => [
@@ -173,7 +180,8 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       order_by => 'me.modSeqChanged',
-      %$extra_attr,
+      %$x_get_attr,
+      %$x_update_attr,
     },
   );
 
