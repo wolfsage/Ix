@@ -6,12 +6,19 @@ use experimental qw(signatures postderef);
 use DateTime::Format::RFC3339;
 use Ix::Error;
 use Ix::Result;
-use Sub::Exporter -setup => [ qw(error result parsedate) ];
+use Sub::Exporter -setup => [ qw(error internal_error result parsedate) ];
 
 sub error ($type, $prop = {}) {
   Ix::Error::Generic->new({
     error_type => $type,
     properties => $prop,
+  });
+}
+
+sub internal_error ($ident, $payload = undef) {
+  Ix::Error::Internal->new({
+    ident   => $ident,
+    ($payload ? (payload => $payload) : ()),
   });
 }
 
