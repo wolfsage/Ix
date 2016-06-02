@@ -123,11 +123,17 @@ my @created_ids;
             gold   => { id => ignore(), baked_at => ignore() },
           },
           notCreated => {
-            blue   => superhashof({ type => 'invalidRecord' }),
+            blue   => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { type => 'no value given for required field' }
+            }),
           },
           updated => [ 1 ],
           notUpdated => {
-            2 => superhashof({ type => 'invalidProperties' }),
+            2 => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { delicious => "unknown property" },
+            }),
           },
           destroyed => [ 4 ],
           notDestroyed => {

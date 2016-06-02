@@ -301,12 +301,19 @@ sub ix_create ($self, $ctx, $to_create) {
 
   my $next_state = $ctx->state->next_state_for($type_key);
 
-  my $error = error('invalidRecord', { description => "could not create" });
-
   my %result;
 
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
+
+  my %default_properties = (
+    # XXX: This surely must require a lot more customizability; pass in
+    # context, user props, blah blah blah.  A bigger question is whether we can
+    # have this work only on context, and not on the properties so far.  (Can a
+    # property specified by the user alter the default that we'll put on a new
+    # object?) -- rjbs, 2016-06-02
+    $rclass->ix_default_properties($ctx)->%*,
+  );
 
   my $col_info = $rclass->columns_info;
   my @date_fields = grep {; ($col_info->{$_}{data_type} // '') eq 'datetime' }
@@ -323,6 +330,7 @@ sub ix_create ($self, $ctx, $to_create) {
       $ctx,
       $this,
       \%is_user_prop,
+      \%default_properties,
       $col_info,
     );
 
@@ -333,12 +341,6 @@ sub ix_create ($self, $ctx, $to_create) {
       });
       next TO_CREATE;
     }
-
-    my %default_properties = (
-      # XXX: this surely must require a lot more customizability; pass in
-      # context, user props, blah blah blah
-      $rclass->ix_default_properties($ctx, $this)->%*,
-    );
 
     my %rec = (
       %$user_prop,
@@ -390,7 +392,10 @@ sub ix_create ($self, $ctx, $to_create) {
 
       $ctx->log_created_id($type_key, $id, $row->id);
     } else {
-      $result{not_created}{$id} = $error;
+      $result{not_created}{$id} = error(
+        'invalidRecord',
+        { description => "could not create" },
+      );
     }
   }
 
@@ -399,7 +404,9 @@ sub ix_create ($self, $ctx, $to_create) {
   return \%result;
 }
 
-sub _ix_check_user_properties ($self, $ctx, $rec, $is_user_prop, $col_info) {
+sub _ix_check_user_properties (
+  $self, $ctx, $rec, $is_user_prop, $defaults, $col_info
+) {
   my %user_prop;
   my %property_error;
 
@@ -414,11 +421,13 @@ sub _ix_check_user_properties ($self, $ctx, $rec, $is_user_prop, $col_info) {
       next PROP;
     }
 
+    my $col = $col_info->{$prop};
+
     if (
       # Probably we can intuit this from foreign keys or relationships?
-      (my $xref_type = $col_info->{$prop}{ix_xref_to})
+      (my $xref_type = $col->{ix_xref_to})
       &&
-      $col_info->{$prop} && $col_info->{$prop} =~ /\A#(.+)\z/
+      $rec->{$prop} && $rec->{$prop} =~ /\A#(.+)\z/
     ) {
       if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
         $rec->{$prop} = $xref;
@@ -428,7 +437,7 @@ sub _ix_check_user_properties ($self, $ctx, $rec, $is_user_prop, $col_info) {
       }
     }
 
-    if (my $validator = $col_info->{$prop}{ix_validator}) {
+    if (my $validator = $col->{ix_validator}) {
       if (my $error = $validator->($rec->{$prop})) {
         $property_error{$prop} = $error;
         next PROP;
@@ -436,6 +445,17 @@ sub _ix_check_user_properties ($self, $ctx, $rec, $is_user_prop, $col_info) {
     }
 
     $user_prop{$prop} = $rec->{$prop};
+  }
+
+  # $defaults being defined means we're doing a create, not an update
+  if ($defaults) {
+    for my $prop (
+      grep { ! defined $rec->{$_} && ! $defaults->{$_} }
+      keys %$is_user_prop
+    ) {
+      next if $col_info->{$prop}->{is_nullable};
+      $property_error{$prop} = "no value given for required field";
+    }
   }
 
   return (\%user_prop, \%property_error);
@@ -508,6 +528,7 @@ sub ix_update ($self, $ctx, $to_update) {
       $ctx,
       $to_update->{$id},
       \%is_user_prop,
+      undef,
       $col_info,
     );
 
