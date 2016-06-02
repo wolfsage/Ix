@@ -8,17 +8,25 @@ use Ix::Error;
 use Ix::Result;
 use Sub::Exporter -setup => [ qw(error internal_error result parsedate) ];
 
-sub error ($type, $prop = {}) {
+sub error ($type, $prop = {}, $ident = undef, $payload = undef) {
   Ix::Error::Generic->new({
     error_type => $type,
     properties => $prop,
+    ($ident
+      ? (_exception_report => Ix::ExceptionReport->new({
+          ident => $ident,
+          ($payload ? (payload => $payload) : ()),
+        }))
+      : ()),
   });
 }
 
 sub internal_error ($ident, $payload = undef) {
   Ix::Error::Internal->new({
-    ident   => $ident,
-    ($payload ? (payload => $payload) : ()),
+    _exception_report => Ix::ExceptionReport->new({
+      ident   => $ident,
+      ($payload ? (payload => $payload) : ()),
+    }),
   });
 }
 
