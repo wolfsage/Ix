@@ -6,7 +6,7 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(error parsedate result);
+use Ix::Util qw(error internal_error parsedate result);
 use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
@@ -393,8 +393,8 @@ sub ix_create ($self, $ctx, $to_create) {
       $ctx->log_created_id($type_key, $id, $row->id);
     } else {
       $result{not_created}{$id} = error(
-        'invalidRecord',
-        { description => "could not create" },
+        'invalidRecord', { description => "could not create" },
+        "database rejected creation", { db_error => "$@" },
       );
     }
   }
@@ -504,7 +504,6 @@ sub ix_update ($self, $ctx, $to_update) {
   my $next_state = $ctx->state->next_state_for($type_key);
 
   my @updated;
-  my $error = error('invalidRecord', { description => "could not update" });
 
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
@@ -557,7 +556,10 @@ sub ix_update ($self, $ctx, $to_update) {
     if ($ok) {
       push @updated, $id;
     } else {
-      $result{not_updated}{$id} = $error;
+      $result{not_updated}{$id} = error(
+        'invalidRecord', { description => "could not update" },
+        "database rejected update", { db_error => "$@" },
+      );
     }
   }
 
@@ -609,7 +611,9 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     if ($ok) {
       push @destroyed, $id;
     } else {
-      $result{not_destroyed}{$id} = error('failedToDelete');
+      $result{not_destroyed}{$id} = internal_error(
+        "database rejected delete", { db_error => "$@" },
+      );
     }
   }
 
