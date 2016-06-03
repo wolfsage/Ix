@@ -387,7 +387,6 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      # This is silly.  Can we get a pair slice out of a Row?
       my @defaults = grep {; ! exists $user_prop->{$_} } keys %default_properties;
       $result{created}{$id} = {
         id => $row->id,
