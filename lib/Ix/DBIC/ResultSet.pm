@@ -411,12 +411,20 @@ sub _ix_check_user_properties (
   my %property_error;
 
   PROP: for my $prop (keys %$rec) {
+    my $value = $rec->{$prop};
+
     unless ($is_user_prop->{$prop}) {
       $property_error{$prop} = "unknown property";
       next PROP;
     }
 
-    if (ref $rec->{$prop} && ! $rec->{$prop}->$_isa('Ix::DateTime')) {
+    if (
+      $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
+    ) {
+      $value = $value ? 1 : 0;
+    }
+
+    if (ref $value && ! $value->$_isa('Ix::DateTime')) {
       $property_error{$prop} = "invalid property value";
       next PROP;
     }
@@ -427,10 +435,10 @@ sub _ix_check_user_properties (
       # Probably we can intuit this from foreign keys or relationships?
       (my $xref_type = $col->{ix_xref_to})
       &&
-      $rec->{$prop} && $rec->{$prop} =~ /\A#(.+)\z/
+      $value && $value =~ /\A#(.+)\z/
     ) {
       if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
-        $rec->{$prop} = $xref;
+        $value = $xref;
       } else {
         $property_error{$prop} = "can't resolve creation id";
         next PROP;
@@ -438,13 +446,13 @@ sub _ix_check_user_properties (
     }
 
     if (my $validator = $col->{ix_validator}) {
-      if (my $error = $validator->($rec->{$prop})) {
+      if (my $error = $validator->($value)) {
         $property_error{$prop} = $error;
         next PROP;
       }
     }
 
-    $user_prop{$prop} = $rec->{$prop};
+    $user_prop{$prop} = $value;
   }
 
   # $defaults being defined means we're doing a create, not an update
