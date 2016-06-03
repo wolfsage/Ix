@@ -365,7 +365,13 @@ subtest "passing in a boolean" => sub {
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_pairs ),
     [
-      [ cakeRecipesSet => superhashof({ created => superhashof({}) }) ],
+      [
+        cakeRecipesSet => superhashof({
+          created => {
+            boat => { id => ignore() },
+          }
+        }),
+      ],
     ],
     "made an object with a boolean property value",
   ) or note(explain($res->as_pairs));
@@ -410,7 +416,11 @@ subtest "make a recipe and a cake in one exchange" => sub {
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_pairs ),
     [
-      [ cakeRecipesSet => superhashof({}) ],
+      [ cakeRecipesSet => superhashof({
+          created => {
+            pav => { id => ignore(), is_delicious => bool(1) },
+          }
+      }) ],
       [ cakesSet       => superhashof({}) ],
     ],
     "we can bake cakes with recipes in one go",
