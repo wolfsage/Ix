@@ -18,7 +18,7 @@ __PACKAGE__->add_columns(
   type        => { data_type => 'text'     },
   layer_count => { data_type => 'integer', ix_validator => integer(1, 10)  },
   baked_at    => { data_type => 'datetime' },
-  recipeId    => { data_type => 'integer', ix_xref_to => 'recipes' },
+  recipeId    => { data_type => 'integer', ix_xref_to => 'cakeRecipes' },
 );
 
 __PACKAGE__->set_primary_key('id');

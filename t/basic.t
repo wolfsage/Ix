@@ -347,6 +347,34 @@ subtest "invalid sinceState" => sub {
   );
 }
 
+subtest "make a recipe and a cake in one exchange" => sub {
+  my $res = $jmap_tester->request([
+    [
+      setCakeRecipes => {
+        create => {
+          pav => { type => 'pavlova', avg_review => 50 }
+        },
+      },
+    ],
+    [
+      setCakes => {
+        create    => {
+          magic => { type => 'eggy', layer_count => 2, recipeId => '#pav' },
+        }
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [ cakeRecipesSet => superhashof({}) ],
+      [ cakesSet       => superhashof({}) ],
+    ],
+    "we can bake cakes with recipes in one go",
+  ) or note(explain($res->as_pairs));
+};
+
 {
   my $res = $jmap_tester->request([
     [
