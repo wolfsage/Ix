@@ -34,7 +34,7 @@ sub domain {
 
 sub integer ($min = '-Inf', $max = 'Inf') {
   return sub ($x, @) {
-    return "not an integer" unless $x =~ /\A[-+]?[1-9][0-9]*\z/;
+    return "not an integer" unless $x =~ /\A[-+]?(?:[0-9]|[1-9][0-9]*)\z/;
     return "value below minimum of $min" if $x < $min;
     return "value above maximum of $max" if $x > $max;
     return;
