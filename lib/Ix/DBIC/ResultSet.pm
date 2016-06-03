@@ -640,6 +640,14 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $state = $ctx->state;
   my $curr_state = $state->state_for($type_key);
 
+  my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
+  if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
+    return error('invalidArguments' => {
+      description => "unknown arguments passed",
+      unknownArguments => \@unknown,
+    });
+  }
+
   # TODO validate everything
 
   if (($arg->{ifInState} // $curr_state) ne $curr_state) {
