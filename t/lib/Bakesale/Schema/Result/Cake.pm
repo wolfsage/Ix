@@ -8,7 +8,7 @@ use Ix::Util qw(error);
 use Ix::Validators qw(integer nonemptystr);
 use List::Util qw(max);
 
-__PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
+__PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
 __PACKAGE__->table('cakes');
 

@@ -1,7 +1,7 @@
 package Bakesale::Schema::Result::CakeRecipe;
 use base qw/DBIx::Class::Core/;
 
-__PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
+__PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
 __PACKAGE__->table('cake_recipes');
 

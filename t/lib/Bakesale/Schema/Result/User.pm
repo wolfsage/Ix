@@ -4,7 +4,7 @@ use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::User;
 use base qw/DBIx::Class::Core/;
 
-__PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
+__PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
 __PACKAGE__->table('users');
 
