@@ -343,8 +343,8 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     my %rec = (
-      %$user_prop,
       %default_properties,
+      %$user_prop,
 
       accountId => $accountId,
       modSeqCreated => $next_state,
