@@ -4,7 +4,9 @@ package Ix::Validators;
 
 use experimental qw(postderef signatures);
 
-use Sub::Exporter -setup => [ qw(email enum domain integer simplestr) ];
+use Sub::Exporter -setup => [ qw(
+  email enum domain integer nonemptystr simplestr
+) ];
 
 sub email {
   return sub ($x, @) {
@@ -40,6 +42,16 @@ sub integer ($min = '-Inf', $max = 'Inf') {
 }
 
 sub simplestr {
+  return sub ($x, @) {
+    return "not a string" unless defined $x; # weak
+    return unless length $x;
+    return "string contains only whitespace" unless $x =~ /\S/;
+    return "string contains vertical whitespace" if $x =~ /\v/;
+    return;
+  };
+}
+
+sub nonemptystr {
   return sub ($x, @) {
     return "string is empty" unless length $x;
     return "string contains only whitespace" unless $x =~ /\S/;

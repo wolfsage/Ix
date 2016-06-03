@@ -5,7 +5,7 @@ package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
 
 use Ix::Util qw(error);
-use Ix::Validators qw(integer simplestr);
+use Ix::Validators qw(integer nonemptystr);
 use List::Util qw(max);
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/); # for example
