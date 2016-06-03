@@ -66,7 +66,7 @@ package Bakesale::Test {
 
     $schema->resultset('CakeRecipe')->populate([
       { accountId => 1, modseq(1),
-        type => 'seven-layer', avg_review => 91 },
+        type => 'seven-layer', avg_review => 91, is_delicious => 1 },
     ]);
 
     $schema->resultset('State')->populate([

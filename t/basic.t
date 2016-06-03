@@ -347,6 +347,48 @@ subtest "invalid sinceState" => sub {
   );
 }
 
+subtest "passing in a boolean" => sub {
+  my $res = $jmap_tester->request([
+    [
+      setCakeRecipes => {
+        create => {
+          boat => {
+            type          => 'cake boat',
+            avg_review    => 0,
+            is_delicious  => \0,
+          }
+        },
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [ cakeRecipesSet => superhashof({ created => superhashof({}) }) ],
+    ],
+    "made an object with a boolean property value",
+  ) or note(explain($res->as_pairs));
+
+  my $id = $res->single_sentence->as_set->created_id('boat');
+
+  my $get = $jmap_tester->request([
+    [ getCakeRecipes => { ids => [ "$id" ] } ]
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $get->as_pairs ),
+    [
+      [
+        cakeRecipes => superhashof({
+          list => [ superhashof({ id => "$id", is_delicious => bool(0) }) ],
+        }),
+      ],
+    ],
+    "created with the right truthiness",
+  ) or note(explain($res->as_pairs));
+};
+
 subtest "make a recipe and a cake in one exchange" => sub {
   my $res = $jmap_tester->request([
     [
