@@ -644,7 +644,6 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $curr_state = $state->state_for($type_key);
 
   my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
-  $expected_arg{state} = 1; # XXX This is bogus, but it's being sent.
   if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
     return error('invalidArguments' => {
       description => "unknown arguments passed",
