@@ -38,7 +38,12 @@ my %DEFAULT_VALIDATOR = (
   string  => Ix::Validators::simplestr(),
 );
 
+my %DID_FINALIZE;
 sub ix_finalize ($class) {
+  if ($DID_FINALIZE{$class}++) {
+    Carp::confess("tried to finalize $class a second time");
+  }
+
   my $columns = $class->columns_info;
 
   for my $name ($class->columns) {
