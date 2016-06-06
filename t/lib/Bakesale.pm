@@ -111,6 +111,11 @@ package Bakesale {
     });
   }
 
+  sub context_from_plack_request ($self, $req) {
+    my $user_id = $req->cookies->{bakesaleUserId};
+    return $self->get_context({ userId => $user_id // 1 });
+  }
+
   sub schema_class { 'Bakesale::Schema' }
 
   sub handler_for ($self, $method) {

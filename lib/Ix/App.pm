@@ -50,11 +50,7 @@ sub to_app ($self) {
       ];
     }
 
-    my $ctx = $self->processor->get_context({
-      # XXX SUPER BOGUS -- rjbs, 2016-05-10
-      # accountId => 1,
-      userId => 1,
-    });
+    my $ctx = $self->processor->context_from_plack_request($req);
 
     my $content = $req->raw_body;
 
