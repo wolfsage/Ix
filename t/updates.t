@@ -396,7 +396,6 @@ subtest "complex state comparisons" => sub {
 
       my @changed = $arg->{changed}->@*;
       cmp_ok(@changed, '<=', 5, "<= 5 items changed");
-      diag 0+@changed;
 
       $changed{ $cake_id_rev{$_} }++ for @changed;
       $mid_state = $arg->{newState};
