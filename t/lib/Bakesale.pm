@@ -7,7 +7,7 @@ package Bakesale::Test {
 
   sub new_test_app_and_tester ($self) {
     require JMAP::Tester;
-    require Plack::Test;
+    require LWP::Protocol::PSGI;
 
     my $conn_info = Bakesale::Test->test_schema_connect_info;
 
@@ -15,13 +15,11 @@ package Bakesale::Test {
       connect_info => $conn_info,
     });
 
-    my $plack_test = Plack::Test->create($app->to_app);
-
+    state $n;
+    $n++;
+    LWP::Protocol::PSGI->register($app->to_app, host => 'bakesale.local:' . $n);
     my $jmap_tester = JMAP::Tester->new({
-      jmap_uri => 'https://localhost/jmap',
-      _request_callback => sub {
-        shift; $plack_test->request(@_);
-      },
+      jmap_uri => "http://bakesale.local:$n/jmap",
     });
 
     return ($app, $jmap_tester);
