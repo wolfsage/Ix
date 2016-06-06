@@ -12,6 +12,7 @@ use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
+$jmap_tester->_set_cookie('bakesaleUserId', 1);
 
 {
   my $res = $jmap_tester->request([
