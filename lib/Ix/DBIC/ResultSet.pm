@@ -363,7 +363,7 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my @bogus_dates;
     DATE_FIELD: for my $date_field (@date_fields) {
-      next DATE_FIELD unless exists $rec{$date_field};
+      next DATE_FIELD unless defined $rec{$date_field};
       if (ref $rec{ $date_field }) {
         # $rec{$date_field} = $rec{ $date_field }->as_string;
         next DATE_FIELD;

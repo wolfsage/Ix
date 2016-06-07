@@ -458,4 +458,26 @@ subtest "make a recipe and a cake in one exchange" => sub {
   );
 }
 
+{
+  my $res = $jmap_tester->request([
+    [
+      setCookies => {
+        create => { raw => { type => 'dough', baked_at => undef } },
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          created => { raw => { id => re(qr/\S/) } },
+        }),
+      ],
+    ],
+    "we can create a record with a null date field",
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
+}
+
 done_testing;
