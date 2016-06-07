@@ -306,15 +306,6 @@ sub ix_create ($self, $ctx, $to_create) {
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
 
-  my %default_properties = (
-    # XXX: This surely must require a lot more customizability; pass in
-    # context, user props, blah blah blah.  A bigger question is whether we can
-    # have this work only on context, and not on the properties so far.  (Can a
-    # property specified by the user alter the default that we'll put on a new
-    # object?) -- rjbs, 2016-06-02
-    $rclass->ix_default_properties($ctx)->%*,
-  );
-
   my $col_info = $rclass->columns_info;
   my @date_fields = grep {; ($col_info->{$_}{data_type} // '') eq 'datetime' }
                     keys %$col_info;
@@ -324,6 +315,25 @@ sub ix_create ($self, $ctx, $to_create) {
   my @keys = keys $to_create->%*;
 
   TO_CREATE: for my $id (@keys) {
+
+    my %default_properties = (
+      # XXX: This surely must require a lot more customizability; pass in
+      # context, user props, blah blah blah.  A bigger question is whether we can
+      # have this work only on context, and not on the properties so far.  (Can a
+      # property specified by the user alter the default that we'll put on a new
+      # object?) -- rjbs, 2016-06-02
+      #
+      # More importantly, this needs to be called less often.  Originally, we
+      # called this once per ix_create and then re-used the results.  We can't
+      # do that now that we have a record type (elsewhere) that has to create
+      # $n external resources per row.  Ideally(?), we should have
+      # ix_default_properties return generators as values.  I'm going to hold
+      # off on that until I write the generator to use an iterator that can do
+      # $n creates at once, then spool them out, then make $n more, for maximum
+      # minimalness. -- rjbs, 2016-06-07
+      $rclass->ix_default_properties($ctx)->%*,
+    );
+
     my $this = $to_create->{$id};
 
     my ($user_prop, $property_error) = $self->_ix_check_user_properties(
