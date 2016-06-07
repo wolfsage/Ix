@@ -369,11 +369,11 @@ sub ix_create ($self, $ctx, $to_create) {
         next DATE_FIELD;
       }
 
-      if (my $dt = parsedate($rec{$_})) {
+      if (my $dt = parsedate($rec{$date_field})) {
         # great, it's already valid
         $rec{$date_field} = $dt;
       } else {
-        push @bogus_dates, $_;
+        push @bogus_dates, $date_field;
       }
     }
 
