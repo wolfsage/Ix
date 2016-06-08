@@ -172,7 +172,7 @@ my @created_ids;
         },
         update => {
           1 => { type => 'half-eaten tim-tam' },
-          2 => { delicious => 0 },
+          2 => { delicious => 0, id => 999 },
         },
         destroy => [ 4, 3 ],
       },
@@ -201,7 +201,10 @@ my @created_ids;
           notUpdated => {
             2 => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { delicious => "unknown property" },
+              propertyErrors => {
+                delicious => "unknown property",
+                id => re(qr/cannot be set/),
+              },
             }),
           },
           destroyed => [ 4 ],

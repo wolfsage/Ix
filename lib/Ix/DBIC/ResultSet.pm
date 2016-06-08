@@ -24,13 +24,6 @@ sub _ix_rclass ($self) {
   return $rclass;
 }
 
-my %HIDDEN_COLUMN = map {; $_ => 1 } qw(
-  accountId
-  modSeqCreated
-  modSeqChanged
-  dateDeleted
-);
-
 sub ix_get ($self, $ctx, $arg = {}) {
   my $accountId = $ctx->accountId;
 
@@ -43,9 +36,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
 
-  my %is_prop = map  {; $_ => 1 }
-                grep {; ! $HIDDEN_COLUMN{$_} }
-                $self->result_source->columns;
+  my $col_info = $self->result_source->columns_info;
+  my %is_prop  = map  {; $_ => 1 }
+                 grep {; ! $col_info->{$_}{ix_hidden} }
+                 keys %$col_info;
 
   my @props;
   if ($arg->{properties}) {
@@ -139,9 +133,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     })->throw
   }
 
-  my %is_prop = map  {; $_ => 1 }
-                grep {; ! $HIDDEN_COLUMN{$_} }
-                $self->result_source->columns;
+  my $col_info = $self->result_source->columns_info;
+  my %is_prop  = map  {; $_ => 1 }
+                 grep {; ! $col_info->{$_}{ix_hidden} }
+                 keys %$col_info;
 
   my @invalid_props;
 
@@ -425,9 +420,15 @@ sub _ix_check_user_properties (
 
   PROP: for my $prop (keys %$rec) {
     my $value = $rec->{$prop};
+    my $col   = $col_info->{$prop};
+
+    if (! $col || $col->{ix_hidden}) {
+      $property_error{$prop} = "unknown property";
+      next PROP;
+    }
 
     unless ($is_user_prop->{$prop}) {
-      $property_error{$prop} = "unknown property";
+      $property_error{$prop} = "property cannot be set by client";
       next PROP;
     }
 
@@ -441,8 +442,6 @@ sub _ix_check_user_properties (
       $property_error{$prop} = "invalid property value";
       next PROP;
     }
-
-    my $col = $col_info->{$prop};
 
     if (
       # Probably we can intuit this from foreign keys or relationships?

@@ -26,10 +26,10 @@ sub ix_add_columns ($class) {
       ix_data_type      => 'string',
       is_auto_increment => 1
     },
-    accountId     => { data_type => 'integer' },
-    modSeqCreated => { data_type => 'integer' },
-    modSeqChanged => { data_type => 'integer' },
-    dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
+    accountId     => { data_type => 'integer', ix_hidden => 1, },
+    modSeqCreated => { data_type => 'integer', ix_hidden => 1, },
+    modSeqChanged => { data_type => 'integer', ix_hidden => 1, },
+    dateDeleted   => { data_type => 'datetime', is_nullable => 1, ix_hidden => 1 },
   );
 }
 
