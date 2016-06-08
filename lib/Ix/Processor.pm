@@ -35,10 +35,6 @@ sub schema_connection ($self) {
   );
 }
 
-requires 'context_class';
-
-requires 'get_context'; # ???
-
 has _dbic_handlers => (
   is   => 'ro',
   lazy => 1,

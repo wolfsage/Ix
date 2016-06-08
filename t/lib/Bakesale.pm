@@ -118,8 +118,6 @@ package Bakesale {
   use experimental qw(signatures postderef);
   use namespace::autoclean;
 
-  sub context_class { 'Bakesale::Context' }
-
   sub connect_info;
   has connect_info => (
     lazy    => 1,
@@ -131,7 +129,7 @@ package Bakesale {
   );
 
   sub get_context ($self, $arg) {
-    $self->context_class->new({
+    Bakesale::Context->new({
       userId    => $arg->{userId},
       schema    => $self->schema_connection,
       processor => $self,
