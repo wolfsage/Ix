@@ -133,28 +133,6 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     })->throw
   }
 
-  my $col_info = $self->result_source->columns_info;
-  my %is_prop  = map  {; $_ => 1 }
-                 grep {; ! $col_info->{$_}{ix_hidden} }
-                 keys %$col_info;
-
-  my @invalid_props;
-
-  my @props;
-  if ($arg->{fetchRecords} && $arg->{fetchRecordProperties}) {
-    if (@invalid_props = grep {; ! $is_prop{$_} } $arg->{fetchRecordProperties}->@*) {
-      @props = 'id';
-    }
-
-    @props = uniq('id', $arg->{fetchRecordProperties}->@*);
-  } elsif ($arg->{fetchRecords}) {
-    @props = keys %is_prop;
-  } else {
-    @props = 'id';
-  }
-
-  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search($ctx);
-
   my ($x_update_cond, $x_update_attr) = $rclass->ix_update_extra_search($ctx, {
     since => $since,
   });
@@ -164,18 +142,16 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $search = $self->search(
     {
       'me.accountId'     => $accountId,
-      %$x_get_cond,
       %$x_update_cond,
     },
     {
       select => [
-        @props,
+        'id',
         qw(me.dateDeleted me.modSeqChanged),
         $rclass->ix_update_extra_select->@*,
       ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       order_by => 'me.modSeqChanged',
-      %$x_get_attr,
       %$x_update_attr,
     },
   );
@@ -220,7 +196,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     if ($item->{dateDeleted}) {
       push @removed, "$item->{id}";
     } else {
-      push @changed, $item;
+      push @changed, "$item->{id}";
     }
   }
 
@@ -230,31 +206,28 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
               ? $rclass->ix_highest_state($since, \@rows)
               : $rclass->ix_state_string($ctx->state)),
     hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
-    changed => [ map {; "$_->{id}" } @changed ],
+    changed => \@changed,
     removed => \@removed,
   });
 
   if ($arg->{fetchRecords}) {
-    if (@invalid_props) {
-      push @return, error(invalidArguments => {
-        description       => "requested unknown property",
-        unknownProperties => \@invalid_props,
-      });
-    } else {
-      my @rows = map {; +{ $_->%{ @props } } } @changed;
-      $self->_ix_wash_rows(\@rows);
-
-      my %found = map {; $_->{id} => 1 } @rows;
-      my @not_found = grep {; ! $found{ $_ } }
-                      map  {; "$_->{id}" }
-                      @changed;
-
-      push @return, result($type_key => {
-        state => $rclass->ix_state_string($ctx->state),
-        list  => \@rows,
-        notFound => (@not_found ? \@not_found : undef),
-      });
-    }
+    # XXX This is pretty sub-optimal, because we might be passing a @changed of
+    # size 500+, which becomes 500 placeholder variables.  Stupid.  If it comes
+    # to it, we could maybe run-encode them with BETWEEN queries.
+    #
+    # We used to do a *single* select, which was a nice optimization, but it
+    # bypassed permissions imposed by "get" query extras.  We need to *not* use
+    # those in getting updates, but to use them in getting records.
+    #
+    # Next attempt was to use a ResultSetColumn->as_query on the above query's
+    # id column.  That's no good because we're manually trimming the results
+    # based on id boundaries.  We may be able to improve the above query, then
+    # use this strategy.  For now, just gonna let it go until we hit problems!
+    # -- rjbs, 2016-06-08
+    push @return, $self->ix_get($ctx, {
+      ids => \@changed,
+      properties => $arg->{fetchRecordProperties},
+    });
   }
 
   return @return;
