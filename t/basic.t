@@ -166,7 +166,7 @@ my @created_ids;
       setCookies => {
         ifInState => 8,
         create    => {
-          yellow => { type => 'shortbread' },
+          yellow => { type => 'shortbread', baked_at => undef },
           gold   => { type => 'anzac' },
           blue   => {},
         },
@@ -188,7 +188,7 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), baked_at => ignore() },
+            yellow => { id => ignore() }, # no baked_at, because not default
             gold   => { id => ignore(), baked_at => ignore() },
           },
           notCreated => {
