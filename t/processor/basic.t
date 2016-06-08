@@ -274,7 +274,7 @@ subtest "invalid sinceState" => sub {
   my $res = $ctx->process_request([
     [
       setCakes => {
-        ifInState => 0,
+        ifInState => '0-0',
         create    => {
           yum => { type => 'wedding', layer_count => 4, recipeId => 1 }
         }

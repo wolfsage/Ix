@@ -651,7 +651,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $schema   = $self->result_source->schema;
 
   my $state = $ctx->state;
-  my $curr_state = $state->state_for($type_key);
+  my $curr_state = $rclass->ix_state_string($state);
 
   my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
   if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {

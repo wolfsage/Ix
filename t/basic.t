@@ -318,7 +318,7 @@ subtest "invalid sinceState" => sub {
   my $res = $jmap_tester->request([
     [
       setCakes => {
-        ifInState => 0,
+        ifInState => '0-0',
         create    => {
           yum => { type => 'wedding', layer_count => 4, recipeId => 1 },
           yow => { type => 'croquembouche', layer_count => 99, recipeId => 1 }
