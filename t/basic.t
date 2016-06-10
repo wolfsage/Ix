@@ -1,6 +1,6 @@
 use 5.20.0;
 use warnings;
-use experimental qw(signatures postderef);
+use experimental qw(signatures postderef refaliasing);
 
 use lib 't/lib';
 
@@ -11,8 +11,9 @@ use Test::Deep;
 use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
-Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
-$jmap_tester->_set_cookie('bakesaleUserId', 1);
+\my %dataset = Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
+
+$jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
 
 {
   my $res = $jmap_tester->request([
@@ -76,8 +77,8 @@ $jmap_tester->_set_cookie('bakesaleUserId', 1);
   isa_ok(
     $res->as_struct->[0][1]{list}[0]{id},
     'JSON::Typist::String',
-    "we return ids as strings",
-  );
+    "the returned id",
+  ) or diag(explain($res->as_struct));
 
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_pairs ),
@@ -87,8 +88,8 @@ $jmap_tester->_set_cookie('bakesaleUserId', 1);
           notFound => undef,
           state => 8,
           list  => [
-            { id => 4, type => 'samoa',   }, # baked_at => 1455319240 },
-            { id => 5, type => 'tim tam', }, # baked_at => 1455310000 },
+            { id => $dataset{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
+            { id => $dataset{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
           ],
         },
       ],
@@ -98,8 +99,16 @@ $jmap_tester->_set_cookie('bakesaleUserId', 1);
 }
 
 {
+  my @ids = values $dataset{cookies}->%*;
+  my $does_not_exist = $ids[-1]+1;
+
   my $res = $jmap_tester->request([
-    [ getCookies => { ids => [ 4, -1 ], properties => [ qw(type) ] } ],
+    [
+      getCookies => {
+        ids        => [ $dataset{cookies}{4}, $does_not_exist ],
+        properties => [ qw(type) ]
+      }
+    ],
   ]);
 
   isa_ok(
@@ -113,10 +122,10 @@ $jmap_tester->_set_cookie('bakesaleUserId', 1);
     [
       [
         cookies => {
-          notFound => [ "-1" ],
+          notFound => [ $does_not_exist ],
           state => 8,
           list  => [
-            { id => 4, type => 'samoa' }, # baked_at => 1455319240 },
+            { id => $dataset{cookies}{4}, type => "samoa" }, # baked_at => 1455319240 },
           ],
         },
       ],
@@ -171,10 +180,10 @@ my @created_ids;
           blue   => {},
         },
         update => {
-          1 => { type => 'half-eaten tim-tam' },
-          2 => { delicious => 0, id => 999 },
+          $dataset{cookies}{1} => { type => 'half-eaten tim-tam' },
+          $dataset{cookies}{2} => { delicious => 0, id => 999 },
         },
-        destroy => [ 4, 3 ],
+        destroy => [ $dataset{cookies}->@{3, 4} ],
       },
     ],
   ]);
@@ -197,9 +206,9 @@ my @created_ids;
               propertyErrors => { type => 'no value given for required field' }
             }),
           },
-          updated => [ 1 ],
+          updated => [ $dataset{cookies}{1} ],
           notUpdated => {
-            2 => superhashof({
+            $dataset{cookies}{2} => superhashof({
               type => 'invalidProperties',
               propertyErrors => {
                 delicious => "unknown property",
@@ -207,9 +216,9 @@ my @created_ids;
               },
             }),
           },
-          destroyed => [ 4 ],
+          destroyed => [ $dataset{cookies}{4} ],
           notDestroyed => {
-            3 => superhashof({ type => ignore() }),
+            $dataset{cookies}{3} => superhashof({ type => ignore() }),
           },
         }),
       ],
@@ -246,8 +255,8 @@ my @created_ids;
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, @created_ids),
-          removed  => bag(4),
+          changed  => bag($dataset{cookies}{1}, @created_ids),
+          removed  => bag($dataset{cookies}{4}),
         },
       ],
     ],
@@ -283,7 +292,7 @@ subtest "invalid sinceState" => sub {
 
 {
   my $get_res = $jmap_tester->request([
-    [ getCookies => { ids => [ 1, @created_ids ] } ],
+    [ getCookies => { ids => [ $dataset{cookies}{1}, @created_ids ] } ],
   ]);
 
   my $res = $jmap_tester->request([
@@ -302,8 +311,8 @@ subtest "invalid sinceState" => sub {
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag(1, @created_ids),
-          removed  => bag(4),
+          changed  => bag($dataset{cookies}{1}, @created_ids),
+          removed  => bag($dataset{cookies}{4}),
         },
       ],
       [
@@ -323,8 +332,8 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => 1 },
-          yow => { type => 'croquembouche', layer_count => 99, recipeId => 1 }
+          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
+          yow => { type => 'croquembouche', layer_count => 99, recipeId => $dataset{recipes}{1} }
         }
       },
     ],

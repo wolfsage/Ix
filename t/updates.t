@@ -11,6 +11,8 @@ use Test::Deep;
 use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
+my $admin_id = Bakesale::Test->load_single_user($app->processor->schema_connection);
+$jmap_tester->_set_cookie('bakesaleUserId', $admin_id);
 
 subtest "simple state comparisons" => sub {
   # First up, we are going to set up fudge distinct states, each with 10

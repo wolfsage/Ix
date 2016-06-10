@@ -9,7 +9,7 @@ package Bakesale::Test {
     require JMAP::Tester;
     require LWP::Protocol::PSGI;
 
-    my $conn_info = Bakesale::Test->test_schema_connect_info;
+    my ($user_id, $conn_info) = Bakesale::Test->test_schema_connect_info;
 
     my $app = Bakesale::App->new({
       connect_info => $conn_info,
@@ -22,7 +22,7 @@ package Bakesale::Test {
       jmap_uri => "http://bakesale.local:$n/jmap",
     });
 
-    return ($app, $jmap_tester);
+    return ($app, $jmap_tester, $user_id);
   }
 
   my @TEST_DBS;
@@ -39,42 +39,71 @@ package Bakesale::Test {
 
     $schema->deploy;
 
-    my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
-    my $rows = $schema->resultset('User')->populate([
-      { accountId => 1, username => 'rjbs',  modseq(1) },
-    ]);
-
     return [ $db->connect_info ];
+  }
+
+  sub load_single_user ($self, $schema) {
+    my $user_rs = $schema->resultset('User');
+
+    my $user1 = $user_rs->create({
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      username  => 'testadmin',
+      modSeqCreated => 1,
+      modSeqChanged => 1,
+    });
+
+    return $user1->id;
   }
 
   sub load_trivial_dataset ($self, $schema) {
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
-    my $rows = $schema->resultset('User')->populate([
-      { accountId => 2, username => 'neilj', modseq(1) },
+    my $user_rs = $schema->resultset('User');
+
+    my $user1 = $user_rs->create({
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      username  => 'rjbs',
+      modseq(1)
+    });
+
+    $user1 = $user_rs->single({ id => $user1->id });
+
+    my $user2 = $user_rs->create({
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      username  => 'neilj',
+      modseq(1)
+    });
+
+    $user2 = $user_rs->single({ id => $user2->id });
+
+    my $a1 = $user1->accountId;
+    my $a2 = $user2->accountId;
+
+    my @cookies = $schema->resultset('Cookie')->populate([
+      { accountId => $a1, modseq(1), type => 'tim tam',   baked_at => '2016-01-01T12:34:56Z' },
+      { accountId => $a1, modseq(1), type => 'oreo',      baked_at => '2016-01-02T23:45:60Z' },
+      { accountId => $a2, modseq(1), type => 'thin mint', baked_at => '2016-01-23T01:02:03Z' },
+      { accountId => $a1, modseq(3), type => 'samoa',     baked_at => '2016-02-01T12:00:01Z' },
+      { accountId => $a1, modseq(8), type => 'tim tam',   baked_at => '2016-02-09T09:09:09Z' },
     ]);
 
-    $schema->resultset('Cookie')->populate([
-      { accountId => 1, modseq(1), type => 'tim tam', baked_at => '2016-01-01T12:34:56Z' },
-      { accountId => 1, modseq(1), type => 'oreo', baked_at => '2016-01-02T23:45:60Z' },
-      { accountId => 2, modseq(1), type => 'thin mint', baked_at => '2016-01-23T01:02:03Z' },
-      { accountId => 1, modseq(3), type => 'samoa', baked_at => '2016-02-01T12:00:01Z' },
-      { accountId => 1, modseq(8), type => 'tim tam', baked_at => '2016-02-09T09:09:09Z' },
-    ]);
-
-    $schema->resultset('CakeRecipe')->populate([
-      { accountId => 1, modseq(1),
-        type => 'seven-layer', avg_review => 91, is_delicious => 1 },
+    my @recipes = $schema->resultset('CakeRecipe')->populate([
+      { accountId => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
     ]);
 
     $schema->resultset('State')->populate([
-      { accountId => 1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
-      { accountId => 2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
-      { accountId => 1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
-      { accountId => 2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
+      { accountId => $a2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
-    return;
+    return {
+      accounts => { rjbs => $a1, neilj => $a2 },
+      users    => { rjbs => $user1->id, neilj => $user2->id },
+      recipes  => { 1 => $recipes[0]->id },
+      cookies  => { map {; ($_+1) => $cookies[$_]->id } keys @cookies },
+    };
   }
 }
 
@@ -97,7 +126,7 @@ package Bakesale {
     traits  => [ 'Array' ],
     handles => { connect_info => 'elements' },
     default => sub {
-      my $info = Bakesale::Test->test_schema_connect_info;
+      Bakesale::Test->test_schema_connect_info;
     },
   );
 
