@@ -61,11 +61,13 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search($ctx);
 
+  my @ids = $ids ? (grep {; m/\A-?[0-9]+\z/ } @$ids) : ();
+
   my @rows = $self->search(
     {
       accountId => $accountId,
       (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
-      ($ids ? (id => $ids) : ()),
+      ($ids ? (id => \@ids) : ()),
       dateDeleted => undef,
       %$x_get_cond,
     },
