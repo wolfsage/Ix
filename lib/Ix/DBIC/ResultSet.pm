@@ -86,11 +86,17 @@ sub ix_get ($self, $ctx, $arg = {}) {
     @not_found = grep {; ! $found{$_} } @$ids;
   }
 
-  return result($rclass->ix_type_key => {
-    state => $rclass->ix_state_string($ctx->state),
-    list  => \@rows,
-    notFound => (@not_found ? \@not_found : undef),
-  });
+  return $rclass->_return_ix_get(
+    $ctx,
+    $arg,
+    [
+      result($rclass->ix_type_key => {
+        state => $rclass->ix_state_string($ctx->state),
+        list  => \@rows,
+        notFound => (@not_found ? \@not_found : undef),
+      }),
+    ]
+  );
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {

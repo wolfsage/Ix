@@ -65,6 +65,8 @@ sub ix_create_check  { } # ($self, $ctx, \%rec)
 sub ix_update_check  { } # ($self, $ctx, \%rec)
 sub ix_destroy_check { } # ($self, $ctx, \%rec)
 
+sub _return_ix_get   { return $_[3]->@* }
+
 sub ix_update_state_string_field { 'modSeqChanged' }
 
 sub ix_state_string ($self, $state) {
