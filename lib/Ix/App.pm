@@ -69,7 +69,19 @@ sub to_app ($self) {
                . ">>> END REQUEST $guid\n");
     }
 
-    my $calls   = $self->decode_json( $content );
+    my $calls;
+    unless (eval { $calls = $self->decode_json( $content ); 1 }) {
+      return [
+        400,
+        [
+          'Content-Type', 'application/json',
+          'Access-Control-Allow-Origin' => '*',
+          ($guid ? ('Ix-Request-GUID' => $guid) : ()),
+        ],
+        [ '{"error":"could not decode request"}' ],
+      ];
+    }
+
     my $result  = $ctx->process_request( $calls );
     my $json    = $self->encode_json($result);
 
