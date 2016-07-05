@@ -31,7 +31,16 @@ has _logger => (
   isa => 'CodeRef',
 );
 
-sub to_app ($self) {
+has psgi_app => (
+  is  => 'ro',
+  isa => 'CodeRef',
+  lazy => 1,
+  builder => '_build_psgi_app',
+);
+
+sub to_app ($self) { $self->psgi_app }
+
+sub _build_psgi_app ($self) {
   my $logger = $self->_logger;
 
   return sub ($env) {
