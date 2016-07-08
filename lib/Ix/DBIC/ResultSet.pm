@@ -280,7 +280,7 @@ sub ix_create ($self, $ctx, $to_create) {
   my %result;
 
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
-  my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
 
   my $col_info = $rclass->columns_info;
   my @date_fields = grep {; ($col_info->{$_}{data_type} // '') eq 'datetime' }
@@ -506,8 +506,7 @@ sub ix_update ($self, $ctx, $to_update) {
 
   my @updated;
 
-  # TODO do this once during ix_finalize -- rjbs, 2016-05-10
-  my %is_user_prop = map {; $_ => 1 } $rclass->ix_user_property_names;
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
   my $col_info = $rclass->columns_info;
 
   UPDATE: for my $id (keys $to_update->%*) {

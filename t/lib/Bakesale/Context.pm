@@ -3,6 +3,8 @@ use Moose;
 
 use experimental qw(lexical_subs signatures postderef);
 
+sub is_system { 0 }
+
 has userId => (
   is       => 'ro',
   required => 1,
@@ -22,5 +24,17 @@ has user => (
 );
 
 with 'Ix::Context';
+
+package Bakesale::Context::System {
+  use Moose;
+
+  use experimental qw(lexical_subs signatures postderef);
+
+  has accountId => (is => 'ro', default => 1);
+
+  sub is_system { 1 }
+
+  with 'Ix::Context';
+}
 
 1;

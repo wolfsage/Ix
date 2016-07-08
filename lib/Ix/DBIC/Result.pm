@@ -16,6 +16,14 @@ sub ix_type_key_singular ($self) {
 
 # XXX This should probably instead be Rx to validate the user properites.
 sub ix_user_property_names { return () };
+sub ix_mutable_properties ($self, $ctx) {
+  if ($ctx->is_system) {
+    my $col_info = $self->columns_info;
+    return grep {; ! $col_info->{$_}{ix_hidden} } keys %$col_info;
+  }
+
+  $self->ix_user_property_names;
+}
 
 sub ix_default_properties { return {} }
 
