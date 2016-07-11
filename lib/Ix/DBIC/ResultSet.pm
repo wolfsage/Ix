@@ -673,6 +673,8 @@ sub ix_set ($self, $ctx, $arg = {}) {
     $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
   }
 
+  $ctx->state->_save_states;
+
   return Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,

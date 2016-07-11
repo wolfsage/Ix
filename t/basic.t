@@ -1,6 +1,6 @@
 use 5.20.0;
 use warnings;
-use experimental qw(signatures postderef refaliasing);
+use experimental qw(lexical_subs signatures postderef refaliasing);
 
 use lib 't/lib';
 
@@ -490,6 +490,38 @@ subtest "make a recipe and a cake in one exchange" => sub {
     ],
     "we can create a record with a null date field",
   ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
+}
+
+{
+  my $res = $jmap_tester->request([
+    [ setCookies => { create => { oatmeal => { type => 'oatmeal' } } } ],
+    [ setCookies => { create => { mealoat => { type => 'oatmeal' } } } ],
+  ]);
+
+  my %state;
+  my $s1; my sub s1 { $s1 = $_[0]; 1 };
+  my $s2; my sub s2 { $s2 = $_[0]; 1 };
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => code(sub { $state{old} = $_[0]; 1 } ),
+          newState => code(sub { $state{ s1} = $_[0]; 1 } ),
+        }),
+      ],
+      [
+        cookiesSet => superhashof({
+          oldState => code(sub { $state{ s1} eq $_[0] }),
+          newState => code(sub { $state{ s2} = $_[0]; 1 } ),
+        }),
+      ],
+    ],
+    "set twice in one request; first old state is second new state",
+  );
+
+  isnt($state{s2}, $state{s1}, "... second new state is distinct from first");
 }
 
 done_testing;
