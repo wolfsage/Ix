@@ -524,4 +524,31 @@ subtest "make a recipe and a cake in one exchange" => sub {
   isnt($state{s2}, $state{s1}, "... second new state is distinct from first");
 }
 
+subtest "no-update update" => sub {
+  my $res1 = $jmap_tester->request([
+    [ setCookies => { create => { twisty => { type => 'oreo' } } } ],
+  ]);
+
+  my $set1 = $res1->single_sentence('cookiesSet')->as_set;
+  my $id = $set1->created_id('twisty');
+
+  my $res2 = $jmap_tester->request([
+    [ setCookies => { update => { "$id" => { type => 'hydrox' } } } ],
+  ]);
+
+  my $set2 = $res2->single_sentence('cookiesSet')->as_set;
+
+  is(  $set2->old_state, $set1->new_state, "1st update starts at create state");
+  isnt($set2->new_state, $set1->new_state, "1st update ends at new state");
+
+  my $res3 = $jmap_tester->request([
+    [ setCookies => { update => { "$id" => { type => 'hydrox' } } } ],
+  ]);
+
+  my $set3 = $res3->single_sentence('cookiesSet')->as_set;
+
+  is(  $set3->old_state, $set2->new_state, "2nd update starts at 1st update");
+  is(  $set3->new_state, $set2->new_state, "2nd update does not change state");
+};
+
 done_testing;

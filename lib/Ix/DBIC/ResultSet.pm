@@ -494,6 +494,9 @@ sub _ix_wash_rows ($self, $rows) {
   return;
 }
 
+my $UPDATED = 1;
+my $SKIPPED = 2;
+
 sub ix_update ($self, $ctx, $to_update) {
   my $accountId = $ctx->accountId;
 
@@ -546,15 +549,17 @@ sub ix_update ($self, $ctx, $to_update) {
 
     my $ok = eval {
       $ctx->schema->txn_do(sub {
-        $row->update({
-          %$user_prop,
-          modSeqChanged => $next_state,
-        });
+        $row->set_inflated_columns({ %$user_prop });
+        return $SKIPPED unless $row->get_dirty_columns;
+
+        $row->update({ modSeqChanged => $next_state });
+        return $UPDATED;
       });
     };
 
     if ($ok) {
       push @updated, $id;
+      $result{actual_updates}++ if $ok == $UPDATED;
     } else {
       $result{not_updated}{$id} = error(
         'invalidRecord', { description => "could not update" },
@@ -662,7 +667,8 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
     $result{updated} = $update_result->{updated};
     $result{not_updated} = $update_result->{not_updated};
-    $state->ensure_state_bumped($type_key) if $result{updated} && $result{updated}->@*;
+    $state->ensure_state_bumped($type_key)
+      if $result{updated} && $result{updated}->@* && $update_result->{actual_updates};
   }
 
   if ($arg->{destroy}) {
