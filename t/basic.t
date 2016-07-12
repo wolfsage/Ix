@@ -551,4 +551,30 @@ subtest "no-update update" => sub {
   is(  $set3->new_state, $set2->new_state, "2nd update does not change state");
 };
 
+subtest "delete the deleted" => sub {
+  my $res1 = $jmap_tester->request([
+    [ setCookies => { create => { doomed => { type => 'pistachio' } } } ],
+  ]);
+
+  my $set1 = $res1->single_sentence('cookiesSet')->as_set;
+  my $id = $set1->created_id('doomed');
+
+  my $res2 = $jmap_tester->request([
+    [ setCookies => { destroy => [ "$id" ] } ],
+  ]);
+
+  my $set2 = $res2->single_sentence('cookiesSet')->as_set;
+
+  is_deeply([ $set2->destroyed_ids ], [ $id ], "we destroy the item");
+
+  my $res3 = $jmap_tester->request([
+    [ setCookies => { destroy => [ "$id" ] } ],
+  ]);
+
+  my $set3 = $res3->single_sentence('cookiesSet')->as_set;
+
+  is_deeply([ $set3->destroyed_ids ], [ ], "we destroy nothing");
+  is_deeply([ $set3->not_destroyed_ids ], [ $id ], "...especially not $id");
+};
+
 done_testing;
