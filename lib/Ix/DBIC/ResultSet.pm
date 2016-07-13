@@ -25,7 +25,7 @@ sub _ix_rclass ($self) {
 }
 
 sub ix_get ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass    = $self->_ix_rclass;
 
@@ -65,7 +65,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my @rows = $self->search(
     {
-      accountId => $accountId,
+      datasetId => $datasetId,
       (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
       ($ids ? (id => \@ids) : ()),
       dateDeleted => undef,
@@ -100,7 +100,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $since = $arg->{sinceState};
 
@@ -149,7 +149,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my $search = $self->search(
     {
-      'me.accountId'     => $accountId,
+      'me.datasetId'     => $datasetId,
       %$x_update_cond,
     },
     {
@@ -242,7 +242,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 }
 
 sub ix_purge ($self, $ctx) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -251,7 +251,7 @@ sub ix_purge ($self, $ctx) {
   my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
 
   my $rs = $self->search({
-    accountId   => $accountId,
+    datasetId   => $datasetId,
     dateDeleted => { '<', $since->as_string },
   });
 
@@ -269,7 +269,7 @@ sub ix_purge ($self, $ctx) {
 }
 
 sub ix_create ($self, $ctx, $to_create) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -332,7 +332,7 @@ sub ix_create ($self, $ctx, $to_create) {
       %default_properties,
       %$user_prop,
 
-      accountId => $accountId,
+      datasetId => $datasetId,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
@@ -498,7 +498,7 @@ my $UPDATED = 1;
 my $SKIPPED = 2;
 
 sub ix_update ($self, $ctx, $to_update) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -515,7 +515,7 @@ sub ix_update ($self, $ctx, $to_update) {
   UPDATE: for my $id (keys $to_update->%*) {
     my $row = $self->find({
       id => $id,
-      accountId   => $accountId,
+      datasetId   => $datasetId,
       dateDeleted => undef,
     });
 
@@ -574,7 +574,7 @@ sub ix_update ($self, $ctx, $to_update) {
 }
 
 sub ix_destroy ($self, $ctx, $to_destroy) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -587,7 +587,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   DESTROY: for my $id ($to_destroy->@*) {
     my $row = $self->search({
       id => $id,
-      accountId => $accountId,
+      datasetId => $datasetId,
       dateDeleted => undef,
     })->first;
 
@@ -628,7 +628,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {
-  my $accountId = $ctx->accountId;
+  my $datasetId = $ctx->datasetId;
 
   my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;

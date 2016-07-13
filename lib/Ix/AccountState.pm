@@ -12,7 +12,7 @@ has context => (
   is => 'ro',
   required => 1,
   weak_ref => 1,
-  handles  => [ qw(accountId schema) ],
+  handles  => [ qw(datasetId schema) ],
 );
 
 has _state_rows => (
@@ -22,7 +22,7 @@ has _state_rows => (
   init_arg => undef,
   default  => sub ($self) {
     my @rows = $self->schema->resultset('State')->search({
-      accountId => $self->accountId,
+      datasetId => $self->datasetId,
     });
 
     my %map = map {; $_->type => $_ } @rows;
@@ -82,7 +82,7 @@ sub _save_states ($self) {
       $row->update({ highestModSeq => $pend->{$type} });
     } else {
       my $row = $self->schema->resultset('State')->create({
-        accountId => $self->accountId,
+        datasetId => $self->datasetId,
         type      => $type,
         highestModSeq => $pend->{$type},
         lowestModSeq  => 0,

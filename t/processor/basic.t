@@ -149,7 +149,7 @@ my @created_ids;
   @created_ids = map {; $_->{id} } values %{ $res->[0][1]{created} };
 
   my @rows = $ctx->schema->resultset('Cookie')->search(
-    { accountId => $dataset{accounts}{rjbs} },
+    { datasetId => $dataset{datasets}{rjbs} },
     {
       order_by => 'baked_at',
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -170,7 +170,7 @@ my @created_ids;
   ) or diag explain(\@rows);
 
   my $state = $ctx->schema->resultset('State')->search({
-    accountId => $dataset{accounts}{rjbs},
+    datasetId => $dataset{datasets}{rjbs},
     type => 'cookies',
   })->first;
 
@@ -331,7 +331,7 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($res);
 
   my $state = $ctx->schema->resultset('State')->search({
-    accountId => $dataset{accounts}{rjbs},
+    datasetId => $dataset{datasets}{rjbs},
     type => 'cookies',
   })->first;
 

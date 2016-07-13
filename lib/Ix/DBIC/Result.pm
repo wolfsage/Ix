@@ -35,7 +35,7 @@ sub ix_add_columns ($class) {
       default_value => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       # is_auto_increment => 1
     },
-    accountId     => { data_type => 'integer', ix_hidden => 1, },
+    datasetId     => { data_type => 'integer', ix_hidden => 1, },
     modSeqCreated => { data_type => 'integer', ix_hidden => 1, },
     modSeqChanged => { data_type => 'integer', ix_hidden => 1, },
     dateDeleted   => { data_type => 'datetime', is_nullable => 1, ix_hidden => 1 },
