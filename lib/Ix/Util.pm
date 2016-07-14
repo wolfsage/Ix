@@ -4,6 +4,7 @@ package Ix::Util;
 use experimental qw(signatures postderef);
 
 use DateTime::Format::RFC3339;
+use Devel::StackTrace;
 use Ix::Error;
 use Ix::Result;
 use Sub::Exporter -setup => [ qw(error internal_error result parsedate) ];
@@ -24,7 +25,7 @@ sub error ($type, $prop = {}, $ident = undef, $payload = undef) {
 sub internal_error ($ident, $payload = undef) {
   Ix::Error::Internal->new({
     _exception_report => Ix::ExceptionReport->new({
-      ident   => $ident,
+      ident => $ident,
       ($payload ? (payload => $payload) : ()),
     }),
   });

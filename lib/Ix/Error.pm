@@ -4,7 +4,7 @@ package Ix::Error;
 use Moose::Role;
 use experimental qw(signatures postderef);
 
-with 'Ix::Result', 'Throwable', 'StackTrace::Auto';
+with 'Ix::Result', 'Throwable';
 
 use namespace::autoclean;
 
@@ -18,6 +18,8 @@ package
   use Moose;
   use Data::GUID qw(guid_string);
   use namespace::autoclean;
+
+  with 'StackTrace::Auto';
 
   has guid => (
     is => 'ro',
@@ -49,7 +51,7 @@ package Ix::Error::Internal {
   use overload '""' => sub {
     return sprintf "Ix::Error::Internal(%s)\n%s",
       $_[0]->error_type,
-      $_[0]->stack_trace->as_string;
+      $_[0]->_exception_report->stack_trace->as_string;
   };
 
   has _exception_report => (
@@ -69,12 +71,14 @@ package Ix::Error::Internal {
 
     # Obviously this is a placeholder for some future "log to database" or use
     # of Exception::Reporter.  Or both. -- rjbs, 2016-06-01
+    my $report = $self->_exception_report;
+
     warn sprintf "INTERNAL ERROR %s: %s\n%s\n\n%s\n\n%s",
-      $self->_exception_report->guid,
-      $self->_exception_report->ident,
-      $self->stack_trace->as_string,
+      $report->guid,
+      $report->ident,
+      $report->stack_trace->as_string,
       ('-' x 78),
-      Data::Dumper::Dumper($self->_exception_report->payload);
+      Data::Dumper::Dumper($report->payload);
   }
 
   with 'Ix::Error';
@@ -91,9 +95,10 @@ package Ix::Error::Generic {
   use namespace::autoclean;
 
   use overload '""' => sub {
-    return sprintf "Ix::Error::Generic(%s)\n%s",
-      $_[0]->error_type,
-      $_[0]->stack_trace->as_string;
+    my $str = sprintf "Ix::Error::Generic(%s)", $_[0]->error_type;
+    $str .= $_[0]->_exception_report->stack_trace->as_string
+      if $_[0]->_exception_report;
+    return $str;
   };
 
   sub result_properties ($self) {
@@ -104,20 +109,20 @@ package Ix::Error::Generic {
     Carp::confess(q{"type" is forbidden as an error property})
       if $self->has_property('type');
 
-    if ($self->_exception_report) {
+    if (my $report = $self->_exception_report) {
       # Obviously this is a placeholder for some future "log to database" or
       # use of Exception::Reporter.  Or both. -- rjbs, 2016-06-01
       warn sprintf "INTERNAL ERROR %s: %s\n%s\n\n%s\n\n%s",
-        $self->_exception_report->guid,
-        $self->_exception_report->ident,
-        $self->stack_trace->as_string,
+        $report->guid,
+        $report->ident,
+        $report->stack_trace->as_string,
         ('-' x 78),
         Data::Dumper::Dumper($self->_exception_report->payload);
     }
   }
 
   has _exception_report => (
-    is => 'ro',
+    is  => 'ro',
     isa => 'Ix::ExceptionReport',
   );
 
