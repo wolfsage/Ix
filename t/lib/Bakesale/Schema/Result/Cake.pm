@@ -4,7 +4,6 @@ use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cake;
 use base qw/DBIx::Class::Core/;
 
-use Ix::Util qw(error);
 use Ix::Validators qw(integer nonemptystr);
 use List::Util qw(max);
 
@@ -34,7 +33,7 @@ sub ix_default_properties {
 sub ix_get_check ($self, $ctx, $arg) {
   return if $arg->{ids};
 
-  return error(invalidArguments => {
+  return $ctx->error(invalidArguments => {
     description => "required parameter 'ids' not present",
   });
 }

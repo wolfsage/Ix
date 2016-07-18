@@ -113,7 +113,7 @@ sub process_request ($self, $ctx, $calls) {
         local $_ = $rv[$i];
         push @results, $_->$_DOES('Ix::Result')
                      ? [ $_->result_type, $_->result_properties, $cid ]
-                     : [ error => 'garbledResponse', $cid ];
+                     : [ error => { type => 'garbledResponse' }, $cid ];
 
         if ($results[-1][0] eq 'error' && $i < $#rv) {
           # In this branch, we have a potential return value like:

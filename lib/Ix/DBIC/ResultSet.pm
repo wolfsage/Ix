@@ -6,7 +6,7 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(error internal_error parsedate result);
+use Ix::Util qw(parsedate);
 use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
@@ -44,7 +44,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my @props;
   if ($arg->{properties}) {
     if (my @invalid = grep {; ! $is_prop{$_} } $arg->{properties}->@*) {
-      return error("invalidArguments", {
+      return $ctx->error("invalidArguments", {
         description       => "requested unknown property",
         unknownProperties => \@invalid,
       });
@@ -90,7 +90,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
     $ctx,
     $arg,
     [
-      result($rclass->ix_type_key => {
+      $ctx->result($rclass->ix_type_key => {
         state => $rclass->ix_state_string($ctx->state),
         list  => \@rows,
         notFound => (@not_found ? \@not_found : undef),
@@ -104,12 +104,12 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my $since = $arg->{sinceState};
 
-  return error(invalidArguments => { description => "no sinceState given" })
+  return $ctx->error(invalidArguments => { description => "no sinceState given" })
     unless defined $since;
 
   my $limit = $arg->{maxChanges};
   if (defined $limit && ( $limit !~ /^[0-9]+\z/ || $limit == 0 )) {
-    return error(invalidArguments => { description => "invalid maxChanges" });
+    return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
   }
 
   my $rclass   = $self->_ix_rclass;
@@ -122,7 +122,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   die "wtf happened" unless $statecmp->$_isa('Ix::StateComparison');
 
   if ($statecmp->is_in_sync) {
-    return result($res_type => {
+    return $ctx->result($res_type => {
       oldState => "$since",
       newState => "$since",
       hasMoreUpdates => JSON::false(), # Gross. -- rjbs, 2016-02-21
@@ -132,11 +132,11 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   }
 
   if ($statecmp->is_bogus) {
-    error(invalidArguments => { description => "invalid sinceState" })->throw;
+    $ctx->error(invalidArguments => { description => "invalid sinceState" })->throw;
   }
 
   if ($statecmp->is_resync) {
-    error(cannotCalculateChanges => {
+    $ctx->error(cannotCalculateChanges => {
       description => "client cache must be reconstucted"
     })->throw
   }
@@ -208,7 +208,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     }
   }
 
-  my @return = result($res_type => {
+  my @return = $ctx->result($res_type => {
     oldState => "$since",
     newState => ($hasMoreUpdates
               ? $rclass->ix_highest_state($since, \@rows)
@@ -321,7 +321,7 @@ sub ix_create ($self, $ctx, $to_create) {
     );
 
     if (%$property_error) {
-      $result{not_created}{$id} = error(invalidProperties => {
+      $result{not_created}{$id} = $ctx->error(invalidProperties => {
         description => "invalid property values",
         propertyErrors => $property_error,
       });
@@ -354,7 +354,7 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     if (@bogus_dates) {
-      $result{not_created}{$id} = error(invalidProperties => {
+      $result{not_created}{$id} = $ctx->error(invalidProperties => {
         description => "invalid date values",
         properties  => \@bogus_dates,
       });
@@ -381,7 +381,7 @@ sub ix_create ($self, $ctx, $to_create) {
 
       $ctx->log_created_id($type_key, $id, $row->id);
     } else {
-      $result{not_created}{$id} = error(
+      $result{not_created}{$id} = $ctx->error(
         'invalidRecord', { description => "could not create" },
         "database rejected creation", { db_error => "$@" },
       );
@@ -520,7 +520,7 @@ sub ix_update ($self, $ctx, $to_update) {
     });
 
     unless ($row) {
-      $result{not_updated}{$id} = error(notFound => {
+      $result{not_updated}{$id} = $ctx->error(notFound => {
         description => "no such record found",
       });
       next UPDATE;
@@ -535,7 +535,7 @@ sub ix_update ($self, $ctx, $to_update) {
     );
 
     if (%$property_error) {
-      $result{not_updated}{$id} = error(invalidProperties => {
+      $result{not_updated}{$id} = $ctx->error(invalidProperties => {
         description => "invalid property values",
         propertyErrors => $property_error,
       });
@@ -561,7 +561,7 @@ sub ix_update ($self, $ctx, $to_update) {
       push @updated, $id;
       $result{actual_updates}++ if $ok == $UPDATED;
     } else {
-      $result{not_updated}{$id} = error(
+      $result{not_updated}{$id} = $ctx->error(
         'invalidRecord', { description => "could not update" },
         "database rejected update", { db_error => "$@" },
       );
@@ -592,7 +592,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     })->first;
 
     unless ($row) {
-      $result{not_destroyed}{$id} = error(notFound => {
+      $result{not_destroyed}{$id} = $ctx->error(notFound => {
         description => "no such record found",
       });
       next DESTROY;
@@ -616,7 +616,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     if ($ok) {
       push @destroyed, $id;
     } else {
-      $result{not_destroyed}{$id} = internal_error(
+      $result{not_destroyed}{$id} = $ctx->internal_error(
         "database rejected delete", { db_error => "$@" },
       );
     }
@@ -639,7 +639,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
   my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
   if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
-    return error('invalidArguments' => {
+    return $ctx->error('invalidArguments' => {
       description => "unknown arguments passed",
       unknownArguments => \@unknown,
     });
@@ -648,7 +648,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
   # TODO validate everything
 
   if (($arg->{ifInState} // $curr_state) ne $curr_state) {
-    return error('stateMismatch');
+    return $ctx->error('stateMismatch');
   }
 
   my %result;

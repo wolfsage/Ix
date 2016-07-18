@@ -4,39 +4,7 @@ package Ix::Util;
 use experimental qw(signatures postderef);
 
 use DateTime::Format::RFC3339;
-use Devel::StackTrace;
-use Ix::Error;
-use Ix::Result;
-use Sub::Exporter -setup => [ qw(error internal_error result parsedate) ];
-
-sub error ($type, $prop = {}, $ident = undef, $payload = undef) {
-  Ix::Error::Generic->new({
-    error_type => $type,
-    properties => $prop,
-    ($ident
-      ? (_exception_report => Ix::ExceptionReport->new({
-          ident => $ident,
-          ($payload ? (payload => $payload) : ()),
-        }))
-      : ()),
-  });
-}
-
-sub internal_error ($ident, $payload = undef) {
-  Ix::Error::Internal->new({
-    _exception_report => Ix::ExceptionReport->new({
-      ident => $ident,
-      ($payload ? (payload => $payload) : ()),
-    }),
-  });
-}
-
-sub result ($type, $prop = {}) {
-  Ix::Result::Generic->new({
-    result_type       => $type,
-    result_properties => $prop,
-  });
-}
+use Sub::Exporter -setup => [ qw(parsedate) ];
 
 my $rfc3339 = DateTime::Format::RFC3339->new();
 

@@ -113,8 +113,6 @@ package Bakesale {
 
   use Bakesale::Context;
 
-  use Ix::Util qw(error result);
-
   use experimental qw(signatures postderef);
   use namespace::autoclean;
 
@@ -151,7 +149,7 @@ package Bakesale {
 
   sub pie_type_list ($self, $ctx, $arg = {}) {
     my $only_tasty = delete local $arg->{tasty};
-    return error('invalidArguments') if keys %$arg;
+    return $ctx->error('invalidArguments') if keys %$arg;
 
     my @flavors = qw(pumpkin apple pecan);
     push @flavors, qw(cherry eel) unless $only_tasty;
@@ -160,7 +158,7 @@ package Bakesale {
   }
 
   sub bake_pies ($self, $ctx, $arg = {}) {
-    return error("invalidArguments")
+    return $ctx->error("invalidArguments")
       unless $arg->{pieTypes} && $arg->{pieTypes}->@*;
 
     my %is_flavor = map {; $_ => 1 }
@@ -171,7 +169,7 @@ package Bakesale {
       if ($is_flavor{$type}) {
         push @rv, Bakesale::Pie->new({ flavor => $type });
       } else {
-        push @rv, error(noRecipe => { requestedPie => $type })
+        push @rv, $ctx->error(noRecipe => { requestedPie => $type })
       }
     }
 

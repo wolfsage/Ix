@@ -4,6 +4,9 @@ package Ix::Context;
 use Moose::Role;
 use experimental qw(signatures postderef);
 
+use Ix::Error;
+use Ix::Result;
+
 use namespace::autoclean;
 
 requires 'datasetId';
@@ -46,6 +49,35 @@ sub get_created_id ($self, $type, $creation_id) {
 
 sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
+}
+
+sub error ($ctx, $type, $prop = {}, $ident = undef, $payload = undef) {
+  Ix::Error::Generic->new({
+    error_type => $type,
+    properties => $prop,
+    ($ident
+      ? (_exception_report => Ix::ExceptionReport->new({
+          ident => $ident,
+          ($payload ? (payload => $payload) : ()),
+        }))
+      : ()),
+  });
+}
+
+sub internal_error ($ctx, $ident, $payload = undef) {
+  Ix::Error::Internal->new({
+    _exception_report => Ix::ExceptionReport->new({
+      ident => $ident,
+      ($payload ? (payload => $payload) : ()),
+    }),
+  });
+}
+
+sub result ($ctx, $type, $prop = {}) {
+  Ix::Result::Generic->new({
+    result_type       => $type,
+    result_properties => $prop,
+  });
 }
 
 1;
