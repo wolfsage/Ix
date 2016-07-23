@@ -577,4 +577,66 @@ subtest "delete the deleted" => sub {
   is_deeply([ $set3->not_destroyed_ids ], [ $id ], "...especially not $id");
 };
 
+subtest "duplicated creation ids" => sub {
+  my $res = $jmap_tester->request([
+    [
+      setCakeRecipes => { create => {
+        yummy => { type => 'yummykake', avg_review => 80 },
+        tasty => { type => 'tastykake', avg_review => 80 },
+      } }
+    ],
+    [
+      setCakes => { create    => {
+        yc1   => { type => 'y1', layer_count => 1, recipeId => '#yummy' },
+        tc    => { type => 't1', layer_count => 2, recipeId => '#tasty' },
+      } },
+    ],
+    [
+      setCakeRecipes => { create => {
+        yummy => { type => 'raspberry', avg_review => 82 },
+        gross => { type => 'slugflour', avg_review => 12 },
+      } }
+    ],
+    [
+      setCakes => { create    => {
+        yc2  => { type => 'y2', layer_count => 3, recipeId => '#yummy' },
+        gc   => { type => 'g1', layer_count => 4, recipeId => '#gross' },
+      } },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cakeRecipesSet => superhashof({
+          notCreated => {},
+          created => {
+            yummy => superhashof({}),
+            tasty => superhashof({}),
+          },
+        })
+      ],
+      [
+        cakesSet       => superhashof({
+          notCreated => {},
+          created => { yc1 => superhashof({}), tc => superhashof({}) },
+        })
+      ],
+      [
+        cakeRecipesSet => superhashof({
+          notCreated => { yummy => superhashof({ type => 'duplicateCreationId' }) },
+          created => { gross => superhashof({}) },
+        }),
+      ],
+      [
+        cakesSet       => superhashof({
+          notCreated => { yc2 => superhashof({ type => 'duplicateCreationId' }) },
+          created => { gc => superhashof({}) },
+        }),
+      ],
+    ],
+  );
+};
+
 done_testing;
