@@ -312,13 +312,27 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my $this = $to_create->{$id};
 
-    my ($user_prop, $property_error) = $self->_ix_check_user_properties(
-      $ctx,
-      $this,
-      \%is_user_prop,
-      \%default_properties,
-      $col_info,
-    );
+    my ($user_prop, $property_error);
+    my $ok = eval {
+      ($user_prop, $property_error) = $self->_ix_check_user_properties(
+        $ctx,
+        $this,
+        \%is_user_prop,
+        \%default_properties,
+        $col_info,
+      );
+
+      1;
+    };
+
+    unless ($ok) {
+      my $error = $@;
+      $result{not_created}{$id}
+        = $error->$_does('Ix::Error')
+        ? $error
+        : $ctx->internal_error("error validating" => { error => $error });
+      next TO_CREATE;
+    }
 
     if (%$property_error) {
       $result{not_created}{$id} = $ctx->error(invalidProperties => {
