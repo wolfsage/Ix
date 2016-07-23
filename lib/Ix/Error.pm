@@ -48,11 +48,13 @@ package Ix::Error::Internal {
 
   use namespace::autoclean;
 
-  use overload '""' => sub {
-    return sprintf "Ix::Error::Internal(%s)\n%s",
-      $_[0]->error_type,
-      $_[0]->_exception_report->stack_trace->as_string;
-  };
+  use overload
+    '""' => sub {
+      return sprintf "Ix::Error::Internal(%s)\n%s",
+        $_[0]->error_type,
+        $_[0]->_exception_report->stack_trace->as_string;
+    },
+    fallback => 1;
 
   has _exception_report => (
     is => 'ro',
@@ -94,12 +96,14 @@ package Ix::Error::Generic {
 
   use namespace::autoclean;
 
-  use overload '""' => sub {
-    my $str = sprintf "Ix::Error::Generic(%s)", $_[0]->error_type;
-    $str .= $_[0]->_exception_report->stack_trace->as_string
-      if $_[0]->_exception_report;
-    return $str;
-  };
+  use overload
+    '""' => sub {
+      my $str = sprintf "Ix::Error::Generic(%s)", $_[0]->error_type;
+      $str .= $_[0]->_exception_report->stack_trace->as_string
+        if $_[0]->_exception_report;
+      return $str;
+    },
+    fallback => 1;
 
   sub result_properties ($self) {
     return { $self->properties, type => $self->error_type };
