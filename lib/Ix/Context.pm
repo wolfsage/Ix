@@ -40,11 +40,26 @@ has created_ids => (
 );
 
 sub log_created_id ($self, $type, $creation_id, $id) {
-  $self->_created_ids->{$type}{$creation_id} = $id;
+  my $reg = ($self->_created_ids->{$type} //= {});
+
+  if ($reg->{$creation_id}) {
+    $reg->{$creation_id} = \undef;
+    $self->error(duplicateCreationId => {})->throw;
+    die;
+  } else {
+    $reg->{$creation_id} = $id;
+  }
+
+  return;
 }
 
 sub get_created_id ($self, $type, $creation_id) {
-  return $self->_created_ids->{$type}{$creation_id};
+  my $id = $self->_created_ids->{$type}{$creation_id};
+
+  $self->error(duplicateCreationId => {})->throw
+    if ref $id && ! defined $$id;
+
+  return $id;
 }
 
 sub process_request ($self, $calls) {

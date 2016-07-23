@@ -312,13 +312,27 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my $this = $to_create->{$id};
 
-    my ($user_prop, $property_error) = $self->_ix_check_user_properties(
-      $ctx,
-      $this,
-      \%is_user_prop,
-      \%default_properties,
-      $col_info,
-    );
+    my ($user_prop, $property_error);
+    my $ok = eval {
+      ($user_prop, $property_error) = $self->_ix_check_user_properties(
+        $ctx,
+        $this,
+        \%is_user_prop,
+        \%default_properties,
+        $col_info,
+      );
+
+      1;
+    };
+
+    unless ($ok) {
+      my $error = $@;
+      $result{not_created}{$id}
+        = $error->$_does('Ix::Error')
+        ? $error
+        : $ctx->internal_error("error validating" => { error => $error });
+      next TO_CREATE;
+    }
 
     if (%$property_error) {
       $result{not_created}{$id} = $ctx->error(invalidProperties => {
@@ -368,7 +382,9 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my $row = eval {
       $ctx->schema->txn_do(sub {
-        $self->create(\%rec);
+        my $created = $self->create(\%rec);
+        $ctx->log_created_id($type_key, $id, $created->id);
+        return $created;
       });
     };
 
@@ -378,13 +394,15 @@ sub ix_create ($self, $ctx, $to_create) {
         id => $row->id,
         %default_properties{ @defaults },
       };
-
-      $ctx->log_created_id($type_key, $id, $row->id);
     } else {
-      $result{not_created}{$id} = $ctx->error(
-        'invalidRecord', { description => "could not create" },
-        "database rejected creation", { db_error => "$@" },
-      );
+      my $error = $@;
+      unless ($error->$_does('Ix::Error')) {
+        $error = $ctx->error(
+          'invalidRecord', { description => "could not create" },
+          "database rejected creation", { db_error => "$@" },
+        );
+      }
+      $result{not_created}{$id} = $error;
     }
   }
 
