@@ -44,8 +44,6 @@ sub log_created_id ($self, $type, $creation_id, $id) {
 
   if ($reg->{$creation_id}) {
     $reg->{$creation_id} = \undef;
-    $self->error(duplicateCreationId => {})->throw;
-    die;
   } else {
     $reg->{$creation_id} = $id;
   }

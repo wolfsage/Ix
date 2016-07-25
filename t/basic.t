@@ -625,8 +625,7 @@ subtest "duplicated creation ids" => sub {
       ],
       [
         cakeRecipesSet => superhashof({
-          notCreated => { yummy => superhashof({ type => 'duplicateCreationId' }) },
-          created => { gross => superhashof({}) },
+          created => { gross => superhashof({}), yummy => superhashof({}) },
         }),
       ],
       [
