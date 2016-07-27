@@ -38,8 +38,8 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my $col_info = $self->result_source->columns_info;
   my %is_prop  = map  {; $_ => 1 }
-                 grep {; ! $col_info->{$_}{ix_hidden} }
-                 keys %$col_info;
+                 (grep {; ! $col_info->{$_}{ix_hidden} } keys %$col_info),
+                 ($rclass->ix_virtual_property_names);
 
   my @props;
   if ($arg->{properties}) {
@@ -68,6 +68,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my @ids = $ids ? (grep {; m/\A-?[0-9]+\z/ } @$ids) : ();
 
+  my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
   my @rows = $self->search(
     {
       datasetId => $datasetId,
@@ -77,7 +78,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
       %$x_get_cond,
     },
     {
-      select => \@props,
+      select => [ grep {; ! $is_virtual{$_} } @props ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       %$x_get_attr,
     },
@@ -472,11 +473,13 @@ sub _ix_check_user_properties (
   }
 
   # $defaults being defined means we're doing a create, not an update
+  my %is_virtual = map {; $_ => 1 } $self->_ix_rclass->ix_virtual_property_names;
   if ($defaults) {
     for my $prop (
       grep { ! defined $rec->{$_} && ! $defaults->{$_} }
       keys %$is_user_prop
     ) {
+      next if $is_virtual{$prop};
       next if $col_info->{$prop}->{is_nullable};
       $property_error{$prop} = "no value given for required field";
     }
