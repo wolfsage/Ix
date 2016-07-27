@@ -59,7 +59,12 @@ sub ix_get ($self, $ctx, $arg = {}) {
     return $error;
   }
 
-  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search($ctx);
+  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search(
+    $ctx,
+    {
+      properties => \@props,
+    },
+  );
 
   my @ids = $ids ? (grep {; m/\A-?[0-9]+\z/ } @$ids) : ();
 
@@ -328,7 +333,7 @@ sub ix_create ($self, $ctx, $to_create) {
     unless ($ok) {
       my $error = $@;
       $result{not_created}{$id}
-        = $error->$_does('Ix::Error')
+        = $error->$_DOES('Ix::Error')
         ? $error
         : $ctx->internal_error("error validating" => { error => $error });
       next TO_CREATE;
@@ -396,7 +401,7 @@ sub ix_create ($self, $ctx, $to_create) {
       };
     } else {
       my $error = $@;
-      unless ($error->$_does('Ix::Error')) {
+      unless ($error->$_DOES('Ix::Error')) {
         $error = $ctx->error(
           'invalidRecord', { description => "could not create" },
           "database rejected creation", { db_error => "$@" },

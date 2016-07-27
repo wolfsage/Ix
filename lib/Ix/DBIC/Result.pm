@@ -81,7 +81,7 @@ sub ix_state_string ($self, $state) {
   return $state->state_for( $self->ix_type_key ) . "";
 }
 
-sub ix_get_extra_search ($self, $ctx) {
+sub ix_get_extra_search ($self, $ctx, $arg = {}) {
   return (
     {},
     {},
