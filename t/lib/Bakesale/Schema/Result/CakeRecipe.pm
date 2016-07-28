@@ -8,9 +8,9 @@ __PACKAGE__->table('cake_recipes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type         => { data_type => 'text',    is_user_mutable => 1 },
-  avg_review   => { data_type => 'integer', is_user_mutable => 1 },
-  is_delicious => { data_type => 'boolean', is_user_mutable => 1 },
+  type         => { data_type => 'text',    },
+  avg_review   => { data_type => 'integer', },
+  is_delicious => { data_type => 'boolean', },
 );
 
 __PACKAGE__->set_primary_key('id');

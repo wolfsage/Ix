@@ -14,10 +14,10 @@ __PACKAGE__->table('cakes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type        => { data_type => 'text',    is_user_mutable => 1 },
-  layer_count => { data_type => 'integer', is_user_mutable => 1, validator => integer(1, 10)  },
-  baked_at    => { data_type => 'datetime' },
-  recipeId    => { data_type => 'integer', is_user_mutable => 1, xref_to => 'cakeRecipes' },
+  type        => { data_type => 'text',     },
+  layer_count => { data_type => 'integer',  validator => integer(1, 10)  },
+  baked_at    => { data_type => 'datetime', is_immutable => 1 },
+  recipeId    => { data_type => 'integer',  xref_to => 'cakeRecipes' },
 );
 
 __PACKAGE__->set_primary_key('id');

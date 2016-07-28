@@ -26,7 +26,7 @@ sub ix_mutable_properties ($self, $ctx) {
     return keys %$prop_info;
   }
 
-  return grep {; $prop_info->{$_}{is_user_mutable} } keys %$prop_info;
+  return grep {; ! $prop_info->{$_}{is_immutable} } keys %$prop_info;
 }
 
 sub ix_default_properties { return {} }
@@ -37,6 +37,7 @@ sub ix_add_columns ($class) {
       data_type     => 'string',
       db_data_type  => 'integer',
       default_value => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      is_immutable  => 1,
     },
   );
 
