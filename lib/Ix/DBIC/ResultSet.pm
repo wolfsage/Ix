@@ -452,7 +452,7 @@ sub _ix_check_user_properties (
 
     if (
       # Probably we can intuit this from foreign keys or relationships?
-      (my $xref_type = $info->{ix_xref_to})
+      (my $xref_type = $info->{xref_to})
       &&
       $value && $value =~ /\A#(.+)\z/
     ) {
@@ -464,7 +464,7 @@ sub _ix_check_user_properties (
       }
     }
 
-    if (my $validator = $info->{ix_validator}) {
+    if (my $validator = $info->{validator}) {
       if (my $error = $validator->($value)) {
         $property_error{$prop} = $error;
         next PROP;
