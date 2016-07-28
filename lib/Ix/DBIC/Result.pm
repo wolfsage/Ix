@@ -26,7 +26,9 @@ sub ix_mutable_properties ($self, $ctx) {
     return keys %$prop_info;
   }
 
-  return grep {; ! $prop_info->{$_}{is_immutable} } keys %$prop_info;
+  return
+    grep {; ! $prop_info->{$_}{is_immutable} && ! $prop_info->{$_}{is_virtual} }
+    keys %$prop_info;
 }
 
 sub ix_default_properties { return {} }
