@@ -10,14 +10,12 @@ __PACKAGE__->table('users');
 
 __PACKAGE__->ix_add_columns;
 
-__PACKAGE__->add_columns(
-  username    => { data_type => 'text' },
+__PACKAGE__->ix_add_properties(
+  username    => { data_type => 'text', is_user_mutable => 1 },
 );
 
 __PACKAGE__->set_primary_key('id');
 
 sub ix_type_key { 'users' }
-
-sub ix_user_property_names { qw(username) }
 
 1;

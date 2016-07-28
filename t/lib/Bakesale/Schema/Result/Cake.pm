@@ -13,18 +13,16 @@ __PACKAGE__->table('cakes');
 
 __PACKAGE__->ix_add_columns;
 
-__PACKAGE__->add_columns(
-  type        => { data_type => 'text'     },
-  layer_count => { data_type => 'integer', ix_validator => integer(1, 10)  },
+__PACKAGE__->ix_add_properties(
+  type        => { data_type => 'text',    is_user_mutable => 1 },
+  layer_count => { data_type => 'integer', is_user_mutable => 1, ix_validator => integer(1, 10)  },
   baked_at    => { data_type => 'datetime' },
-  recipeId    => { data_type => 'integer', ix_xref_to => 'cakeRecipes' },
+  recipeId    => { data_type => 'integer', is_user_mutable => 1, ix_xref_to => 'cakeRecipes' },
 );
 
 __PACKAGE__->set_primary_key('id');
 
 sub ix_type_key { 'cakes' }
-
-sub ix_user_property_names { qw(type layer_count recipeId) }
 
 sub ix_default_properties {
   return { baked_at => Ix::DateTime->now };

@@ -14,33 +14,73 @@ sub ix_type_key_singular ($self) {
   $self->ix_type_key =~ s/s\z//r;
 }
 
-# XXX This should probably instead be Rx to validate the user properites.
-sub ix_user_property_names    { return () };
-sub ix_virtual_property_names { return () };
+sub ix_virtual_property_names ($self, @) {
+  my $prop_info = $self->ix_property_info;
+  return grep {; $prop_info->{$_}{is_virtual} } keys %$prop_info;
+}
+
 sub ix_mutable_properties ($self, $ctx) {
+  my $prop_info = $self->ix_property_info;
+
   if ($ctx->is_system) {
-    my $col_info = $self->columns_info;
-    return grep {; ! $col_info->{$_}{ix_hidden} } keys %$col_info;
+    return keys %$prop_info;
   }
 
-  $self->ix_user_property_names;
+  return grep {; $prop_info->{$_}{is_user_mutable} } keys %$prop_info;
 }
 
 sub ix_default_properties { return {} }
 
 sub ix_add_columns ($class) {
-  $class->add_columns(
+  $class->ix_add_properties(
     id            => {
-      data_type         => 'integer',
-      ix_data_type      => 'string',
+      data_type     => 'string',
+      db_data_type  => 'integer',
       default_value => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
-      # is_auto_increment => 1
     },
-    datasetId     => { data_type => 'integer', ix_hidden => 1, },
-    modSeqCreated => { data_type => 'integer', ix_hidden => 1, },
-    modSeqChanged => { data_type => 'integer', ix_hidden => 1, },
-    dateDeleted   => { data_type => 'datetime', is_nullable => 1, ix_hidden => 1 },
   );
+
+  $class->add_columns(
+    datasetId     => { data_type => 'integer' },
+    modSeqCreated => { data_type => 'integer' },
+    modSeqChanged => { data_type => 'integer' },
+    dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
+  );
+}
+
+my %TYPE_FOR_TYPE = (string => 'text');
+sub ix_add_properties ($class, @pairs) {
+  my %info = @pairs;
+
+  while (my ($name, $def) = splice @pairs, 0, 2) {
+    next if $def->{is_virtual};
+
+    my $col_info = {
+      is_nullable   => $def->{is_optional},
+      default_value => $def->{default_value},
+      data_type     => $def->{db_data_type}
+                    // $TYPE_FOR_TYPE{ $def->{data_type} }
+                    // $def->{data_type},
+    };
+    $class->add_columns($name, $col_info);
+  }
+
+  if ($class->can('ix_property_info')) {
+    my $stored = $class->ix_property_info;
+    for my $prop (keys %info) {
+      Carp::confess("attempt to re-add property $prop") if $stored->{$prop};
+      $stored->{$prop} = $info{$prop};
+    }
+  } else {
+    my $reader = sub ($self) { return \%info };
+    Sub::Install::install_sub({
+      code => $reader,
+      into => $class,
+      as   => 'ix_property_info',
+    });
+  }
+
+  return;
 }
 
 my %DEFAULT_VALIDATOR = (
@@ -54,18 +94,12 @@ sub ix_finalize ($class) {
     Carp::confess("tried to finalize $class a second time");
   }
 
-  my $columns = $class->columns_info;
+  my $prop_info = $class->ix_property_info;
 
-  for my $name ($class->columns) {
-    my $col = $columns->{$name};
+  for my $name (keys %$prop_info) {
+    my $info = $prop_info->{$name};
 
-    # Skip doing this for hidden columns. -- rjbs, 2016-05-10
-    $col->{ix_data_type} //= $col->{data_type};
-
-    $col->{ix_data_type} = 'string'
-      if $col->{ix_data_type} eq 'text';
-
-    $col->{ix_validator} //= $DEFAULT_VALIDATOR{ $col->{ix_data_type} };
+    $info->{validator} //= $DEFAULT_VALIDATOR{ $info->{data_type} };
   }
 }
 

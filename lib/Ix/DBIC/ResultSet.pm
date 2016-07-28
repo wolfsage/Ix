@@ -36,10 +36,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my $ids   = $arg->{ids};
   my $since = $arg->{sinceState};
 
-  my $col_info = $self->result_source->columns_info;
-  my %is_prop  = map  {; $_ => 1 }
-                 (grep {; ! $col_info->{$_}{ix_hidden} } keys %$col_info),
-                 ($rclass->ix_virtual_property_names);
+  my $prop_info = $rclass->ix_property_info;
+  my %is_prop   = map  {; $_ => 1 }
+                  (grep {; ! $prop_info->{$_}{ix_hidden} } keys %$prop_info),
+                  ($rclass->ix_virtual_property_names);
 
   my @props;
   if ($arg->{properties}) {
@@ -288,9 +288,9 @@ sub ix_create ($self, $ctx, $to_create) {
   # TODO do this once during ix_finalize -- rjbs, 2016-05-10
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
 
-  my $col_info = $rclass->columns_info;
-  my @date_fields = grep {; ($col_info->{$_}{data_type} // '') eq 'datetime' }
-                    keys %$col_info;
+  my $prop_info = $rclass->ix_property_info;
+  my @date_fields = grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
+                    keys %$prop_info;
 
   # TODO: sort these in dependency order, so if item A references item B, B is
   # created first -- rjbs, 2016-05-10
@@ -325,7 +325,7 @@ sub ix_create ($self, $ctx, $to_create) {
         $this,
         \%is_user_prop,
         \%default_properties,
-        $col_info,
+        $prop_info,
       );
 
       1;
@@ -418,16 +418,18 @@ sub ix_create ($self, $ctx, $to_create) {
 }
 
 sub _ix_check_user_properties (
-  $self, $ctx, $rec, $is_user_prop, $defaults, $col_info
+  $self, $ctx, $rec, $is_user_prop, $defaults, $prop_info
 ) {
   my %user_prop;
   my %property_error;
 
   PROP: for my $prop (keys %$rec) {
     my $value = $rec->{$prop};
-    my $col   = $col_info->{$prop};
+    my $info  = $prop_info->{$prop};
 
-    if (! $col || $col->{ix_hidden}) {
+    # XXX Do we need ix_hidden anymore now that there is a col/prop
+    # distinction? -- rjbs, 2016-07-27
+    if (! $info || $info->{ix_hidden}) {
       $property_error{$prop} = "unknown property";
       next PROP;
     }
@@ -450,7 +452,7 @@ sub _ix_check_user_properties (
 
     if (
       # Probably we can intuit this from foreign keys or relationships?
-      (my $xref_type = $col->{ix_xref_to})
+      (my $xref_type = $info->{ix_xref_to})
       &&
       $value && $value =~ /\A#(.+)\z/
     ) {
@@ -462,7 +464,7 @@ sub _ix_check_user_properties (
       }
     }
 
-    if (my $validator = $col->{ix_validator}) {
+    if (my $validator = $info->{ix_validator}) {
       if (my $error = $validator->($value)) {
         $property_error{$prop} = $error;
         next PROP;
@@ -480,7 +482,7 @@ sub _ix_check_user_properties (
       keys %$is_user_prop
     ) {
       next if $is_virtual{$prop};
-      next if $col_info->{$prop}->{is_nullable};
+      next if $prop_info->{$prop}->{is_optional};
       $property_error{$prop} = "no value given for required field";
     }
   }
@@ -490,11 +492,11 @@ sub _ix_check_user_properties (
 
 sub _ix_wash_rows ($self, $rows) {
   my $rclass = $self->_ix_rclass;
-  my $info   = $self->result_source->columns_info;
+  my $info   = $rclass->ix_property_info;
 
   my %by_type;
   for my $key (keys %$info) {
-    my $type = $info->{$key}{ix_data_type};
+    my $type = $info->{$key}{data_type};
     push $by_type{$type}->@*, $key if $type;
   }
 
@@ -536,7 +538,7 @@ sub ix_update ($self, $ctx, $to_update) {
   my @updated;
 
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
-  my $col_info = $rclass->columns_info;
+  my $prop_info = $rclass->ix_property_info;
 
   UPDATE: for my $id (keys $to_update->%*) {
     my $row = $self->find({
@@ -557,7 +559,7 @@ sub ix_update ($self, $ctx, $to_update) {
       $to_update->{$id},
       \%is_user_prop,
       undef,
-      $col_info,
+      $prop_info,
     );
 
     if (%$property_error) {
