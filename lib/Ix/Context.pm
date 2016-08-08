@@ -27,8 +27,8 @@ has state => (
   is => 'ro',
   lazy => 1,
   default => sub ($self) {
-    require Ix::AccountState;
-    Ix::AccountState->new({ context => $self });
+    require Ix::DatasetState;
+    Ix::DatasetState->new({ context => $self });
   },
 );
 

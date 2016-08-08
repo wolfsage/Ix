@@ -1,6 +1,6 @@
 use 5.20.0;
 use warnings;
-package Ix::AccountState;
+package Ix::DatasetState;
 
 use Moose;
 
