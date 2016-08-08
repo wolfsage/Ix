@@ -3,10 +3,19 @@ package Ix::Util;
 
 use experimental qw(signatures postderef);
 
+use DateTime::Format::Pg;
 use DateTime::Format::RFC3339;
-use Sub::Exporter -setup => [ qw(parsedate) ];
+use Sub::Exporter -setup => [ qw(parsedate parsepgdate) ];
 
+my $pg = DateTime::Format::Pg->new();
 my $rfc3339 = DateTime::Format::RFC3339->new();
+
+sub parsepgdate ($str) {
+  my $dt;
+  return unless eval { $dt = $pg->parse_datetime($str) };
+
+  bless $dt, 'Ix::DateTime';
+}
 
 sub parsedate ($str) {
   return unless $str =~ /Z\z/; # must be in zulu time

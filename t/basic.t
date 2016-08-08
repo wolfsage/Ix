@@ -640,7 +640,6 @@ subtest "duplicated creation ids" => sub {
 
 subtest "datetime field validations" => sub {
   my $tsrez = re(qr/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-  my $tsre =  re(qr/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 
   my $res = $jmap_tester->request([
     [
@@ -705,12 +704,12 @@ subtest "datetime field validations" => sub {
           notFound => undef,
           state => 17,
           list  => bag(
-            { id => ignore(), type => 'yellow', baked_at => $tsre, expires_at => $tsre, },
-            { id => ignore(), type => 'gold', baked_at => undef, expires_at => $tsre, },
-            { id => ignore(), type => 'blue', baked_at => '2016-01-01 12:34:56', expires_at => $tsre, },
-            { id => ignore(), type => 'white', baked_at => '2016-01-01 12:34:57', expires_at => $tsre, },
-            { id => ignore(), type => 'pink', baked_at => $tsre, expires_at => '2016-01-01 12:34:56' },
-            { id => ignore(), type => 'onyx', baked_at => $tsre, expires_at => '2016-01-01 12:34:57' },
+            { id => ignore(), type => 'yellow', baked_at => $tsrez, expires_at => $tsrez, },
+            { id => ignore(), type => 'gold', baked_at => undef, expires_at => $tsrez, },
+            { id => ignore(), type => 'blue', baked_at => '2016-01-01T12:34:56Z', expires_at => $tsrez, },
+            { id => ignore(), type => 'white', baked_at => '2016-01-01T12:34:57Z', expires_at => $tsrez, },
+            { id => ignore(), type => 'pink', baked_at => $tsrez, expires_at => '2016-01-01T12:34:56Z' },
+            { id => ignore(), type => 'onyx', baked_at => $tsrez, expires_at => '2016-01-01T12:34:57Z' },
           ),
         },
       ],
@@ -781,12 +780,12 @@ subtest "datetime field validations" => sub {
           notFound => undef,
           state => 18,
           list  => set(
-            { id => ignore(), type => 'tim tam', baked_at => $tsre, expires_at => ignore() },
-            { id => ignore(), type => 'gold', baked_at => '2016-01-01 12:34:56', expires_at => ignore() },
+            { id => ignore(), type => 'tim tam', baked_at => $tsrez, expires_at => ignore() },
+            { id => ignore(), type => 'gold', baked_at => '2016-01-01T12:34:56Z', expires_at => ignore() },
             { id => ignore(), type => 'blue', baked_at => undef, expires_at => ignore(), },
-            { id => ignore(), type => 'white', baked_at => '2016-01-01 12:34:57', expires_at => ignore() },
-            { id => ignore(), type => 'pink', baked_at => ignore(), expires_at => '2016-01-01 12:34:56', },
-            { id => ignore(), type => 'black', baked_at => ignore(), expires_at => '2016-01-01 12:34:57' },
+            { id => ignore(), type => 'white', baked_at => '2016-01-01T12:34:57Z', expires_at => ignore() },
+            { id => ignore(), type => 'pink', baked_at => ignore(), expires_at => '2016-01-01T12:34:56Z', },
+            { id => ignore(), type => 'black', baked_at => ignore(), expires_at => '2016-01-01T12:34:57Z' },
           ),
         },
       ],

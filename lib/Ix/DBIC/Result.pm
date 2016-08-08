@@ -49,7 +49,11 @@ sub ix_add_columns ($class) {
   );
 }
 
-my %TYPE_FOR_TYPE = (string => 'text');
+my %TYPE_FOR_TYPE = (
+  string   => 'text',
+  datetime => 'timestamptz',
+);
+
 sub ix_add_properties ($class, @pairs) {
   my %info = @pairs;
 

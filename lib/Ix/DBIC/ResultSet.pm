@@ -6,7 +6,7 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(parsedate);
+use Ix::Util qw(parsedate parsepgdate);
 use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
@@ -515,6 +515,15 @@ sub _ix_wash_rows ($self, $rows) {
 
     for my $key ($by_type{boolean}->@*) {
       $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
+    }
+
+    for my $key ($by_type{datetime}->@*) {
+      if ($row->{$key}) {
+        # Doesn't already look like an RFC3339 Zulu date?
+        if ($row->{$key} !~ /Z/) {
+          $row->{$key} = parsepgdate($row->{$key});
+        }
+      }
     }
   }
 
