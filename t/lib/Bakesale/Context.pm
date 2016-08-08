@@ -1,29 +1,30 @@
-package Bakesale::Context;
-use Moose;
+package Bakesale::Context {;
+  use Moose;
 
-use experimental qw(lexical_subs signatures postderef);
+  use experimental qw(lexical_subs signatures postderef);
 
-sub is_system { 0 }
+  sub is_system { 0 }
 
-has userId => (
-  is       => 'ro',
-  required => 1,
-);
+  has userId => (
+    is       => 'ro',
+    required => 1,
+  );
 
-has user => (
-  isa      => 'Object',
-  reader   => 'user',
-  writer   => '_set_user',
-  init_arg => undef,
-  lazy     => 1,
-  handles  => [ qw(datasetId) ],
-  clearer  => '_clear_user', # trigger this after setUsers, surely?
-  default  => sub ($self) {
-    return $self->schema->resultset('User')->find($self->userId);
-  },
-);
+  has user => (
+    isa      => 'Object',
+    reader   => 'user',
+    writer   => '_set_user',
+    init_arg => undef,
+    lazy     => 1,
+    handles  => [ qw(datasetId) ],
+    clearer  => '_clear_user', # trigger this after setUsers, surely?
+    default  => sub ($self) {
+      return $self->schema->resultset('User')->find($self->userId);
+    },
+  );
 
-with 'Ix::Context';
+  with 'Ix::Context';
+}
 
 package Bakesale::Context::System {
   use Moose;
