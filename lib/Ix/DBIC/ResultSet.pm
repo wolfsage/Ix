@@ -300,10 +300,10 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my %default_properties = (
       # XXX: This surely must require a lot more customizability; pass in
-      # context, user props, blah blah blah.  A bigger question is whether we can
-      # have this work only on context, and not on the properties so far.  (Can a
-      # property specified by the user alter the default that we'll put on a new
-      # object?) -- rjbs, 2016-06-02
+      # context, user props, blah blah blah.  A bigger question is whether we
+      # can have this work only on context, and not on the properties so far.
+      # (Can a property specified by the user alter the default that we'll put
+      # on a new object?) -- rjbs, 2016-06-02
       #
       # More importantly, this needs to be called less often.  Originally, we
       # called this once per ix_create and then re-used the results.  We can't
@@ -395,7 +395,9 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my @defaults = grep {; ! exists $user_prop->{$_} } keys %default_properties;
+      my @defaults = grep {; ! exists $user_prop->{$_} }
+                     keys %default_properties;
+
       $result{created}{$id} = {
         id => $row->id,
         %default_properties{ @defaults },
