@@ -289,8 +289,6 @@ sub ix_create ($self, $ctx, $to_create) {
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
 
   my $prop_info = $rclass->ix_property_info;
-  my @date_fields = grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
-                    keys %$prop_info;
 
   # TODO: sort these in dependency order, so if item A references item B, B is
   # created first -- rjbs, 2016-05-10
@@ -357,30 +355,6 @@ sub ix_create ($self, $ctx, $to_create) {
       modSeqChanged => $next_state,
     );
 
-    my @bogus_dates;
-    DATE_FIELD: for my $date_field (@date_fields) {
-      next DATE_FIELD unless defined $rec{$date_field};
-      if (ref $rec{ $date_field }) {
-        # $rec{$date_field} = $rec{ $date_field }->as_string;
-        next DATE_FIELD;
-      }
-
-      if (my $dt = parsedate($rec{$date_field})) {
-        # great, it's already valid
-        $rec{$date_field} = $dt;
-      } else {
-        push @bogus_dates, $date_field;
-      }
-    }
-
-    if (@bogus_dates) {
-      $result{not_created}{$id} = $ctx->error(invalidProperties => {
-        description => "invalid date values",
-        properties  => \@bogus_dates,
-      });
-      next TO_CREATE;
-    }
-
     if (my $error = $rclass->ix_create_check($ctx, \%rec)) {
       $result{not_created}{$id} = $error;
       next TO_CREATE;
@@ -423,6 +397,10 @@ sub _ix_check_user_properties (
   my %user_prop;
   my %property_error;
 
+  my %date_fields = map {; $_ => 1 }
+                    grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
+                    keys %$prop_info;
+
   PROP: for my $prop (keys %$rec) {
     my $value = $rec->{$prop};
     my $info  = $prop_info->{$prop};
@@ -445,7 +423,7 @@ sub _ix_check_user_properties (
       $value = $value ? 1 : 0;
     }
 
-    if (ref $value && ! $value->$_isa('Ix::DateTime')) {
+    if (ref $value && ! $value->$_isa('DateTime')) {
       $property_error{$prop} = "invalid property value";
       next PROP;
     }
@@ -468,6 +446,29 @@ sub _ix_check_user_properties (
       if (my $error = $validator->($value)) {
         $property_error{$prop} = $error;
         next PROP;
+      }
+    }
+
+    if ($date_fields{$prop}) {
+      unless (defined $value) {
+        if ($prop_info->{$prop}->{is_optional}) {
+          $user_prop{$prop} = $value;
+          next PROP;
+        } else {
+          $property_error{$prop} = "no value given for required field";
+          next PROP;
+        }
+      }
+
+      # Already a DateTime object (checked above)?
+      unless (ref $value) {
+        if (my $dt = parsedate($value)) {
+          # great, it's already valid
+          $value = $dt;
+        } else {
+          $property_error{$prop} = "invalid date value";
+          next PROP;
+        }
       }
     }
 
