@@ -400,81 +400,80 @@ sub _ix_check_user_properties (
                     grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
                     keys %$prop_info;
 
-  my %pairs = (
-    defaults => $defaults // {},
-    rec      => $rec
-  );
+  # Dedupe
+  my %props = map { $_ => 1 } keys %{ $defaults // {} }, keys %$rec;
 
-  # Process defaults and then user input, that way we can ensure
-  # consumers of Ix have sane defaults.
-  for my $type (qw(defaults rec)) {
-    my $data = $pairs{$type};
+  PROP: for my $prop (keys %props) {
+    my ($value, $is_default);
 
-    PROP: for my $prop (keys %$data) {
-      my $value = $data->{$prop};
-      my $info  = $prop_info->{$prop};
-
-      # XXX Do we need ix_hidden anymore now that there is a col/prop
-      # distinction? -- rjbs, 2016-07-27
-      if ($type eq 'rec' && (! $info || $info->{ix_hidden}) ) {
-        $property_error{$prop} = "unknown property";
-        next PROP;
-      }
-
-      # User input cannot set internal fields
-      if ($type eq 'rec' && ! $is_user_prop->{$prop}) {
-        $property_error{$prop} = "property cannot be set by client";
-        next PROP;
-      }
-
-      if (
-        $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
-      ) {
-        $value = $value ? 1 : 0;
-      }
-
-      if (ref $value && ! $value->$_isa('DateTime')) {
-        $property_error{$prop} = "invalid property value";
-        next PROP;
-      }
-
-      if (
-        # Probably we can intuit this from foreign keys or relationships?
-        (my $xref_type = $info->{xref_to})
-        &&
-        $value && $value =~ /\A#(.+)\z/
-      ) {
-        if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
-          $value = $xref;
-        } else {
-          $property_error{$prop} = "can't resolve creation id";
-          next PROP;
-        }
-      }
-
-      if ($date_fields{$prop}) {
-        # Already a DateTime object (checked above)?
-        if (defined $value && ! ref $value) {
-          if (my $dt = parsedate($value)) {
-            # great, it's already valid
-            $value = $dt;
-          } else {
-            $property_error{$prop} = "invalid date value";
-            next PROP;
-          }
-        }
-      }
-
-      # These checks should probably always be last
-      if (my $validator = $info->{validator}) {
-        if (my $error = $validator->($value)) {
-          $property_error{$prop} = $error;
-          next PROP;
-        }
-      }
-
-      $properties{$prop} = $value;
+    if (exists $rec->{$prop}) {
+      ($value, $is_default) = ($rec->{$prop}, 0);
+    } elsif ($defaults && exists $defaults->{$prop}) {
+      ($value, $is_default) = ($defaults->{$prop}, 1);
     }
+
+    my $info  = $prop_info->{$prop};
+
+    # XXX Do we need ix_hidden anymore now that there is a col/prop
+    # distinction? -- rjbs, 2016-07-27
+    if (! $info || (! $is_default && $info->{ix_hidden}) ) {
+      $property_error{$prop} = "unknown property";
+      next PROP;
+    }
+
+    # User input cannot set internal fields
+    if (! $is_default && ! $is_user_prop->{$prop}) {
+      $property_error{$prop} = "property cannot be set by client";
+      next PROP;
+    }
+
+    if (
+      $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
+    ) {
+      $value = $value ? 1 : 0;
+    }
+
+    if (ref $value && ! ($value->$_isa('DateTime') && $date_fields{$prop})) {
+      $property_error{$prop} = "invalid property value";
+      next PROP;
+    }
+
+    if (
+      # Probably we can intuit this from foreign keys or relationships?
+      (my $xref_type = $info->{xref_to})
+      &&
+      $value && $value =~ /\A#(.+)\z/
+    ) {
+      if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
+        $value = $xref;
+      } else {
+        $property_error{$prop} = "can't resolve creation id";
+        next PROP;
+      }
+    }
+
+    if ($date_fields{$prop}) {
+      # Already a DateTime object (checked above)?
+      if (defined $value && ! ref $value) {
+        if (my $dt = parsedate($value)) {
+          # great, it's already valid
+          $value = $dt;
+        } else {
+          $property_error{$prop} = "invalid date value";
+          next PROP;
+        }
+      }
+    }
+
+    # These checks should probably always be last
+    if (my $validator = $info->{validator}) {
+      if (my $error = $validator->($value)) {
+        $property_error{$prop} = $error;
+        next PROP;
+      }
+    }
+
+    $properties{$prop} = $value;
   }
 
   # $defaults being defined means we're doing a create, not an update
