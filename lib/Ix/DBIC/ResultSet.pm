@@ -453,18 +453,8 @@ sub _ix_check_user_properties (
       }
 
       if ($date_fields{$prop}) {
-        unless (defined $value) {
-          if ($prop_info->{$prop}->{is_optional}) {
-            $user_prop{$prop} = $value;
-            next PROP;
-          } else {
-            $property_error{$prop} = "no value given for required field";
-            next PROP;
-          }
-        }
-
         # Already a DateTime object (checked above)?
-        unless (ref $value) {
+        if (defined $value && ! ref $value) {
           if (my $dt = parsedate($value)) {
             # great, it's already valid
             $value = $dt;
@@ -489,15 +479,18 @@ sub _ix_check_user_properties (
 
   # $defaults being defined means we're doing a create, not an update
   my %is_virtual = map {; $_ => 1 } $self->_ix_rclass->ix_virtual_property_names;
-  if ($defaults) {
-    for my $prop (
-      grep { ! defined $rec->{$_} && ! $defaults->{$_} }
-      keys %$is_user_prop
-    ) {
-      next if $is_virtual{$prop};
-      next if $prop_info->{$prop}->{is_optional};
-      $property_error{$prop} = "no value given for required field";
-    }
+
+  # Creating? Check all fields that the user could/should pass in.
+  # Updating? Only check what they did pass in
+  my $to_check = $defaults ? $is_user_prop : \%user_prop;
+
+  for my $prop (
+    grep { ! defined $user_prop{$_} }
+    keys %$to_check
+  ) {
+    next if $is_virtual{$prop};
+    next if $prop_info->{$prop}->{is_optional};
+    $property_error{$prop} //= "no value given for required field";
   }
 
   return (\%user_prop, \%property_error);
