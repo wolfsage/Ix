@@ -639,7 +639,7 @@ subtest "duplicated creation ids" => sub {
 };
 
 subtest "datetime field validations" => sub {
-  my $tsrez = re(qr/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  my $tsrez = re(qr/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
 
   my $res = $jmap_tester->request([
     [
