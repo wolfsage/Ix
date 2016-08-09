@@ -490,7 +490,13 @@ sub _ix_check_user_properties (
   ) {
     next if $is_virtual{$prop};
     next if $prop_info->{$prop}->{is_optional};
-    $property_error{$prop} //= "no value given for required field";
+
+    if (exists $user_prop{$prop}) {
+      $property_error{$prop} //=
+        "null value given for field requiring a $prop_info->{$prop}{data_type}";
+    } else {
+      $property_error{$prop} //= "no value given for required field";
+    }
   }
 
   return (\%user_prop, \%property_error);

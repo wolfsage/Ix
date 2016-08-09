@@ -680,7 +680,7 @@ subtest "datetime field validations" => sub {
             }),
             green => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { expires_at => 'no value given for required field' },
+              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
             }),
           },
         }),
@@ -756,7 +756,7 @@ subtest "datetime field validations" => sub {
             }),
             $c_to_id{pink} => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { expires_at => 'no value given for required field' },
+              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
             }),
           },
         }),
