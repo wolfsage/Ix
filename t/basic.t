@@ -197,8 +197,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore() }, # no baked_at, because not default
-            gold   => { id => ignore(), baked_at => ignore() },
+            yellow => { id => ignore(), expires_at => ignore() }, # no baked_at, because not default
+            gold   => { id => ignore(), expires_at => ignore, baked_at => ignore() },
           },
           notCreated => {
             blue   => superhashof({
@@ -224,7 +224,7 @@ my @created_ids;
       ],
     ],
     "we can create cookies with setCookies",
-  );
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
 
   my $set = $res->single_sentence->as_set;
 
@@ -357,7 +357,7 @@ subtest "invalid sinceState" => sub {
       ],
     ],
     "we can bake cakes",
-  );
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
 }
 
 subtest "passing in a boolean" => sub {
@@ -484,7 +484,7 @@ subtest "make a recipe and a cake in one exchange" => sub {
     [
       [
         cookiesSet => superhashof({
-          created => { raw => { id => re(qr/\S/) } },
+          created => { raw => { id => re(qr/\S/), expires_at => ignore() } },
         }),
       ],
     ],
@@ -636,6 +636,166 @@ subtest "duplicated creation ids" => sub {
       ],
     ],
   );
+};
+
+subtest "datetime field validations" => sub {
+  my $tsrez = re(qr/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+
+  my $res = $jmap_tester->request([
+    [
+      setCookies => {
+        create    => {
+          yellow => { type => 'yellow' }, # default baked_at
+          gold   => { type => 'gold', baked_at => undef }, # null baked_at
+          blue   => { type => 'blue', baked_at => '2016-01-01T12:34:56Z' },
+          white  => { type => 'white', baked_at => '2016-01-01T12:34:57Z' },
+          red    => { type => 'red', baked_at => '2016-01-01T12:34:56' },
+          green  => { type => 'green', expires_at => undef },
+          pink   => { type => 'pink', expires_at => '2016-01-01T12:34:56Z' },
+          onyx   => { type => 'onyx', expires_at => '2016-01-01T12:34:57Z' },
+        },
+      },
+    ],
+  ]);
+
+  my $state;
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => ignore(),
+          newState => code(sub { $state = $_[0]; 1}),
+          created => {
+            yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez },
+            gold   => { id => ignore(), expires_at => ignore(), },
+            blue   => { id => ignore(), expires_at => ignore(), },
+            white  => { id => ignore(), expires_at => ignore(), },
+            pink   => { id => ignore(), baked_at => ignore(), },
+            onyx   => { id => ignore(), baked_at => ignore(), },
+          },
+          notCreated => {
+            red => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { baked_at => 'invalid date value' },
+            }),
+            green => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
+            }),
+          },
+        }),
+      ],
+    ],
+    "Check creating/updating with bad values or null values",
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
+
+  # Verify
+  $res = $jmap_tester->request([
+    [ getCookies => { sinceState => $state - 1, properties => [ qw(type baked_at expires_at) ] } ],
+  ]);
+
+  my $data = $jmap_tester->strip_json_types($res->as_pairs);
+
+  cmp_deeply(
+    $data,
+    [
+      [
+        cookies => {
+          notFound => undef,
+          state => $state,
+          list  => bag(
+            { id => ignore(), type => 'yellow', baked_at => $tsrez, expires_at => $tsrez, },
+            { id => ignore(), type => 'gold', baked_at => undef, expires_at => $tsrez, },
+            { id => ignore(), type => 'blue', baked_at => '2016-01-01T12:34:56Z', expires_at => $tsrez, },
+            { id => ignore(), type => 'white', baked_at => '2016-01-01T12:34:57Z', expires_at => $tsrez, },
+            { id => ignore(), type => 'pink', baked_at => $tsrez, expires_at => '2016-01-01T12:34:56Z' },
+            { id => ignore(), type => 'onyx', baked_at => $tsrez, expires_at => '2016-01-01T12:34:57Z' },
+          ),
+        },
+      ],
+    ],
+    "Defaults and explicit dates look right",
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
+
+  my %c_to_id = map {;
+    $_->{type} => $_->{id}
+  } @{ $data->[0][1]{list} };
+
+  $res = $jmap_tester->request([
+    [
+      setCookies => {
+        update => {
+          $c_to_id{yellow} => { type => 'tim tam' }, # Leave baked_at
+          $c_to_id{gold}   => { baked_at => '2016-01-01T12:34:56Z' },
+          $c_to_id{blue}   => { baked_at => undef }, # clear baked_at
+          $c_to_id{white}  => { baked_at => '2016-01-01T12:34:56' },
+          $c_to_id{pink}   => { expires_at => undef }, # bad
+          $c_to_id{onyx}   => { type => 'black' }, # Leave expires_at
+        },
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => $state,
+          newState => $state + 1,
+          updated => set(
+            $c_to_id{yellow},
+            $c_to_id{gold},
+            $c_to_id{blue},
+            $c_to_id{onyx},
+          ),
+          notUpdated => {
+            $c_to_id{white} => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { baked_at => 'invalid date value' },
+            }),
+            $c_to_id{pink} => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
+            }),
+          },
+        }),
+      ],
+    ],
+    "Check creating/updating with bad values or null values",
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
+
+  $state++;
+
+  # Verify (still using much older state so we can see white in the list)
+  $res = $jmap_tester->request([
+    [ getCookies => { sinceState => $state - 2, properties => [ qw(type baked_at expires_at) ] } ],
+  ]);
+
+  $data = $jmap_tester->strip_json_types($res->as_pairs);
+
+  cmp_deeply(
+    $data,
+    [
+      [
+        cookies => {
+          notFound => undef,
+          state => $state,
+          list  => set(
+            { id => ignore(), type => 'tim tam', baked_at => $tsrez, expires_at => ignore() },
+            { id => ignore(), type => 'gold', baked_at => '2016-01-01T12:34:56Z', expires_at => ignore() },
+            { id => ignore(), type => 'blue', baked_at => undef, expires_at => ignore(), },
+            { id => ignore(), type => 'white', baked_at => '2016-01-01T12:34:57Z', expires_at => ignore() },
+            { id => ignore(), type => 'pink', baked_at => ignore(), expires_at => '2016-01-01T12:34:56Z', },
+            { id => ignore(), type => 'black', baked_at => ignore(), expires_at => '2016-01-01T12:34:57Z' },
+          ),
+        },
+      ],
+    ],
+    "Updates with exempt/explicit nulls look right",
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
 };
 
 done_testing;

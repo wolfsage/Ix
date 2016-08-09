@@ -6,7 +6,7 @@ use parent 'DBIx::Class::ResultSet';
 
 use experimental qw(signatures postderef);
 
-use Ix::Util qw(parsedate);
+use Ix::Util qw(parsedate parsepgdate);
 use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
@@ -289,8 +289,6 @@ sub ix_create ($self, $ctx, $to_create) {
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
 
   my $prop_info = $rclass->ix_property_info;
-  my @date_fields = grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
-                    keys %$prop_info;
 
   # TODO: sort these in dependency order, so if item A references item B, B is
   # created first -- rjbs, 2016-05-10
@@ -318,9 +316,9 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my $this = $to_create->{$id};
 
-    my ($user_prop, $property_error);
+    my ($properties, $property_error);
     my $ok = eval {
-      ($user_prop, $property_error) = $self->_ix_check_user_properties(
+      ($properties, $property_error) = $self->_ix_check_user_properties(
         $ctx,
         $this,
         \%is_user_prop,
@@ -349,37 +347,12 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     my %rec = (
-      %default_properties,
-      %$user_prop,
+      %$properties,
 
       datasetId => $datasetId,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
-
-    my @bogus_dates;
-    DATE_FIELD: for my $date_field (@date_fields) {
-      next DATE_FIELD unless defined $rec{$date_field};
-      if (ref $rec{ $date_field }) {
-        # $rec{$date_field} = $rec{ $date_field }->as_string;
-        next DATE_FIELD;
-      }
-
-      if (my $dt = parsedate($rec{$date_field})) {
-        # great, it's already valid
-        $rec{$date_field} = $dt;
-      } else {
-        push @bogus_dates, $date_field;
-      }
-    }
-
-    if (@bogus_dates) {
-      $result{not_created}{$id} = $ctx->error(invalidProperties => {
-        description => "invalid date values",
-        properties  => \@bogus_dates,
-      });
-      next TO_CREATE;
-    }
 
     if (my $error = $rclass->ix_create_check($ctx, \%rec)) {
       $result{not_created}{$id} = $error;
@@ -395,8 +368,7 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my @defaults = grep {; ! exists $user_prop->{$_} }
-                     keys %default_properties;
+      my @defaults = grep {; ! exists $this->{$_} } keys %default_properties;
 
       $result{created}{$id} = {
         id => $row->id,
@@ -422,21 +394,36 @@ sub ix_create ($self, $ctx, $to_create) {
 sub _ix_check_user_properties (
   $self, $ctx, $rec, $is_user_prop, $defaults, $prop_info
 ) {
-  my %user_prop;
+  my %properties;
   my %property_error;
 
-  PROP: for my $prop (keys %$rec) {
-    my $value = $rec->{$prop};
+  my %date_fields = map {; $_ => 1 }
+                    grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
+                    keys %$prop_info;
+
+  # Dedupe
+  my %props = map { $_ => 1 } keys %{ $defaults // {} }, keys %$rec;
+
+  PROP: for my $prop (keys %props) {
+    my ($value, $is_default);
+
+    if (exists $rec->{$prop}) {
+      ($value, $is_default) = ($rec->{$prop}, 0);
+    } elsif ($defaults && exists $defaults->{$prop}) {
+      ($value, $is_default) = ($defaults->{$prop}, 1);
+    }
+
     my $info  = $prop_info->{$prop};
 
     # XXX Do we need ix_hidden anymore now that there is a col/prop
     # distinction? -- rjbs, 2016-07-27
-    if (! $info || $info->{ix_hidden}) {
+    if (! $info || (! $is_default && $info->{ix_hidden}) ) {
       $property_error{$prop} = "unknown property";
       next PROP;
     }
 
-    unless ($is_user_prop->{$prop}) {
+    # User input cannot set internal fields
+    if (! $is_default && ! $is_user_prop->{$prop}) {
       $property_error{$prop} = "property cannot be set by client";
       next PROP;
     }
@@ -447,7 +434,7 @@ sub _ix_check_user_properties (
       $value = $value ? 1 : 0;
     }
 
-    if (ref $value && ! $value->$_isa('Ix::DateTime')) {
+    if (ref $value && ! ($value->$_isa('DateTime') && $date_fields{$prop})) {
       $property_error{$prop} = "invalid property value";
       next PROP;
     }
@@ -466,6 +453,20 @@ sub _ix_check_user_properties (
       }
     }
 
+    if ($date_fields{$prop}) {
+      # Already a DateTime object (checked above)?
+      if (defined $value && ! ref $value) {
+        if (my $dt = parsedate($value)) {
+          # great, it's already valid
+          $value = $dt;
+        } else {
+          $property_error{$prop} = "invalid date value";
+          next PROP;
+        }
+      }
+    }
+
+    # These checks should probably always be last
     if (my $validator = $info->{validator}) {
       if (my $error = $validator->($value)) {
         $property_error{$prop} = $error;
@@ -473,23 +474,32 @@ sub _ix_check_user_properties (
       }
     }
 
-    $user_prop{$prop} = $value;
+    $properties{$prop} = $value;
   }
 
   # $defaults being defined means we're doing a create, not an update
   my %is_virtual = map {; $_ => 1 } $self->_ix_rclass->ix_virtual_property_names;
-  if ($defaults) {
-    for my $prop (
-      grep { ! defined $rec->{$_} && ! $defaults->{$_} }
-      keys %$is_user_prop
-    ) {
-      next if $is_virtual{$prop};
-      next if $prop_info->{$prop}->{is_optional};
-      $property_error{$prop} = "no value given for required field";
+
+  # Creating? Check all fields that the user could/should pass in.
+  # Updating? Only check what they did pass in
+  my $to_check = $defaults ? $is_user_prop : \%properties;
+
+  for my $prop (
+    grep { ! defined $properties{$_} }
+    keys %$to_check
+  ) {
+    next if $is_virtual{$prop};
+    next if $prop_info->{$prop}->{is_optional};
+
+    if (exists $properties{$prop}) {
+      $property_error{$prop} //=
+        "null value given for field requiring a $prop_info->{$prop}{data_type}";
+    } else {
+      $property_error{$prop} //= "no value given for required field";
     }
   }
 
-  return (\%user_prop, \%property_error);
+  return (\%properties, \%property_error);
 }
 
 sub _ix_wash_rows ($self, $rows) {
@@ -516,6 +526,15 @@ sub _ix_wash_rows ($self, $rows) {
 
     for my $key ($by_type{boolean}->@*) {
       $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
+    }
+
+    for my $key ($by_type{datetime}->@*) {
+      if ($row->{$key}) {
+        # Doesn't already look like an RFC3339 Zulu date?
+        if ($row->{$key} !~ /Z/) {
+          $row->{$key} = parsepgdate($row->{$key});
+        }
+      }
     }
   }
 

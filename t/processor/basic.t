@@ -8,6 +8,7 @@ use Bakesale;
 use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
+use Safe::Isa;
 
 my $Bakesale = Bakesale->new;
 \my %dataset = Bakesale::Test->load_trivial_dataset($Bakesale->schema_connection);
@@ -119,8 +120,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), baked_at => ignore() },
-            gold   => { id => ignore(), baked_at => ignore() },
+            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore() },
+            gold   => { id => ignore(), baked_at => ignore(), expires_at => ignore() },
           },
           notCreated => {
             blue   => superhashof({
@@ -137,7 +138,7 @@ my @created_ids;
           },
           destroyed => [ $dataset{cookies}{4} ],
           notDestroyed => {
-            $dataset{cookies}{3} => superhashof({ type => ignore() }),
+            $dataset{cookies}{3} => superhashof({ type => ignore(), }),
           },
         }),
         'a'
@@ -336,6 +337,153 @@ subtest "invalid sinceState" => sub {
   })->first;
 
   is($state->highestModSeq, 9, "no updates, no state change");
+}
+
+{
+  # Make sure object detection works 
+  my $future = DateTime->now->add(days => 21);
+  my $ixdt = $future->clone;
+  bless $ixdt, 'Ix::DateTime';
+  my $future_str = $ixdt->as_string;
+
+  my $bad = bless {}, 'Brownie';
+
+  my $res = $ctx->process_request([
+    [
+      setCookies => {
+        ifInState => 9,
+        create    => {
+          yellow => { type => 'yellow', baked_at => $future },
+          red    => { type => 'red', baked_at => $ixdt },
+          green  => { type => 'green', baked_at => $bad },
+          pink   => { type => $future },
+        }
+      },
+      'a',
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookiesSet => superhashof({
+          created => {
+            yellow => { id => ignore(), expires_at => ignore() },
+            red    => { id => ignore(), expires_at => ignore() },
+          },
+          notCreated => {
+            green  => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { baked_at => "invalid property value" },
+            }),
+            pink  => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { type => "invalid property value" },
+            }),
+          },
+        }),
+        'a',
+      ],
+    ],
+    "setCookies handles objects properly",
+  ) or diag explain($res);
+
+  my %c_to_id = map {;
+    $_ => $res->[0][1]{created}{$_}{id}
+  } keys %{ $res->[0][1]{created} };
+
+  # Verify we got the right dates
+  $res = $ctx->process_request([
+    [ getCookies => { sinceState => 9, properties => [ qw(type baked_at) ] }, 'a' ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookies => {
+          notFound => undef,
+          state => 10,
+          list  => set(
+            { id => $c_to_id{yellow}, type => 'yellow', baked_at => ignore() },
+            { id => $c_to_id{red}, type => 'red', baked_at => ignore() },
+          ),
+        },
+        'a',
+      ],
+    ],
+    "a getFoos call backed by the database",
+  ) or diag explain($res);
+
+  ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[0][1]{list}[0]{baked_at}->as_string, $future_str, 'time is right');
+
+  ok($res->[0][1]{list}[1]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[0][1]{list}[1]{baked_at}->as_string, $future_str, 'time is right');
+
+  $future->add(days => 10);
+  $ixdt->add(days => 10);
+  $future_str = $ixdt->as_string;
+
+  $res = $ctx->process_request([
+    [
+      setCookies => {
+        ifInState => 10,
+        update    => {
+          $c_to_id{yellow} => { type => 'yellow', baked_at => $future },
+          $c_to_id{red}    => { type => $future },
+        },
+      },
+      'a',
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookiesSet => superhashof({
+          updated => [
+            $c_to_id{yellow}
+          ],
+          notUpdated => {
+            $c_to_id{red}  => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { type => "invalid property value" },
+            }),
+          },
+        }),
+        'a',
+      ],
+    ],
+    "setCookies handles objects properly",
+  ) or diag explain($res);
+
+  # Verify we updated to the new future
+  $res = $ctx->process_request([
+    [ getCookies => { sinceState => 10, properties => [ qw(type baked_at) ] }, 'a' ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookies => {
+          notFound => undef,
+          state => 11,
+          list  => [
+            { id => $c_to_id{yellow}, type => 'yellow', baked_at => ignore() },
+          ],
+        },
+        'a',
+      ],
+    ],
+    "a getFoos call backed by the database",
+  ) or diag explain($res);
+
+  ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[0][1]{list}[0]{baked_at}->as_string, $future_str, 'time is right');
 }
 
 done_testing;

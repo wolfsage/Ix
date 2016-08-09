@@ -80,11 +80,16 @@ package Bakesale::Test {
     my $a2 = $user2->datasetId;
 
     my @cookies = $schema->resultset('Cookie')->populate([
-      { datasetId => $a1, modseq(1), type => 'tim tam',   baked_at => '2016-01-01T12:34:56Z' },
-      { datasetId => $a1, modseq(1), type => 'oreo',      baked_at => '2016-01-02T23:45:60Z' },
-      { datasetId => $a2, modseq(1), type => 'thin mint', baked_at => '2016-01-23T01:02:03Z' },
-      { datasetId => $a1, modseq(3), type => 'samoa',     baked_at => '2016-02-01T12:00:01Z' },
-      { datasetId => $a1, modseq(8), type => 'tim tam',   baked_at => '2016-02-09T09:09:09Z' },
+      { datasetId => $a1, modseq(1), type => 'tim tam',
+        baked_at => '2016-01-01T12:34:56Z', expires_at => '2016-01-03:T12:34:56Z' },
+      { datasetId => $a1, modseq(1), type => 'oreo',
+        baked_at => '2016-01-02T23:45:60Z', expires_at => '2016-01-04T23:45:60Z' },
+      { datasetId => $a2, modseq(1), type => 'thin mint',
+        baked_at => '2016-01-23T01:02:03Z', expires_at => '2016-01-25T01:02:03Z' },
+      { datasetId => $a1, modseq(3), type => 'samoa',
+        baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z' },
+      { datasetId => $a1, modseq(8), type => 'tim tam',
+        baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z' },
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
