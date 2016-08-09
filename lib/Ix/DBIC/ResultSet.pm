@@ -316,9 +316,9 @@ sub ix_create ($self, $ctx, $to_create) {
 
     my $this = $to_create->{$id};
 
-    my ($user_prop, $property_error);
+    my ($properties, $property_error);
     my $ok = eval {
-      ($user_prop, $property_error) = $self->_ix_check_user_properties(
+      ($properties, $property_error) = $self->_ix_check_user_properties(
         $ctx,
         $this,
         \%is_user_prop,
@@ -347,8 +347,7 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     my %rec = (
-      %default_properties,
-      %$user_prop,
+      %$properties,
 
       datasetId => $datasetId,
       modSeqCreated => $next_state,
@@ -369,7 +368,7 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my @defaults = grep {; ! exists $user_prop->{$_} } keys %default_properties;
+      my @defaults = grep {; ! exists $this->{$_} } keys %default_properties;
       $result{created}{$id} = {
         id => $row->id,
         %default_properties{ @defaults },
@@ -401,78 +400,91 @@ sub _ix_check_user_properties (
                     grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
                     keys %$prop_info;
 
-  PROP: for my $prop (keys %$rec) {
-    my $value = $rec->{$prop};
-    my $info  = $prop_info->{$prop};
+  my %pairs = (
+    defaults => $defaults // {},
+    rec      => $rec
+  );
 
-    # XXX Do we need ix_hidden anymore now that there is a col/prop
-    # distinction? -- rjbs, 2016-07-27
-    if (! $info || $info->{ix_hidden}) {
-      $property_error{$prop} = "unknown property";
-      next PROP;
-    }
+  # Process defaults and then user input, that way we can ensure
+  # consumers of Ix have sane defaults.
+  for my $type (qw(defaults rec)) {
+    my $data = $pairs{$type};
 
-    unless ($is_user_prop->{$prop}) {
-      $property_error{$prop} = "property cannot be set by client";
-      next PROP;
-    }
+    PROP: for my $prop (keys %$data) {
+      my $value = $data->{$prop};
+      my $info  = $prop_info->{$prop};
 
-    if (
-      $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
-    ) {
-      $value = $value ? 1 : 0;
-    }
-
-    if (ref $value && ! $value->$_isa('DateTime')) {
-      $property_error{$prop} = "invalid property value";
-      next PROP;
-    }
-
-    if (
-      # Probably we can intuit this from foreign keys or relationships?
-      (my $xref_type = $info->{xref_to})
-      &&
-      $value && $value =~ /\A#(.+)\z/
-    ) {
-      if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
-        $value = $xref;
-      } else {
-        $property_error{$prop} = "can't resolve creation id";
+      # XXX Do we need ix_hidden anymore now that there is a col/prop
+      # distinction? -- rjbs, 2016-07-27
+      if ($type eq 'rec' && (! $info || $info->{ix_hidden}) ) {
+        $property_error{$prop} = "unknown property";
         next PROP;
       }
-    }
 
-    if (my $validator = $info->{validator}) {
-      if (my $error = $validator->($value)) {
-        $property_error{$prop} = $error;
+      # User input cannot set internal fields
+      if ($type eq 'rec' && ! $is_user_prop->{$prop}) {
+        $property_error{$prop} = "property cannot be set by client";
         next PROP;
       }
-    }
 
-    if ($date_fields{$prop}) {
-      unless (defined $value) {
-        if ($prop_info->{$prop}->{is_optional}) {
-          $user_prop{$prop} = $value;
-          next PROP;
+      if (
+        $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
+      ) {
+        $value = $value ? 1 : 0;
+      }
+
+      if (ref $value && ! $value->$_isa('DateTime')) {
+        $property_error{$prop} = "invalid property value";
+        next PROP;
+      }
+
+      if (
+        # Probably we can intuit this from foreign keys or relationships?
+        (my $xref_type = $info->{xref_to})
+        &&
+        $value && $value =~ /\A#(.+)\z/
+      ) {
+        if (my $xref = $ctx->get_created_id($xref_type, "$1")) {
+          $value = $xref;
         } else {
-          $property_error{$prop} = "no value given for required field";
+          $property_error{$prop} = "can't resolve creation id";
           next PROP;
         }
       }
 
-      # Already a DateTime object (checked above)?
-      unless (ref $value) {
-        if (my $dt = parsedate($value)) {
-          # great, it's already valid
-          $value = $dt;
-        } else {
-          $property_error{$prop} = "invalid date value";
+      if ($date_fields{$prop}) {
+        unless (defined $value) {
+          if ($prop_info->{$prop}->{is_optional}) {
+            $user_prop{$prop} = $value;
+            next PROP;
+          } else {
+            $property_error{$prop} = "no value given for required field";
+            next PROP;
+          }
+        }
+
+        # Already a DateTime object (checked above)?
+        unless (ref $value) {
+          if (my $dt = parsedate($value)) {
+            # great, it's already valid
+            $value = $dt;
+          } else {
+            $property_error{$prop} = "invalid date value";
+            next PROP;
+          }
+        }
+      }
+
+      # These checks should probably always be last
+      if (my $validator = $info->{validator}) {
+        if (my $error = $validator->($value)) {
+          $property_error{$prop} = $error;
           next PROP;
         }
       }
-    }
 
-    $user_prop{$prop} = $value;
+      $user_prop{$prop} = $value;
+    }
   }
 
   # $defaults being defined means we're doing a create, not an update

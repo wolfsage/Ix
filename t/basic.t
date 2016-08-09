@@ -224,7 +224,7 @@ my @created_ids;
       ],
     ],
     "we can create cookies with setCookies",
-  );
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
 
   my $set = $res->single_sentence->as_set;
 
@@ -357,7 +357,7 @@ subtest "invalid sinceState" => sub {
       ],
     ],
     "we can bake cakes",
-  );
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
 }
 
 subtest "passing in a boolean" => sub {
