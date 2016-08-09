@@ -62,12 +62,18 @@ sub ix_add_properties ($class, @pairs) {
   while (my ($name, $def) = splice @pairs, 0, 2) {
     next if $def->{is_virtual};
 
+    my $data_type = $def->{db_data_type}
+                    // $TYPE_FOR_TYPE{ $def->{data_type} // '' }
+                    // $def->{data_type};
+
+    unless ($data_type) {
+      Carp::confess("Attempt to add property $name with no data_type");
+    }
+
     my $col_info = {
       is_nullable   => $def->{is_optional},
       default_value => $def->{default_value},
-      data_type     => $def->{db_data_type}
-                    // $TYPE_FOR_TYPE{ $def->{data_type} }
-                    // $def->{data_type},
+      data_type     => $data_type,
     };
     $class->add_columns($name, $col_info);
   }
