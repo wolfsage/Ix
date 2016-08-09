@@ -393,7 +393,7 @@ sub ix_create ($self, $ctx, $to_create) {
 sub _ix_check_user_properties (
   $self, $ctx, $rec, $is_user_prop, $defaults, $prop_info
 ) {
-  my %user_prop;
+  my %properties;
   my %property_error;
 
   my %date_fields = map {; $_ => 1 }
@@ -473,7 +473,7 @@ sub _ix_check_user_properties (
         }
       }
 
-      $user_prop{$prop} = $value;
+      $properties{$prop} = $value;
     }
   }
 
@@ -482,16 +482,16 @@ sub _ix_check_user_properties (
 
   # Creating? Check all fields that the user could/should pass in.
   # Updating? Only check what they did pass in
-  my $to_check = $defaults ? $is_user_prop : \%user_prop;
+  my $to_check = $defaults ? $is_user_prop : \%properties;
 
   for my $prop (
-    grep { ! defined $user_prop{$_} }
+    grep { ! defined $properties{$_} }
     keys %$to_check
   ) {
     next if $is_virtual{$prop};
     next if $prop_info->{$prop}->{is_optional};
 
-    if (exists $user_prop{$prop}) {
+    if (exists $properties{$prop}) {
       $property_error{$prop} //=
         "null value given for field requiring a $prop_info->{$prop}{data_type}";
     } else {
@@ -499,7 +499,7 @@ sub _ix_check_user_properties (
     }
   }
 
-  return (\%user_prop, \%property_error);
+  return (\%properties, \%property_error);
 }
 
 sub _ix_wash_rows ($self, $rows) {
