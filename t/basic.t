@@ -658,13 +658,15 @@ subtest "datetime field validations" => sub {
     ],
   ]);
 
+  my $state;
+
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_pairs ),
     [
       [
         cookiesSet => superhashof({
-          oldState => 16,
-          newState => 17,
+          oldState => ignore(),
+          newState => code(sub { $state = $_[0]; 1}),
           created => {
             yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez },
             gold   => { id => ignore(), expires_at => ignore(), },
@@ -691,7 +693,7 @@ subtest "datetime field validations" => sub {
 
   # Verify
   $res = $jmap_tester->request([
-    [ getCookies => { sinceState => 16, properties => [ qw(type baked_at expires_at) ] } ],
+    [ getCookies => { sinceState => $state - 1, properties => [ qw(type baked_at expires_at) ] } ],
   ]);
 
   my $data = $jmap_tester->strip_json_types($res->as_pairs);
@@ -702,7 +704,7 @@ subtest "datetime field validations" => sub {
       [
         cookies => {
           notFound => undef,
-          state => 17,
+          state => $state,
           list  => bag(
             { id => ignore(), type => 'yellow', baked_at => $tsrez, expires_at => $tsrez, },
             { id => ignore(), type => 'gold', baked_at => undef, expires_at => $tsrez, },
@@ -741,8 +743,8 @@ subtest "datetime field validations" => sub {
     [
       [
         cookiesSet => superhashof({
-          oldState => 17,
-          newState => 18,
+          oldState => $state,
+          newState => $state + 1,
           updated => set(
             $c_to_id{yellow},
             $c_to_id{gold},
@@ -765,9 +767,11 @@ subtest "datetime field validations" => sub {
     "Check creating/updating with bad values or null values",
   ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
 
-  # Verify (still using state 16 so we can see white in the list)
+  $state++;
+
+  # Verify (still using much older state so we can see white in the list)
   $res = $jmap_tester->request([
-    [ getCookies => { sinceState => 16, properties => [ qw(type baked_at expires_at) ] } ],
+    [ getCookies => { sinceState => $state - 2, properties => [ qw(type baked_at expires_at) ] } ],
   ]);
 
   $data = $jmap_tester->strip_json_types($res->as_pairs);
@@ -778,7 +782,7 @@ subtest "datetime field validations" => sub {
       [
         cookies => {
           notFound => undef,
-          state => 18,
+          state => $state,
           list  => set(
             { id => ignore(), type => 'tim tam', baked_at => $tsrez, expires_at => ignore() },
             { id => ignore(), type => 'gold', baked_at => '2016-01-01T12:34:56Z', expires_at => ignore() },
