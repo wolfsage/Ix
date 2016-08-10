@@ -468,7 +468,13 @@ sub _ix_check_user_properties (
           # Make sure inserts/updates contain zulu format. This isn't strictly
           # necessary since we configure our SQL sessions to be UTC anyway,
           # but can't hurt and consistency is good.
-          bless $value, 'Ix::DateTime';
+          #
+          # We know that the object must be a DateTime because we ensure,
+          # above, that only DateTime objects are permitted.
+          $value = Ix::DateTime->from_epoch(
+            epoch => $value->epoch,
+            time_zone => 'UTC'
+          );
         }
       }
     }
