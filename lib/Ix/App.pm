@@ -78,37 +78,60 @@ sub _build_psgi_app ($self) {
                . ">>> END REQUEST $guid\n");
     }
 
-    my $calls;
-    unless (eval { $calls = $self->decode_json( $content ); 1 }) {
+    my $res = eval {
+      my $calls;
+      unless (eval { $calls = $self->decode_json( $content ); 1 }) {
+        return [
+          400,
+          [
+            'Content-Type', 'application/json',
+            'Access-Control-Allow-Origin' => '*',
+            ($guid ? ('Ix-Request-GUID' => $guid) : ()),
+          ],
+          [ '{"error":"could not decode request"}' ],
+        ];
+      }
+
+      my $result  = $ctx->process_request( $calls );
+      my $json    = $self->encode_json($result);
+
+      if ($logger) {
+        $logger->( "<<< BEGIN RESPONSE\n"
+                 . "$json\n"
+                 . ">>> END RESPONSE\n" );
+      }
+
       return [
-        400,
+        200,
         [
           'Content-Type', 'application/json',
           'Access-Control-Allow-Origin' => '*',
           ($guid ? ('Ix-Request-GUID' => $guid) : ()),
         ],
-        [ '{"error":"could not decode request"}' ],
+        [ $json ],
+      ];
+    };
+
+    # TODO: handle HTTP::Throwable..? -- rjbs, 2016-08-12
+    unless ($res) {
+      my $error = $@;
+      my $guid  = $ctx->report_exception($error);
+      $res = [
+        500,
+        [
+          'Content-Type', 'application/json',
+          'Access-Control-Allow-Origin' => '*', # ?
+          ($guid ? ('Ix-Request-GUID' => $guid) : ()),
+        ],
+        [ qq<{"error":"internal","guid":"$guid"}> ],
       ];
     }
 
-    my $result  = $ctx->process_request( $calls );
-    my $json    = $self->encode_json($result);
-
-    if ($logger) {
-      $logger->( "<<< BEGIN RESPONSE\n"
-               . "$json\n"
-               . ">>> END RESPONSE\n" );
+    if (my @guids = $ctx->logged_exception_guids) {
+      $env->{'psgi.errors'}->print("exception was reported: $_\n") for @guids;
     }
 
-    return [
-      200,
-      [
-        'Content-Type', 'application/json',
-        'Access-Control-Allow-Origin' => '*',
-        ($guid ? ('Ix-Request-GUID' => $guid) : ()),
-      ],
-      [ $json ],
-    ];
+    return $res;
   }
 }
 
