@@ -64,25 +64,54 @@ sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
 }
 
+has logged_exception_guids => (
+  init_arg => undef,
+  lazy     => 1,
+  default  => sub {  []  },
+  traits   => [ 'Array' ],
+  handles  => {
+    logged_exception_guids => 'elements',
+    log_exception_guid     => 'push',
+  },
+);
+
+requires 'file_exception_report';
+
+sub report_exception ($ctx, $exception) {
+  my $guid = $ctx->file_exception_report($exception);
+  $ctx->log_exception_guid($guid);
+  return $guid;
+}
+
 sub error ($ctx, $type, $prop = {}, $ident = undef, $payload = undef) {
+  my $report_guid;
+  if (defined $ident) {
+    my $report = Ix::ExceptionReport->new({
+      ident => $ident,
+      ($payload ? (payload => $payload) : ()),
+    });
+
+    $report_guid = $ctx->report_exception($report);
+  }
+
   Ix::Error::Generic->new({
     error_type => $type,
     properties => $prop,
-    ($ident
-      ? (_exception_report => Ix::ExceptionReport->new({
-          ident => $ident,
-          ($payload ? (payload => $payload) : ()),
-        }))
-      : ()),
+    ($report_guid ? (report_guid => $report_guid) : ()),
   });
 }
 
 sub internal_error ($ctx, $ident, $payload = undef) {
+  my $report = Ix::ExceptionReport->new({
+    ident => $ident,
+    ($payload ? (payload => $payload) : ()),
+  });
+
+  my $report_guid = $ctx->report_exception($report);
+
   Ix::Error::Internal->new({
-    _exception_report => Ix::ExceptionReport->new({
-      ident => $ident,
-      ($payload ? (payload => $payload) : ()),
-    }),
+    error_ident => $ident,
+    report_guid => $report_guid,
   });
 }
 

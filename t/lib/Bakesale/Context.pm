@@ -3,7 +3,16 @@ package Bakesale::Context {;
 
   use experimental qw(lexical_subs signatures postderef);
 
+  use Data::GUID qw(guid_string);
+
+  use namespace::autoclean;
+
   sub is_system { 0 }
+
+  sub file_exception_report {
+    warn "EXCEPTION!!";
+    return guid_string();
+  }
 
   has userId => (
     is       => 'ro',
@@ -31,9 +40,18 @@ package Bakesale::Context::System {
 
   use experimental qw(lexical_subs signatures postderef);
 
+  use Data::GUID qw(guid_string);
+
+  use namespace::autoclean;
+
   has datasetId => (is => 'ro', default => 1);
 
   sub is_system { 1 }
+
+  sub file_exception_report {
+    warn "EXCEPTION!!";
+    return guid_string();
+  }
 
   with 'Ix::Context';
 }
