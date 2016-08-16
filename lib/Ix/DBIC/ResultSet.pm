@@ -508,6 +508,10 @@ sub _ix_check_user_properties (
       $property_error{$prop} //=
         "null value given for field requiring a $prop_info->{$prop}{data_type}";
     } else {
+      # Required but has a 'default_value' (and didn't use ix_default_values?)
+      # Ugh, okay. (Looking at you 'id') -- alh, 2016-08-16
+      next if $prop_info->{$prop}->{default_value};
+
       $property_error{$prop} //= "no value given for required field";
     }
   }

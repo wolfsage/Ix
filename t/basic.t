@@ -181,7 +181,7 @@ my @created_ids;
         },
         update => {
           $dataset{cookies}{1} => { type => 'half-eaten tim-tam' },
-          $dataset{cookies}{2} => { delicious => 0, id => 999 },
+          $dataset{cookies}{2} => { pretty_delicious => 0, id => 999 },
         },
         destroy => [ $dataset{cookies}->@{3, 4} ],
       },
@@ -197,8 +197,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), expires_at => ignore() }, # no baked_at, because not default
-            gold   => { id => ignore(), expires_at => ignore, baked_at => ignore() },
+            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore() }, # no baked_at, because not default
+            gold   => { id => ignore(), expires_at => ignore, baked_at => ignore(), delicious => ignore() },
           },
           notCreated => {
             blue   => superhashof({
@@ -211,7 +211,7 @@ my @created_ids;
             $dataset{cookies}{2} => superhashof({
               type => 'invalidProperties',
               propertyErrors => {
-                delicious => "unknown property",
+                pretty_delicious => "unknown property",
                 id => re(qr/cannot be set/),
               },
             }),
@@ -484,7 +484,7 @@ subtest "make a recipe and a cake in one exchange" => sub {
     [
       [
         cookiesSet => superhashof({
-          created => { raw => { id => re(qr/\S/), expires_at => ignore() } },
+          created => { raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore() } },
         }),
       ],
     ],
@@ -671,12 +671,12 @@ subtest "datetime field validations" => sub {
           oldState => ignore(),
           newState => code(sub { $state = $_[0]; 1}),
           created => {
-            yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez },
-            gold   => { id => ignore(), expires_at => ignore(), },
-            blue   => { id => ignore(), expires_at => ignore(), },
-            white  => { id => ignore(), expires_at => ignore(), },
-            pink   => { id => ignore(), baked_at => ignore(), },
-            onyx   => { id => ignore(), baked_at => ignore(), },
+            yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez, delicious => ignore(), },
+            gold   => { id => ignore(), expires_at => ignore(), delicious => ignore(), },
+            blue   => { id => ignore(), expires_at => ignore(), delicious => ignore(), },
+            white  => { id => ignore(), expires_at => ignore(), delicious => ignore(), },
+            pink   => { id => ignore(), baked_at => ignore(), delicious => ignore(), },
+            onyx   => { id => ignore(), baked_at => ignore(), delicious => ignore(), },
           },
           notCreated => {
             red => superhashof({

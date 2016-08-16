@@ -81,15 +81,15 @@ package Bakesale::Test {
 
     my @cookies = $schema->resultset('Cookie')->populate([
       { datasetId => $a1, modseq(1), type => 'tim tam',
-        baked_at => '2016-01-01T12:34:56Z', expires_at => '2016-01-03:T12:34:56Z' },
+        baked_at => '2016-01-01T12:34:56Z', expires_at => '2016-01-03:T12:34:56Z', delicious => 'yes' },
       { datasetId => $a1, modseq(1), type => 'oreo',
-        baked_at => '2016-01-02T23:45:60Z', expires_at => '2016-01-04T23:45:60Z' },
+        baked_at => '2016-01-02T23:45:60Z', expires_at => '2016-01-04T23:45:60Z', delicious => 'yes', },
       { datasetId => $a2, modseq(1), type => 'thin mint',
-        baked_at => '2016-01-23T01:02:03Z', expires_at => '2016-01-25T01:02:03Z' },
+        baked_at => '2016-01-23T01:02:03Z', expires_at => '2016-01-25T01:02:03Z', delicious => 'yes',},
       { datasetId => $a1, modseq(3), type => 'samoa',
-        baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z' },
+        baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z', delicious => 'yes', },
       { datasetId => $a1, modseq(8), type => 'tim tam',
-        baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z' },
+        baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
@@ -134,6 +134,14 @@ package Bakesale {
   sub get_context ($self, $arg) {
     Bakesale::Context->new({
       userId    => $arg->{userId},
+      schema    => $self->schema_connection,
+      processor => $self,
+    });
+  }
+
+  sub get_system_context ($self, $dataset_id) {
+    Bakesale::Context::System->new({
+      datasetId => $dataset_id,
       schema    => $self->schema_connection,
       processor => $self,
     });

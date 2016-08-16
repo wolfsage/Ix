@@ -97,13 +97,13 @@ my @created_ids;
       setCookies => {
         ifInState => 8,
         create    => {
-          yellow => { type => 'shortbread' },
-          gold   => { type => 'anzac' },
+          yellow => { type => 'shortbread', },
+          gold   => { type => 'anzac', delicious => 'no', },
           blue   => {},
         },
         update => {
-          $dataset{cookies}{1} => { type => 'half-eaten tim-tam' },
-          $dataset{cookies}{2} => { delicious => 0 },
+          $dataset{cookies}{1} => { type => 'half-eaten tim-tam', delicious => 'no', },
+          $dataset{cookies}{2} => { pretty_delicious => 0 },
         },
         destroy => [ $dataset{cookies}->@{3,4} ],
       },
@@ -120,8 +120,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore() },
-            gold   => { id => ignore(), baked_at => ignore(), expires_at => ignore() },
+            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore() },
+            gold   => { id => ignore(), baked_at => ignore(), expires_at => ignore(), },
           },
           notCreated => {
             blue   => superhashof({
@@ -133,7 +133,7 @@ my @created_ids;
           notUpdated => {
             $dataset{cookies}{2} => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { delicious => "unknown property" },
+              propertyErrors => { pretty_delicious => "unknown property" },
             }),
           },
           destroyed => [ $dataset{cookies}{4} ],
@@ -160,12 +160,12 @@ my @created_ids;
   cmp_deeply(
     \@rows,
     [
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{1}, type => 'half-eaten tim-tam' }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{2}, type => 'oreo' }),
-      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => $dataset{cookies}{4}, type => 'samoa' }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{5}, type => 'tim tam' }),
-      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)) }),
-      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)) }),
+      superhashof({ dateDeleted => undef, id => $dataset{cookies}{1}, type => 'half-eaten tim-tam', delicious => 'no', }),
+      superhashof({ dateDeleted => undef, id => $dataset{cookies}{2}, type => 'oreo', delicious => 'yes', }),
+      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => $dataset{cookies}{4}, type => 'samoa', delicious => 'yes', }),
+      superhashof({ dateDeleted => undef, id => $dataset{cookies}{5}, type => 'tim tam', delicious => 'yes', }),
+      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
+      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
     ],
     "the db matches our expectations",
   ) or diag explain(\@rows);
@@ -307,7 +307,7 @@ subtest "invalid sinceState" => sub {
         ifInState => 9,
         destroy   => [ $dataset{cookies}{3} ],
         create    => { blue => {} },
-        update    => { $dataset{cookies}{2} => { delicious => 0 } },
+        update    => { $dataset{cookies}{2} => { pretty_delicious => 0 } },
       },
       'poirot'
     ],
@@ -369,8 +369,8 @@ subtest "invalid sinceState" => sub {
       [
         cookiesSet => superhashof({
           created => {
-            yellow => { id => ignore(), expires_at => ignore() },
-            red    => { id => ignore(), expires_at => ignore() },
+            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore(), },
+            red    => { id => ignore(), expires_at => ignore(), delicious => ignore(), },
           },
           notCreated => {
             green  => superhashof({
@@ -484,6 +484,55 @@ subtest "invalid sinceState" => sub {
 
   ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
   is($res->[0][1]{list}[0]{baked_at}->as_string, $future_str, 'time is right');
+}
+
+{
+  # Ensure system context can also create entities
+  my $ctx = $Bakesale->get_system_context(
+    $dataset{datasets}{rjbs}
+  );
+
+  my $res = $ctx->process_request([
+    [
+      setCookies => {
+        ifInState => 11,
+        create    => {
+          yellow => { type => 'shortbread', },
+          green => { type => 'what', id => undef, },
+        },
+        update => {
+          $dataset{cookies}{1} => { type => 'sugar' },
+        },
+      },
+      'a'
+    ],
+  ]);
+
+  cmp_deeply(
+    $res,
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => 11,
+          newState => 12,
+
+          created => {
+            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), },
+          },
+          updated => [ $dataset{cookies}{1} ],
+          notCreated => {
+            green   => superhashof({
+              type => 'invalidProperties',
+              propertyErrors => { id => 'not a string' }
+            }),
+          },
+        }),
+        'a'
+      ],
+    ],
+    "we can create cookies with setCookies",
+  ) or diag explain($res);
+
 }
 
 done_testing;
