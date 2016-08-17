@@ -90,6 +90,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
           list  => [
             { id => $dataset{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
             { id => $dataset{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
+            { id => $dataset{cookies}{6}, type => 'immortal', }, # baked_at => 1455310000 },
           ],
         },
       ],
@@ -183,7 +184,7 @@ my @created_ids;
           $dataset{cookies}{1} => { type => 'half-eaten tim-tam' },
           $dataset{cookies}{2} => { pretty_delicious => 0, id => 999 },
         },
-        destroy => [ $dataset{cookies}->@{3, 4} ],
+        destroy => [ $dataset{cookies}->@{3, 4, 6} ],
       },
     ],
   ]);
@@ -219,6 +220,7 @@ my @created_ids;
           destroyed => [ $dataset{cookies}{4} ],
           notDestroyed => {
             $dataset{cookies}{3} => superhashof({ type => ignore() }),
+            $dataset{cookies}{6} => superhashof({ description => 'You can\'t destroy an immortal cookie!'}),
           },
         }),
       ],

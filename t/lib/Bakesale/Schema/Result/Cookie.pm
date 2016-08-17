@@ -39,7 +39,19 @@ sub ix_update_check ($self, $ctx, $row, $arg) {
     return $ctx->error(partyFoul => {
       description => "You can't pretend you haven't eaten a part of that coookie!",
     });
+
+    return;
   }
+}
+
+sub ix_destroy_check ($self, $ctx, $row) {
+  if ($row->type && $row->type eq 'immortal') {
+    return $ctx->error(logicalFoul => {
+      description => "You can't destroy an immortal cookie!",
+    });
+  }
+
+  return;
 }
 
 1;

@@ -90,6 +90,8 @@ package Bakesale::Test {
         baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z', delicious => 'yes', },
       { datasetId => $a1, modseq(8), type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
+      { datasetId => $a1, modseq(8), type => 'immortal',
+        baked_at => '2016-02-10T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
