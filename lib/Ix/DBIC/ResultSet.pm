@@ -608,7 +608,7 @@ sub ix_update ($self, $ctx, $to_update) {
       next UPDATE;
     }
 
-    if (my $error = $rclass->ix_update_check($ctx, $to_update->{$id})) {
+    if (my $error = $rclass->ix_update_check($ctx, $row, $to_update->{$id})) {
       $result{not_updated}{$id} = $error;
       next UPDATE;
     }

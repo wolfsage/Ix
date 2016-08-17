@@ -1,3 +1,6 @@
+use strict;
+use warnings;
+use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cookie;
 use base qw/DBIx::Class::Core/;
 
@@ -24,6 +27,19 @@ sub ix_default_properties {
     expires_at => Ix::DateTime->now->add(days => 3),
     delicious => 'yes',
   };
+}
+
+sub ix_update_check ($self, $ctx, $row, $arg) {
+  # Can't make a half-eaten cookie into a new cookie
+  if (
+       $arg->{type}
+    && $arg->{type} !~ /eaten/i
+    && $row->type =~ /eaten/i
+  ) {
+    return $ctx->error(partyFoul => {
+      description => "You can't pretend you haven't eaten a part of that coookie!",
+    });
+  }
 }
 
 1;

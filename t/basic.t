@@ -240,6 +240,35 @@ my @created_ids;
   my $struct = $jmap_tester->strip_json_types( $set->arguments );
   @created_ids = map {; $struct->{created}{$_}{id} }
                  $set->created_creation_ids;
+
+  # Check ix_update_check
+  $res = $jmap_tester->request([
+    [
+      setCookies => {
+        ifInState => 9,
+        update => {
+          $dataset{cookies}{1} => { type => 'tim-tam' },
+        },
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          notUpdated => {
+            $dataset{cookies}{1} => superhashof({
+              'type' => 'partyFoul',
+              'description' => 'You can\'t pretend you haven\'t eaten a part of that coookie!',
+            }),
+          },
+        }),
+      ],
+    ],
+    "ix_update_check called during update with row values",
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
 }
 
 {

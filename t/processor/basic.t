@@ -501,7 +501,7 @@ subtest "invalid sinceState" => sub {
           green => { type => 'what', id => undef, },
         },
         update => {
-          $dataset{cookies}{1} => { type => 'sugar' },
+          $dataset{cookies}{1} => { type => 'half-eaten sugar' },
         },
       },
       'a'
