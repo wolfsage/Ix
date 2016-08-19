@@ -342,11 +342,11 @@ subtest "invalid sinceState" => sub {
 }
 
 {
-  # Make sure object detection works 
-  my $future = DateTime->now->add(days => 21);
-  my $ixdt = $future->clone;
+  # Make sure object detection works
+  my $past = DateTime->now->subtract(years => 5);
+  my $ixdt = $past->clone;
   bless $ixdt, 'Ix::DateTime';
-  my $future_str = $ixdt->as_string;
+  my $past_str = $ixdt->as_string;
 
   my $bad = bless {}, 'Brownie';
 
@@ -355,10 +355,10 @@ subtest "invalid sinceState" => sub {
       setCookies => {
         ifInState => 9,
         create    => {
-          yellow => { type => 'yellow', baked_at => $future },
+          yellow => { type => 'yellow', baked_at => $past },
           red    => { type => 'red', baked_at => $ixdt },
           green  => { type => 'green', baked_at => $bad },
-          pink   => { type => $future },
+          pink   => { type => $past },
         }
       },
       'a',
@@ -419,22 +419,22 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($res);
 
   ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[0]{baked_at}->as_string, $future_str, 'time is right');
+  is($res->[0][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
 
   ok($res->[0][1]{list}[1]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[1]{baked_at}->as_string, $future_str, 'time is right');
+  is($res->[0][1]{list}[1]{baked_at}->as_string, $past_str, 'time is right');
 
-  $future->add(days => 10);
+  $past->add(days => 10);
   $ixdt->add(days => 10);
-  $future_str = $ixdt->as_string;
+  $past_str = $ixdt->as_string;
 
   $res = $ctx->process_request([
     [
       setCookies => {
         ifInState => 10,
         update    => {
-          $c_to_id{yellow} => { type => 'yellow', baked_at => $future },
-          $c_to_id{red}    => { type => $future },
+          $c_to_id{yellow} => { type => 'yellow', baked_at => $past },
+          $c_to_id{red}    => { type => $past },
         },
       },
       'a',
@@ -462,7 +462,7 @@ subtest "invalid sinceState" => sub {
     "setCookies handles objects properly",
   ) or diag explain($res);
 
-  # Verify we updated to the new future
+  # Verify we updated to the new past
   $res = $ctx->process_request([
     [ getCookies => { sinceState => 10, properties => [ qw(type baked_at) ] }, 'a' ],
   ]);
@@ -485,7 +485,7 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($res);
 
   ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[0]{baked_at}->as_string, $future_str, 'time is right');
+  is($res->[0][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
 }
 
 {

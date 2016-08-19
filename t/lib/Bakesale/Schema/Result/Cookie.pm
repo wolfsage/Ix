@@ -3,6 +3,7 @@ use warnings;
 use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cookie;
 use base qw/DBIx::Class::Core/;
+use DateTime;
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
@@ -44,6 +45,14 @@ sub ix_set_check ($self, $ctx, $arg) {
   return;
 }
 
+sub ix_create_check ($self, $ctx, $arg) {
+  if (my $err = $self->_check_baked_at($ctx, $arg)) {
+    return $err;
+  }
+
+  return;
+}
+
 sub ix_update_check ($self, $ctx, $row, $arg) {
   # Can't make a half-eaten cookie into a new cookie
   if (
@@ -56,6 +65,26 @@ sub ix_update_check ($self, $ctx, $row, $arg) {
     });
 
     return;
+  }
+
+  if (my $err = $self->_check_baked_at($ctx, $arg)) {
+    return $err;
+  }
+
+  return;
+}
+
+sub _check_baked_at ($self, $ctx, $arg) {
+  if (my $baked_at = $arg->{baked_at}) {
+    unless ($baked_at->isa('DateTime')) {
+      die "How'd we get a non-object baked at?!";
+    }
+
+    if (DateTime->compare($baked_at, DateTime->now) > 0) {
+      return $ctx->error(timeSpaceContinuumFoul => {
+        description => "You can't claim to have baked a cookie in the future"
+      });
+    }
   }
 }
 

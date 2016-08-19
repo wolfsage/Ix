@@ -250,6 +250,7 @@ my @created_ids;
         ifInState => 9,
         update => {
           $dataset{cookies}{1} => { type => 'tim-tam' },
+          $dataset{cookies}{2} => { baked_at => '2301-01-01T12:12:12Z' },
         },
       },
     ],
@@ -264,6 +265,10 @@ my @created_ids;
             $dataset{cookies}{1} => superhashof({
               'type' => 'partyFoul',
               'description' => 'You can\'t pretend you haven\'t eaten a part of that coookie!',
+            }),
+            $dataset{cookies}{2} => superhashof({
+              'type' => 'timeSpaceContinuumFoul',
+              'description' => 'You can\'t claim to have baked a cookie in the future',
             }),
           },
         }),
@@ -687,6 +692,7 @@ subtest "datetime field validations" => sub {
           green  => { type => 'green', expires_at => undef },
           pink   => { type => 'pink', expires_at => '2016-01-01T12:34:56Z' },
           onyx   => { type => 'onyx', expires_at => '2016-01-01T12:34:57Z' },
+          orange => { type => 'orange', baked_at => '2130-01-01T12:34:56Z' },
         },
       },
     ],
@@ -717,6 +723,10 @@ subtest "datetime field validations" => sub {
             green => superhashof({
               type => 'invalidProperties',
               propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
+            }),
+            orange => superhashof({
+              'type' => 'timeSpaceContinuumFoul',
+              'description' => 'You can\'t claim to have baked a cookie in the future',
             }),
           },
         }),
