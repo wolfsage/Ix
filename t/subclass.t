@@ -27,4 +27,26 @@ like(
   "Cannot create properties with no data_type"
 );
 
+eval <<'EOF';
+  package Thing;
+  use base qw/DBIx::Class::Core/;
+
+  __PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
+
+  __PACKAGE__->table('things');
+
+  __PACKAGE__->ix_add_properties(
+    someThing       => { data_type => 'integer' },
+  );
+
+  1;
+
+EOF
+
+like(
+  $@,
+  qr/Property names must be snake_case \(got someThing\)/,
+  "Property names must be snake_case"
+);
+
 done_testing;

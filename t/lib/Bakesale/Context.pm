@@ -14,7 +14,7 @@ package Bakesale::Context {;
     return guid_string();
   }
 
-  has userId => (
+  has user_id => (
     is       => 'ro',
     required => 1,
   );
@@ -28,7 +28,7 @@ package Bakesale::Context {;
     handles  => [ qw(dataset_id) ],
     clearer  => '_clear_user', # trigger this after setUsers, surely?
     default  => sub ($self) {
-      return $self->schema->resultset('User')->find($self->userId);
+      return $self->schema->resultset('User')->find($self->user_id);
     },
   );
 

@@ -17,7 +17,7 @@ __PACKAGE__->ix_add_properties(
   type        => { data_type => 'text',     },
   layer_count => { data_type => 'integer',  validator => integer(1, 10)  },
   baked_at    => { data_type => 'datetime', is_immutable => 1 },
-  recipeId    => { data_type => 'integer',  xref_to => 'cakeRecipes' },
+  recipe_id    => { data_type => 'integer',  xref_to => 'cakeRecipes' },
 );
 
 __PACKAGE__->set_primary_key('id');
@@ -138,7 +138,7 @@ sub ix_update_single_state_conds ($self, $example_row) {
 
 __PACKAGE__->belongs_to(
   recipe => 'Bakesale::Schema::Result::CakeRecipe',
-  { 'foreign.id' => 'self.recipeId' },
+  { 'foreign.id' => 'self.recipe_id' },
 );
 
 1;

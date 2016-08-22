@@ -181,7 +181,7 @@ subtest "complex state comparisons" => sub {
           setCakes => {
             create => { map {; $_ => {
               type     => "test $layer_count/$_",
-              recipeId => $recipe_id{$_},
+              recipe_id => $recipe_id{$_},
               layer_count => $layer_count,
             } } (1 .. 5) }
           }

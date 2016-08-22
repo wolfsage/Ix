@@ -14,7 +14,7 @@ my $Bakesale = Bakesale->new;
 \my %dataset = Bakesale::Test->load_trivial_dataset($Bakesale->schema_connection);
 
 my $ctx = $Bakesale->get_context({
-  userId => $dataset{users}{rjbs},
+  user_id => $dataset{users}{rjbs},
 });
 
 {
@@ -279,7 +279,7 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} }
+          yum => { type => 'wedding', layer_count => 4, recipe_id => $dataset{recipes}{1} }
         }
       },
       'cake!',

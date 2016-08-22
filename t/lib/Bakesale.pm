@@ -141,7 +141,7 @@ package Bakesale {
 
   sub get_context ($self, $arg) {
     Bakesale::Context->new({
-      userId    => $arg->{userId},
+      user_id   => $arg->{user_id},
       schema    => $self->schema_connection,
       processor => $self,
     });
@@ -157,7 +157,7 @@ package Bakesale {
 
   sub context_from_plack_request ($self, $req) {
     my $user_id = $req->cookies->{bakesaleUserId};
-    return $self->get_context({ userId => $user_id // 1 });
+    return $self->get_context({ user_id => $user_id // 1 });
   }
 
   sub schema_class { 'Bakesale::Schema' }

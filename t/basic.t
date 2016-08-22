@@ -368,8 +368,8 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
-          yow => { type => 'croquembouche', layer_count => 99, recipeId => $dataset{recipes}{1} }
+          yum => { type => 'wedding', layer_count => 4, recipe_id => $dataset{recipes}{1} },
+          yow => { type => 'croquembouche', layer_count => 99, recipe_id => $dataset{recipes}{1} }
         }
       },
     ],
@@ -456,7 +456,7 @@ subtest "make a recipe and a cake in one transaction" => sub {
     [
       setCakes => {
         create    => {
-          magic => { type => 'eggy', layer_count => 2, recipeId => '#pav' },
+          magic => { type => 'eggy', layer_count => 2, recipe_id => '#pav' },
         }
       },
     ],
@@ -623,8 +623,8 @@ subtest "duplicated creation ids" => sub {
     ],
     [
       setCakes => { create    => {
-        yc1   => { type => 'y1', layer_count => 1, recipeId => '#yummy' },
-        tc    => { type => 't1', layer_count => 2, recipeId => '#tasty' },
+        yc1   => { type => 'y1', layer_count => 1, recipe_id => '#yummy' },
+        tc    => { type => 't1', layer_count => 2, recipe_id => '#tasty' },
       } },
     ],
     [
@@ -635,8 +635,8 @@ subtest "duplicated creation ids" => sub {
     ],
     [
       setCakes => { create    => {
-        yc2  => { type => 'y2', layer_count => 3, recipeId => '#yummy' },
-        gc   => { type => 'g1', layer_count => 4, recipeId => '#gross' },
+        yc2  => { type => 'y2', layer_count => 3, recipe_id => '#yummy' },
+        gc   => { type => 'g1', layer_count => 4, recipe_id => '#gross' },
       } },
     ],
   ]);

@@ -62,6 +62,9 @@ sub ix_add_properties ($class, @pairs) {
   while (my ($name, $def) = splice @pairs, 0, 2) {
     next if $def->{is_virtual};
 
+    Carp::confess("Property names must be snake_case (got $name)")
+      if $name =~ /[A-Z]/;
+
     Carp::confess("Attempt to add property $name with no data_type")
       unless defined $def->{data_type};
 
