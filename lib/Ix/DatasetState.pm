@@ -12,7 +12,7 @@ has context => (
   is => 'ro',
   required => 1,
   weak_ref => 1,
-  handles  => [ qw(datasetId schema) ],
+  handles  => [ qw(dataset_id schema) ],
 );
 
 has _state_rows => (
@@ -22,7 +22,7 @@ has _state_rows => (
   init_arg => undef,
   default  => sub ($self) {
     my @rows = $self->schema->resultset('State')->search({
-      datasetId => $self->datasetId,
+      dataset_id => $self->dataset_id,
     });
 
     my %map = map {; $_->type => $_ } @rows;
@@ -44,18 +44,18 @@ sub state_for ($self, $type) {
   my $pending = $self->_pending_state_for($type);
   return $pending if defined $pending;
   return "0" unless my $row = $self->_state_rows->{$type};
-  return $row->highestModSeq;
+  return $row->highest_mod_seq;
 }
 
 sub lowest_modseq_for ($self, $type) {
   my $row = $self->_state_rows->{$type};
-  return $row->lowestModSeq if $row;
+  return $row->lowest_mod_seq if $row;
   return 0;
 }
 
 sub highest_modseq_for ($self, $type) {
   my $row = $self->_state_rows->{$type};
-  return $row->highestModSeq if $row;
+  return $row->highest_mod_seq if $row;
   return 0;
 }
 
@@ -70,7 +70,7 @@ sub next_state_for ($self, $type) {
   return $pending if $pending;
 
   my $row = $self->_state_rows->{$type};
-  return $row ? $row->highestModSeq + 1 : 1;
+  return $row ? $row->highest_mod_seq + 1 : 1;
 }
 
 sub _save_states ($self) {
@@ -79,13 +79,13 @@ sub _save_states ($self) {
 
   for my $type (keys %$pend) {
     if (my $row = $rows->{$type}) {
-      $row->update({ highestModSeq => $pend->{$type} });
+      $row->update({ highest_mod_seq => $pend->{$type} });
     } else {
       my $row = $self->schema->resultset('State')->create({
-        datasetId => $self->datasetId,
+        dataset_id => $self->dataset_id,
         type      => $type,
-        highestModSeq => $pend->{$type},
-        lowestModSeq  => 0,
+        highest_mod_seq => $pend->{$type},
+        lowest_mod_seq  => 0,
       });
 
       $rows->{$type} = $row;

@@ -25,7 +25,7 @@ sub _ix_rclass ($self) {
 }
 
 sub ix_get ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass    = $self->_ix_rclass;
 
@@ -71,10 +71,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
   my @rows = $self->search(
     {
-      datasetId => $datasetId,
-      (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
+      dataset_id => $dataset_id,
+      (defined $since ? (mod_seq_changed => { '>' => $since }) : ()),
       ($ids ? (id => \@ids) : ()),
-      dateDeleted => undef,
+      date_deleted => undef,
       %$x_get_cond,
     },
     {
@@ -106,7 +106,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $since = $arg->{sinceState};
 
@@ -155,17 +155,17 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my $search = $self->search(
     {
-      'me.datasetId'     => $datasetId,
+      'me.dataset_id'     => $dataset_id,
       %$x_update_cond,
     },
     {
       select => [
         'id',
-        qw(me.dateDeleted me.modSeqChanged),
+        qw(me.date_deleted me.mod_seq_changed),
         $rclass->ix_update_extra_select->@*,
       ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-      order_by => 'me.modSeqChanged',
+      order_by => 'me.mod_seq_changed',
       %$x_update_attr,
     },
   );
@@ -207,7 +207,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my @changed;
   my @removed;
   for my $item (@rows) {
-    if ($item->{dateDeleted}) {
+    if ($item->{date_deleted}) {
       push @removed, "$item->{id}";
     } else {
       push @changed, "$item->{id}";
@@ -248,7 +248,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 }
 
 sub ix_purge ($self, $ctx) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass = $self->_ix_rclass;
 
@@ -257,25 +257,25 @@ sub ix_purge ($self, $ctx) {
   my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
 
   my $rs = $self->search({
-    datasetId   => $datasetId,
-    dateDeleted => { '<', $since->as_string },
+    dataset_id   => $dataset_id,
+    date_deleted => { '<', $since->as_string },
   });
 
-  my $maxDeletedModSeq = $self->get_column('modSeqChanged')->max;
+  my $maxDeletedModSeq = $self->get_column('mod_seq_changed')->max;
 
   $rs->delete;
 
   # XXX: violating encapsulation
   my $state_row = $ctx->state->_state_rows->{$type_key};
 
-  $state_row->lowestModSeq( $maxDeletedModSeq )
-    if $maxDeletedModSeq > $state_row->lowestModSeq;
+  $state_row->lowest_mod_seq( $maxDeletedModSeq )
+    if $maxDeletedModSeq > $state_row->lowest_mod_seq;
 
   return;
 }
 
 sub ix_create ($self, $ctx, $to_create) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass = $self->_ix_rclass;
 
@@ -349,9 +349,9 @@ sub ix_create ($self, $ctx, $to_create) {
     my %rec = (
       %$properties,
 
-      datasetId => $datasetId,
-      modSeqCreated => $next_state,
-      modSeqChanged => $next_state,
+      dataset_id => $dataset_id,
+      mod_seq_created => $next_state,
+      mod_seq_changed => $next_state,
     );
 
     if (my $error = $rclass->ix_create_check($ctx, \%rec)) {
@@ -572,7 +572,7 @@ my $UPDATED = 1;
 my $SKIPPED = 2;
 
 sub ix_update ($self, $ctx, $to_update) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass = $self->_ix_rclass;
 
@@ -589,8 +589,8 @@ sub ix_update ($self, $ctx, $to_update) {
   UPDATE: for my $id (keys $to_update->%*) {
     my $row = $self->find({
       id => $id,
-      datasetId   => $datasetId,
-      dateDeleted => undef,
+      dataset_id   => $dataset_id,
+      date_deleted => undef,
     });
 
     unless ($row) {
@@ -626,7 +626,7 @@ sub ix_update ($self, $ctx, $to_update) {
         $row->set_inflated_columns({ %$user_prop });
         return $SKIPPED unless $row->get_dirty_columns;
 
-        $row->update({ modSeqChanged => $next_state });
+        $row->update({ mod_seq_changed => $next_state });
         return $UPDATED;
       });
     };
@@ -660,7 +660,7 @@ sub ix_update ($self, $ctx, $to_update) {
 }
 
 sub ix_destroy ($self, $ctx, $to_destroy) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass = $self->_ix_rclass;
 
@@ -673,8 +673,8 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   DESTROY: for my $id ($to_destroy->@*) {
     my $row = $self->search({
       id => $id,
-      datasetId => $datasetId,
-      dateDeleted => undef,
+      dataset_id => $dataset_id,
+      date_deleted => undef,
     })->first;
 
     unless ($row) {
@@ -692,8 +692,8 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     my $ok = eval {
       $ctx->schema->txn_do(sub {
         $row->update({
-          modSeqChanged => $next_state,
-          dateDeleted   => Ix::DateTime->now,
+          mod_seq_changed => $next_state,
+          date_deleted   => Ix::DateTime->now,
         });
         return 1;
       });
@@ -714,7 +714,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $dataset_id = $ctx->dataset_id;
 
   my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;

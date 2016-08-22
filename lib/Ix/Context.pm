@@ -9,7 +9,7 @@ use Ix::Result;
 
 use namespace::autoclean;
 
-requires 'datasetId';
+requires 'dataset_id';
 requires 'is_system';
 
 has schema => (

@@ -44,10 +44,10 @@ sub ix_add_columns ($class) {
   );
 
   $class->add_columns(
-    datasetId     => { data_type => 'integer' },
-    modSeqCreated => { data_type => 'integer' },
-    modSeqChanged => { data_type => 'integer' },
-    dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
+    dataset_id      => { data_type => 'integer' },
+    mod_seq_created => { data_type => 'integer' },
+    mod_seq_changed => { data_type => 'integer' },
+    date_deleted    => { data_type => 'datetime', is_nullable => 1 },
   );
 }
 
@@ -127,7 +127,7 @@ sub ix_update_error  { return; } # ($self, $ctx, \%error)
 
 sub _return_ix_get   { return $_[3]->@* }
 
-sub ix_update_state_string_field { 'modSeqChanged' }
+sub ix_update_state_string_field { 'mod_seq_changed' }
 
 sub ix_state_string ($self, $state) {
   return $state->state_for( $self->ix_type_key ) . "";
@@ -145,7 +145,7 @@ sub ix_update_extra_search ($self, $ctx, $arg) {
 
   return (
     {
-      'me.modSeqChanged' => { '>' => $since },
+      'me.mod_seq_changed' => { '>' => $since },
     },
     {},
   );
@@ -161,7 +161,7 @@ sub ix_highest_state ($self, $since, $rows) {
 }
 
 sub ix_update_single_state_conds ($self, $example_row) {
-  return { 'me.modSeqChanged' => $example_row->{modSeqChanged} }
+  return { 'me.mod_seq_changed' => $example_row->{mod_seq_changed} }
 }
 
 sub ix_compare_state ($self, $since, $state) {
