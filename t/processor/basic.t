@@ -151,7 +151,7 @@ my @created_ids;
   @created_ids = map {; $_->{id} } values %{ $res->[0][1]{created} };
 
   my @rows = $ctx->schema->resultset('Cookie')->search(
-    { datasetId => $dataset{datasets}{rjbs} },
+    { dataset_id => $dataset{datasets}{rjbs} },
     {
       order_by => 'baked_at',
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -161,23 +161,23 @@ my @created_ids;
   cmp_deeply(
     \@rows,
     [
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{1}, type => 'half-eaten tim-tam', delicious => 'no', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{2}, type => 'oreo', delicious => 'yes', }),
-      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => $dataset{cookies}{4}, type => 'samoa', delicious => 'yes', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{5}, type => 'tim tam', delicious => 'yes', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{6}, type => 'immortal', delicious => 'yes', }),
-      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
-      superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
+      superhashof({ date_deleted => undef, id => $dataset{cookies}{1}, type => 'half-eaten tim-tam', delicious => 'no', }),
+      superhashof({ date_deleted => undef, id => $dataset{cookies}{2}, type => 'oreo', delicious => 'yes', }),
+      superhashof({ date_deleted => re(qr/\A[0-9]{4}-/), id => $dataset{cookies}{4}, type => 'samoa', delicious => 'yes', }),
+      superhashof({ date_deleted => undef, id => $dataset{cookies}{5}, type => 'tim tam', delicious => 'yes', }),
+      superhashof({ date_deleted => undef, id => $dataset{cookies}{6}, type => 'immortal', delicious => 'yes', }),
+      superhashof({ date_deleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
+      superhashof({ date_deleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
     ],
     "the db matches our expectations",
   ) or diag explain(\@rows);
 
   my $state = $ctx->schema->resultset('State')->search({
-    datasetId => $dataset{datasets}{rjbs},
+    dataset_id => $dataset{datasets}{rjbs},
     type => 'cookies',
   })->first;
 
-  is($state->highestModSeq, 9, "state ended got updated just once");
+  is($state->highest_mod_seq, 9, "state ended got updated just once");
 }
 
 {
@@ -334,11 +334,11 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($res);
 
   my $state = $ctx->schema->resultset('State')->search({
-    datasetId => $dataset{datasets}{rjbs},
+    dataset_id => $dataset{datasets}{rjbs},
     type => 'cookies',
   })->first;
 
-  is($state->highestModSeq, 9, "no updates, no state change");
+  is($state->highest_mod_seq, 9, "no updates, no state change");
 }
 
 {

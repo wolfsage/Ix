@@ -25,7 +25,7 @@ package Bakesale::Context {;
     writer   => '_set_user',
     init_arg => undef,
     lazy     => 1,
-    handles  => [ qw(datasetId) ],
+    handles  => [ qw(dataset_id) ],
     clearer  => '_clear_user', # trigger this after setUsers, surely?
     default  => sub ($self) {
       return $self->schema->resultset('User')->find($self->userId);
@@ -44,7 +44,7 @@ package Bakesale::Context::System {
 
   use namespace::autoclean;
 
-  has datasetId => (is => 'ro', default => 1);
+  has dataset_id => (is => 'ro', default => 1);
 
   sub is_system { 1 }
 

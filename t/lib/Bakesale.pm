@@ -46,22 +46,22 @@ package Bakesale::Test {
     my $user_rs = $schema->resultset('User');
 
     my $user1 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      dataset_id => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'testadmin',
-      modSeqCreated => 1,
-      modSeqChanged => 1,
+      mod_seq_created => 1,
+      mod_seq_changed => 1,
     });
 
     return $user1->id;
   }
 
   sub load_trivial_dataset ($self, $schema) {
-    my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
+    my sub modseq ($x) { return (mod_seq_created => $x, mod_seq_changed => $x) }
 
     my $user_rs = $schema->resultset('User');
 
     my $user1 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      dataset_id => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'rjbs',
       modseq(1)
     });
@@ -69,40 +69,40 @@ package Bakesale::Test {
     $user1 = $user_rs->single({ id => $user1->id });
 
     my $user2 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      dataset_id => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'neilj',
       modseq(1)
     });
 
     $user2 = $user_rs->single({ id => $user2->id });
 
-    my $a1 = $user1->datasetId;
-    my $a2 = $user2->datasetId;
+    my $a1 = $user1->dataset_id;
+    my $a2 = $user2->dataset_id;
 
     my @cookies = $schema->resultset('Cookie')->populate([
-      { datasetId => $a1, modseq(1), type => 'tim tam',
+      { dataset_id => $a1, modseq(1), type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z', expires_at => '2016-01-03:T12:34:56Z', delicious => 'yes' },
-      { datasetId => $a1, modseq(1), type => 'oreo',
+      { dataset_id => $a1, modseq(1), type => 'oreo',
         baked_at => '2016-01-02T23:45:60Z', expires_at => '2016-01-04T23:45:60Z', delicious => 'yes', },
-      { datasetId => $a2, modseq(1), type => 'thin mint',
+      { dataset_id => $a2, modseq(1), type => 'thin mint',
         baked_at => '2016-01-23T01:02:03Z', expires_at => '2016-01-25T01:02:03Z', delicious => 'yes',},
-      { datasetId => $a1, modseq(3), type => 'samoa',
+      { dataset_id => $a1, modseq(3), type => 'samoa',
         baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z', delicious => 'yes', },
-      { datasetId => $a1, modseq(8), type => 'tim tam',
+      { dataset_id => $a1, modseq(8), type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
-      { datasetId => $a1, modseq(8), type => 'immortal',
+      { dataset_id => $a1, modseq(8), type => 'immortal',
         baked_at => '2016-02-10T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
-      { datasetId => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
+      { dataset_id => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
     ]);
 
     $schema->resultset('State')->populate([
-      { datasetId => $a1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
-      { datasetId => $a2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
-      { datasetId => $a1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
-      { datasetId => $a2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { dataset_id => $a1, type => 'cookies', lowest_mod_seq => 1, highest_mod_seq => 8 },
+      { dataset_id => $a2, type => 'cookies', lowest_mod_seq => 1, highest_mod_seq => 1 },
+      { dataset_id => $a1, type => 'users',   lowest_mod_seq => 1, highest_mod_seq => 1 },
+      { dataset_id => $a2, type => 'users',   lowest_mod_seq => 1, highest_mod_seq => 1 },
     ]);
 
     return {
@@ -149,7 +149,7 @@ package Bakesale {
 
   sub get_system_context ($self, $dataset_id) {
     Bakesale::Context::System->new({
-      datasetId => $dataset_id,
+      dataset_id => $dataset_id,
       schema    => $self->schema_connection,
       processor => $self,
     });
