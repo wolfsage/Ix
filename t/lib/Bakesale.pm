@@ -125,7 +125,7 @@ package Bakesale {
   use namespace::autoclean;
 
   sub file_exception_report ($self, $ctx, $exception) {
-    Carp::cluck( "EXCEPTION!!" );
+    Carp::cluck( "EXCEPTION!! $exception" );
     return guid_string();
   }
 

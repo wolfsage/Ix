@@ -937,4 +937,34 @@ subtest "db exceptions" => sub {
   );
 }
 
+subtest "supplied created values changed" => sub {
+  # If a user supplies a value to a field and we change it behind the
+  # scenes during create, we need to supply the new value to the user
+  # so that their data is in sync with ours
+  my $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        # status will remain active, we should not get status back
+        active       => { username => 'active', status => 'active' },
+
+        # status will be changed to active, we should get status back
+        okay      => { username => 'okay', status => 'okay' },
+      },
+    } ],
+  ]);
+
+  my $created = $jmap_tester->strip_json_types(
+    $res->paragraph(0)->single('usersSet')->as_set->created
+  );
+
+  cmp_deeply(
+    $created,
+    {
+      active  => { id => ignore(), },
+      okay => { id => ignore(), status => 'active' },
+    },
+    "Ix returns fields modified behind the scenes on create",
+  ) or diag explain $created;
+};
+
 done_testing;

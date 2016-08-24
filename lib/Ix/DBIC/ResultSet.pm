@@ -368,11 +368,26 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my @defaults = grep {; ! exists $this->{$_} } keys %default_properties;
+      my %is_virtual = map {;
+        $_ => 1
+      } $rclass->ix_virtual_property_names;
+
+      my %created = map {;
+        $_ => $row->$_
+      } grep {;
+        ! $is_virtual{$_}
+      } $rclass->ix_property_names;
+
+      # We must return as part of the create response any data that
+      # we've added or changed
+      my @changed = grep {;
+           ! exists $this->{$_}
+        || ($this->{$_} // '') ne ($created{$_} // '')
+      } keys %created;
 
       $result{created}{$id} = {
         id => $row->id,
-        %default_properties{ @defaults },
+        %created{ @changed },
       };
     } else {
       my $exception = $@;

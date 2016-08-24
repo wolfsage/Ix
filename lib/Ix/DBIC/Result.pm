@@ -19,6 +19,10 @@ sub ix_virtual_property_names ($self, @) {
   return grep {; $prop_info->{$_}{is_virtual} } keys %$prop_info;
 }
 
+sub ix_property_names ($self, @) {
+  return keys $self->ix_property_info->%*;
+}
+
 sub ix_mutable_properties ($self, $ctx) {
   my $prop_info = $self->ix_property_info;
 
