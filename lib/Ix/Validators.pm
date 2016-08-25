@@ -8,7 +8,7 @@ use Safe::Isa;
 use experimental qw(postderef signatures);
 
 use Sub::Exporter -setup => [ qw(
-  boolean email enum domain integer nonemptystr simplestr
+  boolean email enum domain idstr integer nonemptystr simplestr
 ) ];
 
 sub boolean {
@@ -51,6 +51,15 @@ sub integer ($min = '-Inf', $max = 'Inf') {
     return "value above maximum of $max" if $x > $max;
     return;
   };
+}
+
+sub idstr ($min = -2147483648, $max = 2147483647) {
+  return sub ($x, @) {
+    return "value must be a string in the form of an integer" unless $x =~ /\A[-+]?(?:[0-9]|[1-9][0-9]*)\z/;
+    return "value below minimum of $min" if $x < $min;
+    return "value above maximum of $max" if $x > $max;
+    return;
+  }
 }
 
 sub simplestr {
