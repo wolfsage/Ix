@@ -38,7 +38,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   my $prop_info = $rclass->ix_property_info;
   my %is_prop   = map  {; $_ => 1 }
-                  (grep {; ! $prop_info->{$_}{ix_hidden} } keys %$prop_info),
+                  (keys %$prop_info),
                   ($rclass->ix_virtual_property_names);
 
   my @props;
@@ -440,11 +440,9 @@ sub _ix_check_user_properties (
       ($value, $is_default) = ($defaults->{$prop}, 1);
     }
 
-    my $info  = $prop_info->{$prop};
+    my $info = $prop_info->{$prop};
 
-    # XXX Do we need ix_hidden anymore now that there is a col/prop
-    # distinction? -- rjbs, 2016-07-27
-    if (! $info || (! $is_default && $info->{ix_hidden}) ) {
+    unless ($info) {
       $property_error{$prop} = "unknown property";
       next PROP;
     }
