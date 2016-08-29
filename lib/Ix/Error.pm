@@ -13,7 +13,7 @@ sub result_type { 'error' }
 requires 'error_type';
 
 package
-  Ix::ExceptionReport {
+  Ix::ExceptionWrapper {
 
   use Moose;
   use namespace::autoclean;

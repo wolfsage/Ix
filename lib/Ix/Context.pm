@@ -84,7 +84,7 @@ sub report_exception ($ctx, $exception) {
 sub error ($ctx, $type, $prop = {}, $ident = undef, $payload = undef) {
   my $report_guid;
   if (defined $ident) {
-    my $report = Ix::ExceptionReport->new({
+    my $report = Ix::ExceptionWrapper->new({
       ident => $ident,
       ($payload ? (payload => $payload) : ()),
     });
@@ -100,7 +100,7 @@ sub error ($ctx, $type, $prop = {}, $ident = undef, $payload = undef) {
 }
 
 sub internal_error ($ctx, $ident, $payload = undef) {
-  my $report = Ix::ExceptionReport->new({
+  my $report = Ix::ExceptionWrapper->new({
     ident => $ident,
     ($payload ? (payload => $payload) : ()),
   });
