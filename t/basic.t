@@ -1057,7 +1057,7 @@ subtest "various string id tests" => sub {
             'new' => {
               'description' => 'invalid property values',
               'propertyErrors' => {
-                'recipeId' => 'value must be a string in the form of an integer'
+                'recipeId' => 'invalid id string'
               },
               'type' => 'invalidProperties'
             }
