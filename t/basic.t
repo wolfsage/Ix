@@ -1020,8 +1020,8 @@ subtest "supplied created values changed" => sub {
   cmp_deeply(
     $created,
     {
-      active  => { id => ignore(), },
-      okay => { id => ignore(), status => 'active' },
+      active  => { id => ignore(), ranking => ignore(), },
+      okay => { id => ignore(), ranking => ignore(), status => 'active' },
     },
     "Ix returns fields modified behind the scenes on create",
   ) or diag explain $created;
@@ -1105,6 +1105,45 @@ subtest "various string id tests" => sub {
       ]
     ],
     "malformed id fields throw proper errors"
+  );
+};
+
+subtest "virtual properties in create" => sub {
+  # If a class has virtual properties, they should come back in
+  # the create call. For now this is up to subclasses to manage
+  my $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        virtualprops => { username => 'virtualprops', status => 'active' },
+      },
+    } ],
+  ]);
+
+  my $created = $jmap_tester->strip_json_types(
+    $res->paragraph(0)->single('usersSet')->as_set->created
+  );
+
+  cmp_deeply(
+    $created,
+    {
+      virtualprops  => { id => ignore(), ranking => 6  },
+    },
+    "Ix returns virtual fields on create",
+  ) or diag explain $created;
+
+  # Also comes back in gets
+  $res = $jmap_tester->request([
+    [ getUsers => { ids => [ $created->{virtualprops}->{id} ] } ],
+  ]);
+
+  my $got = $jmap_tester->strip_json_types(
+    $res->paragraph(0)->single('users')->as_set->arguments->{list}->[0]
+  );
+
+  cmp_deeply(
+    $got,
+    superhashof({ ranking => 6 }),
+    "got ranking back from getUsers"
   );
 };
 

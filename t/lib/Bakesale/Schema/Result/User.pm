@@ -15,6 +15,7 @@ __PACKAGE__->ix_add_columns;
 __PACKAGE__->ix_add_properties(
   username    => { data_type => 'text' },
   status      => { data_type => 'text', validator => enum([ qw(active okay) ]) },
+  ranking     => { data_type => 'integer', is_virtual => 1 },
 );
 
 __PACKAGE__->set_primary_key('id');
@@ -57,6 +58,37 @@ sub ix_create_check ($self, $ctx, $arg) {
   # seen by the caller
   if ($arg->{status} && $arg->{status} eq 'okay') {
     $arg->{status} = 'active';
+  }
+
+  return;
+}
+
+sub ix_get_extra_search ($self, $ctx, $arg = {}) {
+  my ($cond, $attr) = $self->SUPER::ix_get_extra_search($ctx);
+
+  if (grep {; $_ eq 'ranking' } $arg->{properties}->@*) {
+    $attr->{'+columns'} ||= {};
+    $attr->{'+columns'}{ranking} = \q{(
+      SELECT COUNT(*)+1 FROM users s
+        WHERE s.id < me.id AND s."dateDeleted" IS NULL AND s."datasetId" = me."datasetId"
+    )};
+  }
+
+  return ($cond, $attr);
+}
+
+sub ix_postprocess_create ($self, $ctx, $rows) {
+  my $dbh = $ctx->schema->storage->dbh;
+
+  # Fill in ranking on create response
+  my $query = q{
+    SELECT COUNT(*)+1 FROM users s
+      WHERE s.id < ? AND s."dateDeleted" IS NULL AND s."datasetId" = ?
+  };
+
+  for my $r (@$rows) {
+    my $res = $dbh->selectall_arrayref($query, {}, $r->{id}, $ctx->datasetId);
+    $r->{ranking} = $res->[0]->[0];
   }
 
   return;

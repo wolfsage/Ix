@@ -413,6 +413,9 @@ sub ix_create ($self, $ctx, $to_create) {
     }
   }
 
+  # Let rclasses fill in extra details or modify data in create response
+  $rclass->ix_postprocess_create($ctx, [ values $result{created}->%* ]);
+
   $self->_ix_wash_rows([ values $result{created}->%* ]);
 
   return \%result;
