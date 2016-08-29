@@ -71,11 +71,16 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
 
 {
   my $res = $jmap_tester->request([
-    [ getCookies => { sinceState => 2, properties => [ qw(type) ] } ],
+    [ getCookieUpdates => {
+        sinceState   => 2,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type) ],
+      }
+    ],
   ]);
 
   isa_ok(
-    $res->as_struct->[0][1]{list}[0]{id},
+    $res->as_struct->[1][1]{list}[0]{id},
     'JSON::Typist::String',
     "the returned id",
   ) or diag(explain($res->as_struct));
@@ -83,6 +88,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
   cmp_deeply(
     $jmap_tester->strip_json_types( $res->as_pairs ),
     [
+      [ cookieUpdates => ignore() ],
       [
         cookies => {
           notFound => undef,
@@ -737,7 +743,13 @@ subtest "datetime field validations" => sub {
 
   # Verify
   $res = $jmap_tester->request([
-    [ getCookies => { sinceState => $state - 1, properties => [ qw(type baked_at expires_at) ] } ],
+    [
+      getCookieUpdates => {
+        sinceState => $state - 1,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type baked_at expires_at) ],
+      },
+    ],
   ]);
 
   my $data = $jmap_tester->strip_json_types($res->as_pairs);
@@ -745,6 +757,7 @@ subtest "datetime field validations" => sub {
   cmp_deeply(
     $data,
     [
+      [ cookieUpdates => ignore() ],
       [
         cookies => {
           notFound => undef,
@@ -765,7 +778,7 @@ subtest "datetime field validations" => sub {
 
   my %c_to_id = map {;
     $_->{type} => $_->{id}
-  } @{ $data->[0][1]{list} };
+  } @{ $data->[1][1]{list} };
 
   $res = $jmap_tester->request([
     [
@@ -815,7 +828,13 @@ subtest "datetime field validations" => sub {
 
   # Verify (still using much older state so we can see white in the list)
   $res = $jmap_tester->request([
-    [ getCookies => { sinceState => $state - 2, properties => [ qw(type baked_at expires_at) ] } ],
+    [
+      getCookieUpdates => {
+        sinceState => $state - 2,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type baked_at expires_at) ],
+      },
+    ],
   ]);
 
   $data = $jmap_tester->strip_json_types($res->as_pairs);
@@ -823,6 +842,7 @@ subtest "datetime field validations" => sub {
   cmp_deeply(
     $data,
     [
+      [ cookieUpdates => ignore() ],
       [
         cookies => {
           notFound => undef,

@@ -54,12 +54,20 @@ my $ctx = $Bakesale->get_context({
 
 {
   my $res = $ctx->process_request([
-    [ getCookies => { sinceState => 2, properties => [ qw(type) ] }, 'a' ],
+    [
+      getCookieUpdates => {
+        sinceState => 2,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type) ]
+      },
+      'a',
+    ],
   ]);
 
-  is_deeply(
+  cmp_deeply(
     $res,
     [
+      [ cookieUpdates => ignore(), 'a' ],
       [
         cookies => {
           notFound => undef,
@@ -397,12 +405,19 @@ subtest "invalid sinceState" => sub {
 
   # Verify we got the right dates
   $res = $ctx->process_request([
-    [ getCookies => { sinceState => 9, properties => [ qw(type baked_at) ] }, 'a' ],
+    [
+      getCookieUpdates => {
+        sinceState => 9,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type baked_at) ]
+      }, 'a',
+    ],
   ]);
 
   cmp_deeply(
     $res,
     [
+      [ cookieUpdates => ignore(), 'a' ],
       [
         cookies => {
           notFound => undef,
@@ -418,11 +433,11 @@ subtest "invalid sinceState" => sub {
     "a getFoos call backed by the database",
   ) or diag explain($res);
 
-  ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
+  ok($res->[1][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[1][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
 
-  ok($res->[0][1]{list}[1]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[1]{baked_at}->as_string, $past_str, 'time is right');
+  ok($res->[1][1]{list}[1]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[1][1]{list}[1]{baked_at}->as_string, $past_str, 'time is right');
 
   $past->add(days => 10);
   $ixdt->add(days => 10);
@@ -464,12 +479,19 @@ subtest "invalid sinceState" => sub {
 
   # Verify we updated to the new past
   $res = $ctx->process_request([
-    [ getCookies => { sinceState => 10, properties => [ qw(type baked_at) ] }, 'a' ],
+    [
+      getCookieUpdates => {
+        sinceState => 10,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type baked_at) ]
+      }, 'a',
+    ],
   ]);
 
   cmp_deeply(
     $res,
     [
+      [ cookieUpdates => ignore(), 'a' ],
       [
         cookies => {
           notFound => undef,
@@ -484,8 +506,8 @@ subtest "invalid sinceState" => sub {
     "a getFoos call backed by the database",
   ) or diag explain($res);
 
-  ok($res->[0][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
-  is($res->[0][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
+  ok($res->[1][1]{list}[0]{baked_at}->$_isa('DateTime'), 'got a dt object');
+  is($res->[1][1]{list}[0]{baked_at}->as_string, $past_str, 'time is right');
 }
 
 {
