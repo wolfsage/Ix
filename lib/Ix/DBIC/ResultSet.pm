@@ -34,7 +34,6 @@ sub ix_get ($self, $ctx, $arg = {}) {
     if $rclass->can('ix_preprocess_get_arg');
 
   my $ids   = $arg->{ids};
-  my $since = $arg->{sinceState};
 
   my $prop_info = $rclass->ix_property_info;
   my %is_prop   = map  {; $_ => 1 }
@@ -72,7 +71,6 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my @rows = $self->search(
     {
       datasetId => $datasetId,
-      (defined $since ? (modSeqChanged => { '>' => $since }) : ()),
       ($ids ? (id => \@ids) : ()),
       dateDeleted => undef,
       %$x_get_cond,
