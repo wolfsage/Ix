@@ -1171,4 +1171,45 @@ subtest "virtual properties in create" => sub {
   );
 };
 
+subtest "destroyed rows don't interfere with unique constraints" => sub {
+  # Make sure destroyed rows don't interfere with unique constraints
+  my $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        first => { username => 'a new user', },
+      },
+    } ],
+  ]);
+
+  my $id = $res->paragraph(0)->single('usersSet')->as_set->created_id('first');
+  ok($id, 'created a user');
+
+  # Destroy that user
+  $res = $jmap_tester->request([
+     [ setUsers => {
+       destroy => [ $id ],
+     } ],
+  ]);
+  is(
+    ($res->single_sentence('usersSet')->as_set->destroyed_ids)[0],
+    $id,
+    'user destroyed'
+  );
+
+  # Now create a new user with same username
+  $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        first => { username => 'a new user', },
+      },
+    } ],
+  ]);
+
+  my $id2 = $res->paragraph(0)->single('usersSet')->as_set->created_id('first');
+  ok($id2, 'created a user with same username as destroyed user')
+    or diag explain $res->as_stripped_struct;
+
+  cmp_ok($id2, 'ne', $id, "new user has a different id");
+};
+
 done_testing;

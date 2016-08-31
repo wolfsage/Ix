@@ -750,6 +750,10 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
         $row->update({
           modSeqChanged => $next_state,
           dateDeleted   => Ix::DateTime->now,
+
+          # Null this out making any unique constraints unblocked for
+          # a new create (since null is never == null in postgres)
+          isActive      => undef,
         });
         return 1;
       });

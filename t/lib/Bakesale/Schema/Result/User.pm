@@ -20,7 +20,7 @@ __PACKAGE__->ix_add_properties(
 
 __PACKAGE__->set_primary_key('id');
 
-__PACKAGE__->add_unique_constraint(
+__PACKAGE__->ix_add_unique_constraint(
   [ qw(username) ],
 );
 

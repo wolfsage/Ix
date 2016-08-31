@@ -54,7 +54,30 @@ sub ix_add_columns ($class) {
     modSeqCreated => { data_type => 'integer' },
     modSeqChanged => { data_type => 'integer' },
     dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
+    isActive      => { data_type => 'boolean', is_nullable => 1, default_value => 1 },
   );
+}
+
+# Since ix_destroy doesn't actually delete rows, we need a way for unique
+# constraints to work while letting rows stick around. What we're doing is
+# injecting a column (isActive) into the beginning of the unique constraints
+# that has only two possible values: true on create, and NULL when the row
+# is destroyed. While the value is true, it allows the unique constraint to work.
+# When the value becomes NULL, it will no longer ever match any other rows, and
+# so will not get in the way of active data (in Postgres, NULL is never equal
+# to NULL).
+sub ix_add_unique_constraints ($class, @constraints) {
+  for my $c (@constraints) {
+    if (ref $c) {
+      unshift @$c, 'isActive';
+    }
+  }
+
+  $class->add_unique_constraints(@constraints);
+}
+
+sub ix_add_unique_constraint ($class, @constraint) {
+  $class->ix_add_unique_constraints(@constraint);
 }
 
 my %TYPE_FOR_TYPE = (
