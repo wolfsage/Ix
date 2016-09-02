@@ -705,6 +705,9 @@ sub ix_update ($self, $ctx, $to_update) {
 
   $result{updated} = \@updated;
 
+  # Let rclasses do something with the updated ids if they like
+  $rclass->ix_postprocess_update($ctx, $result{updated});
+
   return \%result;
 }
 
@@ -769,6 +772,9 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   }
 
   $result{destroyed} = \@destroyed;
+
+  # Let rclasses do something with the destroyed ids if they like
+  $rclass->ix_postprocess_destroy($ctx, $result{destroyed});
 
   return \%result;
 }
