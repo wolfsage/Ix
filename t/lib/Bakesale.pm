@@ -163,9 +163,22 @@ package Bakesale {
   sub schema_class { 'Bakesale::Schema' }
 
   sub handler_for ($self, $method) {
+    return 'count_chars'   if $method eq 'countChars';
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
     return;
+  }
+
+  sub count_chars ($self, $ctx, $arg) {
+    my $string = $arg->{string};
+    my $length = length $string;
+    return Ix::Result::Generic->new({
+      result_type       => 'charCount',
+      result_properties => {
+        string => $string,
+        length => $length,
+      },
+    });
   }
 
   sub pie_type_list ($self, $ctx, $arg = {}) {

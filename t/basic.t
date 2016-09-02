@@ -1,5 +1,6 @@
 use 5.20.0;
 use warnings;
+use utf8;
 use experimental qw(lexical_subs signatures postderef refaliasing);
 
 use lib 't/lib';
@@ -512,7 +513,6 @@ subtest "passing in a boolean" => sub {
     "Can't use a boolean-like value for a boolean property"
   );
 };
-
 
 subtest "make a recipe and a cake in one transaction" => sub {
   my $res = $jmap_tester->request([
@@ -1210,6 +1210,55 @@ subtest "destroyed rows don't interfere with unique constraints" => sub {
     or diag explain $res->as_stripped_struct;
 
   cmp_ok($id2, 'ne', $id, "new user has a different id");
+};
+
+subtest "non-ASCII data" => sub {
+  subtest "HTTP, no database layer" => sub {
+    for my $test (
+      [ rjbs      => 4 ],
+      [ 'Grüß'    => 4 ],
+      [ '芋头糕'  => 3 ],
+      # TODO: normalize, test for normalization
+    ) {
+      my $res = $jmap_tester->request([
+        [ countChars => { string => $test->[0] } ],
+      ]);
+
+      my $got = $res->single_sentence('charCount')->as_stripped_pair->[1];
+
+      my $data = JSON->new->utf8->decode($res->http_response->decoded_content);
+      is($data->[0][1]->{string}, $test->[0], "string round tripped (HTTP)");
+
+      is($got->{string}, $test->[0], "string round tripped (JMAP::Tester)");
+      is($got->{length}, $test->[1], "correct length");
+    }
+  };
+
+  subtest "row storage and retrieval" => sub {
+    my $taro_cake = '芋头糕';
+    my $res = $jmap_tester->request([
+      [
+        setCakeRecipes => {
+          create => {
+            taro => {
+              type          => $taro_cake,
+              avg_review    => 62,
+              is_delicious  => \1,
+            }
+          },
+        },
+      ],
+    ]);
+
+    my $id = $res->single_sentence->as_set->created_id('taro');
+
+    pass("created taro cake! id: $id");
+
+    my $cake = $jmap_tester->request([[ getCakeRecipes => { ids => [ $id ] } ]]);
+
+    my $type = $cake->single_sentence('cakeRecipes')->arguments->{list}[0]{type};
+    is($type, $taro_cake, "type round tripped");
+  };
 };
 
 done_testing;
