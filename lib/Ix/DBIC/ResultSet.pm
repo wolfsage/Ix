@@ -11,6 +11,7 @@ use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
 use Ix::Validators qw(idstr);
+use Unicode::Normalize qw(NFC);
 
 use namespace::clean;
 
@@ -536,6 +537,10 @@ sub _ix_check_user_properties (
       $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
     ) {
       $value = $value ? 1 : 0;
+    }
+
+    if (defined $value && $info->{data_type} eq 'string') {
+      $value = NFC($value);
     }
 
     $properties{$prop} = $value;

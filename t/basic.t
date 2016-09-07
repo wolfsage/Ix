@@ -8,9 +8,10 @@ use lib 't/lib';
 use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
+use JSON;
 use Test::Deep;
 use Test::More;
-use JSON;
+use Unicode::Normalize;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 \my %dataset = Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
@@ -1236,10 +1237,20 @@ subtest "non-ASCII data" => sub {
 
   subtest "row storage and retrieval" => sub {
     my $taro_cake = '芋头糕';
+    my $shoefly   = "sh\N{LATIN SMALL LETTER O WITH DIAERESIS}"
+                  . "o\N{COMBINING DIAERESIS}";
+
+    isnt($shoefly, NFC($shoefly), "our shoefly name is not NFC");
+
     my $res = $jmap_tester->request([
       [
         setCakeRecipes => {
           create => {
+            yum  => {
+              type          => $shoefly,
+              avg_review    => 99,
+              is_delicious  => \1,
+            },
             taro => {
               type          => $taro_cake,
               avg_review    => 62,
@@ -1250,14 +1261,27 @@ subtest "non-ASCII data" => sub {
       ],
     ]);
 
-    my $id = $res->single_sentence->as_set->created_id('taro');
+    my $set = $res->single_sentence->as_set;
 
-    pass("created taro cake! id: $id");
+    subtest "taro cake" => sub {
+      my $id  = $set->created_id('taro');
+      pass("created taro cake! id: $id");
+      ok(! exists $set->created->{taro}{type}, "type used unaltered");
+      my $cake = $jmap_tester->request([[ getCakeRecipes => { ids => [ $id ] } ]]);
+      my $type = $cake->single_sentence('cakeRecipes')->arguments->{list}[0]{type};
+      is($type, $taro_cake, "type round tripped");
+    };
 
-    my $cake = $jmap_tester->request([[ getCakeRecipes => { ids => [ $id ] } ]]);
+    subtest "shoefly pie" => sub {
+      my $id  = $set->created_id('yum');
+      pass("created shoefly cake (really it's pie)! id: $id");
+      is($set->created->{yum}{type}, NFC($shoefly), "informed of str normalization");
 
-    my $type = $cake->single_sentence('cakeRecipes')->arguments->{list}[0]{type};
-    is($type, $taro_cake, "type round tripped");
+      my $cake = $jmap_tester->request([[ getCakeRecipes => { ids => [ $id ] } ]]);
+      my $type = $cake->single_sentence('cakeRecipes')->arguments->{list}[0]{type};
+      isnt($type, $shoefly,       "type didn't round trip unaltered...");
+      is($type,   NFC($shoefly),  "...because it got NFC'd");
+    };
   };
 };
 
