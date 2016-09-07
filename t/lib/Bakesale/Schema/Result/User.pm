@@ -70,7 +70,7 @@ sub ix_get_extra_search ($self, $ctx, $arg = {}) {
     $attr->{'+columns'} ||= {};
     $attr->{'+columns'}{ranking} = \q{(
       SELECT COUNT(*)+1 FROM users s
-        WHERE s.id < me.id AND s."dateDeleted" IS NULL AND s."datasetId" = me."datasetId"
+        WHERE s."modSeqCreated" < me."modSeqCreated" AND s."dateDeleted" IS NULL AND s."datasetId" = me."datasetId"
     )};
   }
 
@@ -83,7 +83,7 @@ sub ix_postprocess_create ($self, $ctx, $rows) {
   # Fill in ranking on create response
   my $query = q{
     SELECT COUNT(*)+1 FROM users s
-      WHERE s.id < ? AND s."dateDeleted" IS NULL AND s."datasetId" = ?
+      WHERE s.id != ? AND s."dateDeleted" IS NULL AND s."datasetId" = ?
   };
 
   for my $r (@$rows) {

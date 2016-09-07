@@ -141,6 +141,42 @@ sub ix_update_single_state_conds ($self, $example_row) {
   Carp::confess("Unreachable code reached.");
 }
 
+sub ix_created ($self, $ctx, $row) {
+  return unless $row->type eq 'wedding';
+
+  my $handler = $ctx->processor->handler_for('setCakeToppers');
+
+  my @results = $ctx->processor->$handler($ctx, {
+    create => { $row->id => { cakeId => $row->id } },
+  });
+
+  for my $result (@results) {
+    if ($result->{not_created} || $ENV{NO_CAKE_TOPPERS}) {
+      die $ctx->internal_error("failed to create cake topper");
+    }
+  }
+
+  return;
+}
+
+sub ix_postprocess_set ($self, $ctx, $results) {
+  # Wedding cakes have toppers maybe!
+  for my $result (@$results) {
+    my @cake_ids = map { $_->{id} } values $result->{created}->%*;
+    next unless @cake_ids;
+
+    my @tids = $ctx->schema->resultset('CakeTopper')->search(
+      { cakeId => [ @cake_ids ] },
+    )->get_column('id')->all;
+    next unless @tids;
+
+    my $handler = $ctx->processor->handler_for('getCakeToppers');
+    push @$results, $ctx->processor->$handler($ctx, { ids => [ @tids ] });
+  }
+
+  return;
+}
+
 __PACKAGE__->belongs_to(
   recipe => 'Bakesale::Schema::Result::CakeRecipe',
   { 'foreign.id' => 'self.recipeId' },

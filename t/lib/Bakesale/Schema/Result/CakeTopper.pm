@@ -1,0 +1,39 @@
+use strict;
+use warnings;
+use experimental qw(postderef signatures);
+package Bakesale::Schema::Result::CakeTopper;
+use base qw/DBIx::Class::Core/;
+
+use Ix::Validators qw(integer nonemptystr idstr);
+use List::Util qw(max);
+
+__PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
+
+__PACKAGE__->table('cake_toppers');
+
+__PACKAGE__->ix_add_columns;
+
+__PACKAGE__->ix_add_properties(
+  type   => { data_type => 'text',     },
+  cakeId => {
+    data_type    => 'string',
+    db_data_type => 'integer',
+    validator    => idstr(),
+    xref_to      => 'cakes'
+  },
+);
+
+__PACKAGE__->set_primary_key('id');
+
+sub ix_type_key { 'cakeToppers' }
+
+sub ix_default_properties {
+  return { type => 'basic' };
+}
+
+__PACKAGE__->belongs_to(
+  cake => 'Bakesale::Schema::Result::Cake',
+  { 'foreign.id' => 'self.cakeId' },
+);
+
+1;

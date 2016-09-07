@@ -406,7 +406,7 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
+          yum => { type => 'layered', layer_count => 4, recipeId => $dataset{recipes}{1} },
           yow => { type => 'croquembouche', layer_count => 99, recipeId => $dataset{recipes}{1} }
         }
       },
@@ -1059,10 +1059,10 @@ subtest "various string id tests" => sub {
   my $res = $jmap_tester->request([
     [ setCakes => {
       create => {
-        "new" => { type => 'wedding', layer_count => 4, recipeId => "cat", },
+        "new" => { type => 'layered', layer_count => 4, recipeId => "cat", },
       },
       update => {
-        "bad_id" => { type => 'wedding' },
+        "bad_id" => { type => 'layered' },
       },
       destroy => [ 'to_destroy' ],
     }, 'a', ],
@@ -1283,6 +1283,96 @@ subtest "non-ASCII data" => sub {
       is($type,   NFC($shoefly),  "...because it got NFC'd");
     };
   };
+};
+
+subtest "ix_created test" => sub {
+  # Creating a row can internally create another row and give us a result
+  # (This tests ix_created hook) XXX - Test ix_updated/ix_destroyed hooks
+  my $res = $jmap_tester->request([
+    [
+      setCakes => {
+        create => {
+          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+        }
+      }, "my id"
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_stripped_struct ),
+    [
+      [
+        cakesSet => superhashof({
+          created => {
+            yum => superhashof({ id => ignore() }),
+            woo => superhashof({ id => ignore() }),
+          },
+        }), "my id"
+      ],
+      [
+        cakeToppers => superhashof({
+          list => set(
+            {
+              cakeId => $res->as_stripped_struct->[0][1]{created}{yum}{id},
+              id => ignore(),
+              type => 'basic'
+            },
+            {
+              cakeId => $res->as_stripped_struct->[0][1]{created}{woo}{id},
+              id => ignore(),
+              type => 'basic'
+            },
+          ),
+          notFound => ignore(),
+          state => 2,
+        }), "my id"
+      ],
+    ],
+    "we can bake wedding cakes and get back toppers",
+  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
+
+  my $cstate = "" . $res->sentence(0)->arguments->{newState};
+  my $tstate = "" . $res->sentence(1)->arguments->{state};
+
+  ok($cstate, 'got cake state');
+  ok($tstate, 'got cake topper state');
+
+  # But can they throw sensible-ish errors?
+  local @ENV{qw(NO_CAKE_TOPPERS QUIET_BAKESALE)} = (1, 1);
+
+  print STDERR "Ignore the next two exception reports for now..\n";
+  $res = $jmap_tester->request([
+    [
+      setCakes => {
+        create => {
+          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+        }
+      }, "my id"
+    ],
+  ]);
+
+  cmp_deeply(
+    $res->as_stripped_struct,
+    [
+      [
+        cakesSet => superhashof({
+          notCreated => {
+            woo => { guid => ignore(), type => 'internalError' },
+            yum => { guid => ignore(), type => 'internalError' },
+          },
+        }), 'my id'
+      ]
+    ],
+    "errors bubble up"
+  );
+
+  $res = $jmap_tester->request([ [ getCakes => { ids => [ 1 ] } ] ]);
+  is("". $res->sentence(0)->arguments->{state}, $cstate, 'cake state unchanged');
+
+  $res = $jmap_tester->request([ [ getCakeToppers => {} ] ]);
+  is("". $res->sentence(0)->arguments->{state}, $tstate, 'cake topper state unchanged');  
 };
 
 done_testing;

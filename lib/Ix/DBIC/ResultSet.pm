@@ -377,6 +377,10 @@ sub ix_create ($self, $ctx, $to_create) {
     my $row = eval {
       $ctx->schema->txn_do(sub {
         my $created = $self->create(\%rec);
+
+        # Fire a hook inside this transaction if necessary
+        $rclass->ix_created($ctx, $created);
+
         $ctx->log_created_id($type_key, $id, $created->id);
         return $created;
       });
@@ -681,6 +685,10 @@ sub ix_update ($self, $ctx, $to_update) {
         return $SKIPPED unless $row->get_dirty_columns;
 
         $row->update({ modSeqChanged => $next_state });
+
+        # Fire a hook inside this transaction if necessary
+        $rclass->ix_updated($ctx, $row);
+
         return $UPDATED;
       });
     };
@@ -763,6 +771,10 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
           # a new create (since null is never == null in postgres)
           isActive      => undef,
         });
+
+        # Fire a hook inside this transaction if necessary
+        $rclass->ix_destroyed($ctx, $row);
+
         return 1;
       });
     };
@@ -843,12 +855,19 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
   $ctx->state->_save_states;
 
-  return Ix::Result::FoosSet->new({
+  my $ret = [ Ix::Result::FoosSet->new({
     result_type => "${type_key}Set",
     old_state => $curr_state,
     new_state => $rclass->ix_state_string($state),
     %result,
-  });
+  }) ];
+
+  # This hook lets rclasses inject more responses into the result if they
+  # need to
+  $rclass->ix_postprocess_set($ctx, $ret)
+    if $rclass->can('ix_postprocess_set');
+
+  return @$ret;
 }
 
 1;
