@@ -10,7 +10,7 @@ __PACKAGE__->table('cake_recipes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type         => { data_type => 'text',    },
+  type         => { data_type => 'string',  },
   avg_review   => { data_type => 'integer', },
   is_delicious => { data_type => 'boolean', },
 );

@@ -14,7 +14,7 @@ __PACKAGE__->table('cakes');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type        => { data_type => 'text',     },
+  type        => { data_type => 'string',     },
   layer_count => { data_type => 'integer',  validator => integer(1, 10)  },
   baked_at    => { data_type => 'datetime', is_immutable => 1 },
   recipeId    => {

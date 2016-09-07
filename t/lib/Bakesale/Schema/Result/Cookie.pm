@@ -12,7 +12,7 @@ __PACKAGE__->table('cookies');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type       => { data_type => 'text', },
+  type       => { data_type => 'string', },
   baked_at   => { data_type => 'datetime', is_optional => 1 },
   expires_at => { data_type => 'datetime', is_optional => 0 },
   delicious  => { data_type => 'string', is_optional => 0 },

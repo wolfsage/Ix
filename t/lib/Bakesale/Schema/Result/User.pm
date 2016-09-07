@@ -13,8 +13,8 @@ __PACKAGE__->table('users');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  username    => { data_type => 'text' },
-  status      => { data_type => 'text', validator => enum([ qw(active okay) ]) },
+  username    => { data_type => 'string' },
+  status      => { data_type => 'string', validator => enum([ qw(active okay) ]) },
   ranking     => { data_type => 'integer', is_virtual => 1 },
 );
 
