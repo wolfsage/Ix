@@ -10,7 +10,7 @@ use Bakesale::App;
 use Bakesale::Schema;
 use JSON;
 use Test::Deep;
-use Test::Deep::JSON;
+use Test::Deep::JType;
 use Test::More;
 use Unicode::Normalize;
 

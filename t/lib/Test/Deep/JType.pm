@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-package Test::Deep::JSON;
+package Test::Deep::JType;
 
 use Test::Deep ();
 
