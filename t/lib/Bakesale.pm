@@ -174,7 +174,7 @@ package Bakesale {
     my $length = length $string;
     return Ix::Result::Generic->new({
       result_type       => 'charCount',
-      result_properties => {
+      result_arguments => {
         string => $string,
         length => $length,
       },
@@ -229,7 +229,7 @@ package Bakesale::PieTypes {
 
   sub result_type { 'pieTypes' }
 
-  sub result_properties ($self) {
+  sub result_arguments ($self) {
     return {
       flavors => [ $self->flavors ],
     };
@@ -251,7 +251,7 @@ package Bakesale::Pie {
   has bake_order => (is => 'ro', default => sub { state $i; ++$i });
 
   sub result_type { 'pie' }
-  sub result_properties ($self) {
+  sub result_arguments ($self) {
     return { flavor => $self->flavor, bakeOrder => $self->bake_order };
   }
 }

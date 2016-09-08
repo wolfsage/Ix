@@ -115,7 +115,7 @@ sub process_request ($self, $ctx, $calls) {
       RV: for my $i (0 .. $#rv) {
         local $_ = $rv[$i];
         push @results, $_->$_DOES('Ix::Result')
-                     ? [ $_->result_type, $_->result_properties, $cid ]
+                     ? [ $_->result_type, $_->result_arguments, $cid ]
                      : [ error => { type => 'garbledResponse' }, $cid ];
 
         if ($results[-1][0] eq 'error' && $i < $#rv) {

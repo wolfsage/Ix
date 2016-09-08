@@ -7,7 +7,7 @@ use experimental qw(signatures postderef);
 use namespace::autoclean;
 
 requires 'result_type';
-requires 'result_properties';
+requires 'result_arguments';
 
 package Ix::Result::Generic {
 
@@ -17,7 +17,7 @@ package Ix::Result::Generic {
   use namespace::autoclean;
 
   has result_type => (is => 'ro', isa => 'Str', required => 1);
-  has result_properties => (
+  has result_arguments => (
     is  => 'ro',
     isa => 'HashRef',
     required => 1,
@@ -35,7 +35,7 @@ package Ix::Result::FoosSet {
 
   has result_type => (is => 'ro', isa => 'Str', required => 1);
 
-  has result_properties => (
+  has result_arguments => (
     is => 'ro',
     lazy => 1,
     default => sub ($self) {
@@ -55,7 +55,7 @@ package Ix::Result::FoosSet {
         my $errors = $self->$m;
 
         $prop{"not\u$p"} = {
-          map {; $_ => $errors->{$_}->result_properties } keys $errors->%*
+          map {; $_ => $errors->{$_}->result_arguments } keys $errors->%*
         };
       }
 

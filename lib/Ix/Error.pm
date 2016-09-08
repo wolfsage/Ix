@@ -63,7 +63,7 @@ package Ix::Error::Internal {
 
   sub error_type { 'internalError' }
 
-  sub result_properties ($self) {
+  sub result_arguments ($self) {
     return { type => 'internalError', guid => $self->report_guid };
   }
 
@@ -92,7 +92,7 @@ package Ix::Error::Generic {
     },
     fallback => 1;
 
-  sub result_properties ($self) {
+  sub result_arguments ($self) {
     # We're not returning the report guid here, which is probably okay, but
     # maybe let's reconsider that in the future. -- rjbs, 2016-08-12
     return { $self->properties, type => $self->error_type };

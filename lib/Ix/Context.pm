@@ -116,7 +116,7 @@ sub internal_error ($ctx, $ident, $payload = undef) {
 sub result ($ctx, $type, $prop = {}) {
   Ix::Result::Generic->new({
     result_type       => $type,
-    result_properties => $prop,
+    result_arguments => $prop,
   });
 }
 
