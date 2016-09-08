@@ -10,6 +10,7 @@ use Bakesale::App;
 use Bakesale::Schema;
 use JSON;
 use Test::Deep;
+use Test::Deep::JSON;
 use Test::More;
 use Unicode::Normalize;
 
@@ -24,14 +25,14 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
     [ pieTypes => { tasty => 0 } ],
   ]);
 
-  cmp_deeply(
-    $jmap_tester->strip_json_types( $res->sentence(0)->as_pair ),
+  jcmp_deeply(
+    $res->sentence(0)->as_pair,
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
     "first call response: as expected",
   );
 
-  cmp_deeply(
-    $jmap_tester->strip_json_types( $res->paragraph(1)->single->as_pair ),
+  jcmp_deeply(
+    $res->paragraph(1)->single->as_pair,
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     "second call response group: one item, as expected",
   );
@@ -54,11 +55,11 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
     "pieTypes call 1 reply: as expected",
   );
 
-  cmp_deeply(
-    $jmap_tester->strip_json_types( $bake->as_pairs ),
+  jcmp_deeply(
+    $bake->as_pairs,
     [
-      [ pie   => { flavor => 'apple', bakeOrder => 1 } ],
-      [ error => { type => 'noRecipe', requestedPie => 'eel' } ],
+      [ pie   => { flavor => 'apple', bakeOrder => jnum(1) } ],
+      [ error => { type => 'noRecipe', requestedPie => jstr('eel') } ],
     ],
     "bakePies call reply: as expected",
   );
