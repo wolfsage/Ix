@@ -81,8 +81,12 @@ sub ix_add_unique_constraint ($class, @constraint) {
 }
 
 my %TYPE_FOR_TYPE = (
+  # idstr should get done this way in the future
   string   => 'text',
   datetime => 'timestamptz',
+
+  boolean  => 'boolean',
+  integer  => 'integer',
 );
 
 sub ix_add_properties ($class, @pairs) {
@@ -93,6 +97,9 @@ sub ix_add_properties ($class, @pairs) {
 
     Carp::confess("Attempt to add property $name with no data_type")
       unless defined $def->{data_type};
+
+    Carp::confess("Attempt to add property $name with unknown data_type $def->{data_type}")
+      unless $TYPE_FOR_TYPE{ $def->{data_type} };
 
     my $data_type = $def->{db_data_type}
                  // $TYPE_FOR_TYPE{ $def->{data_type} }

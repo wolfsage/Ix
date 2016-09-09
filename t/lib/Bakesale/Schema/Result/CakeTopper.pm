@@ -14,7 +14,7 @@ __PACKAGE__->table('cake_toppers');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type   => { data_type => 'text',     },
+  type   => { data_type => 'string',     },
   cakeId => {
     data_type    => 'string',
     db_data_type => 'integer',
