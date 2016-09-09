@@ -9,11 +9,7 @@ package Bakesale::Test {
     require JMAP::Tester;
     require LWP::Protocol::PSGI;
 
-    my ($user_id, $conn_info) = Bakesale::Test->test_schema_connect_info;
-
-    my $app = Bakesale::App->new({
-      connect_info => $conn_info,
-    });
+    my $app = Bakesale::App->new;
 
     state $n;
     $n++;
@@ -22,7 +18,7 @@ package Bakesale::Test {
       jmap_uri => "http://bakesale.local:$n/jmap",
     });
 
-    return ($app, $jmap_tester, $user_id);
+    return ($app, $jmap_tester);
   }
 
   my @TEST_DBS;
