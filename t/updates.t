@@ -11,8 +11,15 @@ use Test::Deep;
 use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
-my $admin_id = Bakesale::Test->load_single_user($app->processor->schema_connection);
+my ($admin_id, $datasetId) = Bakesale::Test->load_single_user($app->processor->schema_connection);
 $jmap_tester->_set_cookie('bakesaleUserId', $admin_id);
+
+# Set our base state to 1-1 so we can ensure we're told to resync if we
+# pass in a sinceState lower than that (0-1 or 1-0 for example).
+$app->processor->schema_connection->resultset('State')->populate([
+  { datasetId => $datasetId, type => 'cakes', lowestModSeq => 1, highestModSeq => 1, },
+  { datasetId => $datasetId, type => 'cakeRecipes', lowestModSeq => 1, highestModSeq => 1 },
+]);
 
 subtest "simple state comparisons" => sub {
   # First up, we are going to set up fudge distinct states, each with 10
@@ -50,10 +57,7 @@ subtest "simple state comparisons" => sub {
       [ getCookieUpdates => { sinceState => "0" } ]
     ]);
 
-    my ($type, $arg) = $res->single_sentence->as_struct->@*;
-    is($type, 'error', 'can not sync from "0" state');
-
-    is($arg->{type}, "cannotCalculateChanges", "error type");
+    ok($res->as_struct->[0][1]{changed}->@*, 'can sync from "0" state');
   };
 
   subtest "synchronize from the future" => sub {
@@ -168,7 +172,7 @@ subtest "complex state comparisons" => sub {
       $recipe_id{$n} = $recipe_res->{created}{$n}{id};
 
       my $cr_state = $cr_res->single_sentence->as_set->new_state . "";
-      is($cr_state, $n, "after creating recipe $n, state is $n");
+      is($cr_state, $n+1, "after creating recipe $n, state is " . ($n + 1));
     }
   };
 
@@ -199,21 +203,21 @@ subtest "complex state comparisons" => sub {
     }
 
     my $state = $last_set_res->single_sentence->as_set->new_state . "";
-    is($state, "4-5", "four cake sets on recipe state 5; state is 4-5");
+    is($state, "5-6", "four cake sets on recipe state 5; state is 5-6");
   };
 
   my %cake_id_rev = reverse %cake_id;
 
   subtest "synchronize to current state: no-op" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "4-5" } ]
+      [ getCakeUpdates => { sinceState => "5-6" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_struct->@*;
     is($type, 'cakeUpdates', 'cake updates!!');
 
-    is($arg->{oldState}, '4-5', "old state: 4-5");
-    is($arg->{newState}, '4-5', "new state: 4-5");
+    is($arg->{oldState}, '5-6', "old state: 5-6");
+    is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
     ok(! $arg->{changed}->@*, "no items changed");
     ok(! $arg->{removed}->@*, "no items removed");
@@ -252,16 +256,16 @@ subtest "complex state comparisons" => sub {
     is($arg->{type}, "cannotCalculateChanges", "error type");
   };
 
-  subtest "synchronize (3-5 to 4-5), no maxChanges" => sub {
+  subtest "synchronize (4-6 to 5-6), no maxChanges" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "3-5" } ]
+      [ getCakeUpdates => { sinceState => "4-6" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_struct->@*;
     is($type, 'cakeUpdates', 'cake updates!!');
 
-    is($arg->{oldState}, '3-5', "old state: 3-5");
-    is($arg->{newState}, '4-5', "new state: 4-5");
+    is($arg->{oldState}, '4-6', "old state: 4-6");
+    is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
     is($arg->{changed}->@*, 5, "5 items changed");
 
@@ -274,16 +278,16 @@ subtest "complex state comparisons" => sub {
     ok(! $arg->{removed}->@*,   "no items removed");
   };
 
-  subtest "synchronize (4-4 to 4-5), no maxChanges" => sub {
+  subtest "synchronize (5-5 to 5-6), no maxChanges" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "4-4" } ]
+      [ getCakeUpdates => { sinceState => "5-5" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_struct->@*;
     is($type, 'cakeUpdates', 'cake updates!!');
 
-    is($arg->{oldState}, '4-4', "old state: 4-4");
-    is($arg->{newState}, '4-5', "new state: 4-5");
+    is($arg->{oldState}, '5-5', "old state: 5-5");
+    is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
     is($arg->{changed}->@*, 4, "4 items changed");
 
@@ -297,20 +301,20 @@ subtest "complex state comparisons" => sub {
   };
 
   for my $test (
-    [ "sync (3-4 to 4-5), no maxChanges",              {} ],
-    [ "sync (3-4 to 4-5), maxChanges exceeds updates", { maxChanges => 10 } ],
-    [ "sync (3-4 to 4-5), maxChanges qeuals updates",  { maxChanges =>  8 } ],
+    [ "sync (4-5 to 5-6), no maxChanges",              {} ],
+    [ "sync (4-5 to 5-6), maxChanges exceeds updates", { maxChanges => 10 } ],
+    [ "sync (4-5 to 5-6), maxChanges qeuals updates",  { maxChanges =>  8 } ],
   ) {
     subtest $test->[0] => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "3-4", $test->[1]->%* } ]
+        [ getCakeUpdates => { sinceState => "4-5", $test->[1]->%* } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_struct->@*;
       is($type, 'cakeUpdates', 'cake updates!!');
 
-      is($arg->{oldState}, '3-4', "old state: 3-4");
-      is($arg->{newState}, '4-5', "new state: 4-5");
+      is($arg->{oldState}, '4-5', "old state: 4-5");
+      is($arg->{newState}, '5-6', "new state: 5-6");
       ok( ! $arg->{hasMoreUpdates}, "no more updates");
       is($arg->{changed}->@*, 8, "8 items changed");
 
@@ -325,18 +329,18 @@ subtest "complex state comparisons" => sub {
     };
   }
 
-  subtest "sync (3-4 to 4-5), maxChanges forces 2 passes" => sub {
+  subtest "sync (4-5 to 5-6), maxChanges forces 2 passes" => sub {
     my %changed;
     my $mid_state;
     subtest "first pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "3-4", maxChanges => 5 } ]
+        [ getCakeUpdates => { sinceState => "4-5", maxChanges => 5 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_struct->@*;
       is($type, 'cakeUpdates', 'cake updates!!');
 
-      is($arg->{oldState}, '3-4', "old state: 3-4");
+      is($arg->{oldState}, '4-5', "old state: 4-5");
       ok(
         $arg->{newState} ne $arg->{oldState},
         "new state: $arg->{newState}",
@@ -377,18 +381,18 @@ subtest "complex state comparisons" => sub {
     );
   };
 
-  subtest "sync (3-4 to 4-5), maxChanges smaller than first window" => sub {
+  subtest "sync (4-5 to 5-6), maxChanges smaller than first window" => sub {
     my %changed;
     my $mid_state;
     subtest "first pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "3-4", maxChanges => 3 } ]
+        [ getCakeUpdates => { sinceState => "4-5", maxChanges => 3 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_struct->@*;
       is($type, 'cakeUpdates', 'cake updates!!');
 
-      is($arg->{oldState}, '3-4', "old state: 3-4");
+      is($arg->{oldState}, '4-5', "old state: 4-5");
       ok(
         $arg->{newState} ne $arg->{oldState},
         "new state: $arg->{newState}",

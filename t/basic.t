@@ -354,7 +354,7 @@ subtest "invalid sinceState" => sub {
 
   subtest "too low" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => 1 } ],
+      [ getCookieUpdates => { sinceState => 0 } ],
     ]);
 
     cmp_deeply(
@@ -1375,5 +1375,109 @@ subtest "ix_created test" => sub {
   $res = $jmap_tester->request([ [ getCakeToppers => {} ] ]);
   is("". $res->sentence(0)->arguments->{state}, $tstate, 'cake topper state unchanged');  
 };
+
+{
+  $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{alh});
+
+  # Check state, should be 0
+  my $res = $jmap_tester->request([
+    [ getCookies => {} ],
+  ]);
+
+  is($res->single_sentence->arguments->{state}, 0, 'got state of 0')
+    or diag $res->as_stripped_struct;
+
+  # Ask for updates, should be told we are in sync
+  $res = $jmap_tester->request([
+    [ getCookieUpdates => {
+        sinceState   => 0,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type) ],
+      }
+    ],
+  ]);
+
+  my $args = $res->single_sentence->arguments;
+  is($args->{newState}, 0, "newState is right");
+  is($args->{oldState}, 0, "oldState is right");
+  is_deeply($args->{changed}, [], 'no changes');
+
+  # Add some cookies, ensure ifInState works
+  $res = $jmap_tester->request([
+    [
+      setCookies => {
+        ifInState => 0,
+        create    => {
+          yellow => { type => 'shortbread', },
+          gold   => { type => 'anzac' },
+        },
+      },
+    ],
+  ]);
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types( $res->as_pairs ),
+    [
+      [
+        cookiesSet => superhashof({
+          oldState => 0,
+          newState => 1,
+
+          created => {
+            yellow => superhashof({ id => ignore(), }),
+            gold   => superhashof({ id => ignore() }),
+          },
+        }),
+      ],
+    ],
+    "we can create cookies with ifInState 0",
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));  
+
+  my @created_ids = $res->single_sentence->as_set->created_ids;
+  is(@created_ids, 2, 'got two created ids');
+
+  # Verify updates
+  $res = $jmap_tester->request([
+    [ getCookieUpdates => { sinceState => '0' } ],
+  ]);
+
+  cmp_deeply(
+    $res->as_stripped_struct->[0][1]{changed},
+    set(map { "$_" } @created_ids),
+    "getCookieUpdates with state of 0 works"
+  );
+
+  # If our sinceState is too low we should get a resync
+  $res = $jmap_tester->request([
+    [ getCookieUpdates => {
+        sinceState   => -1,
+        fetchRecords => \1,
+        fetchRecordProperties => [ qw(type) ],
+      }
+    ],
+  ]);
+
+  jcmp_deeply(
+    $res->as_stripped_struct->[0][1],
+    {
+      description => 'client cache must be reconstructed',
+      type => 'cannotCalculateChanges'
+    },
+    "Got resync error with too low sinceState"
+  ) or diag explain $res->as_stripped_struct;
+
+  # Complex ones too
+  $res = $jmap_tester->request([
+    [ getCakeUpdates => { sinceState => '0-0' }, ],
+  ]);
+
+  $args = $res->single_sentence->arguments;
+  is($args->{newState}, "0-0", "newState is right");
+  is($args->{oldState}, "0-0", "oldState is right");
+  is_deeply($args->{changed}, [], 'no changes');
+
+  # Put this back
+  $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
+}
 
 done_testing;

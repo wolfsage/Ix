@@ -213,7 +213,7 @@ sub ix_compare_state ($self, $since, $state) {
   }
 
   if ($high_ms  < $since) { return Ix::StateComparison->bogus;   }
-  if ($low_ms  >= $since) { return Ix::StateComparison->resync;  }
+  if ($low_ms   > $since) { return Ix::StateComparison->resync;  }
   if ($high_ms == $since) { return Ix::StateComparison->in_sync; }
 
   return Ix::StateComparison->okay;

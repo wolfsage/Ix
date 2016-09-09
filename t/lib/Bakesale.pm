@@ -48,7 +48,9 @@ package Bakesale::Test {
       modSeqChanged => 1,
     });
 
-    return $user1->id;
+    $user1 = $user_rs->single({ id => $user1->id });
+
+    return ($user1->id, $user1->datasetId);
   }
 
   sub load_trivial_dataset ($self, $schema) {
@@ -71,6 +73,14 @@ package Bakesale::Test {
     });
 
     $user2 = $user_rs->single({ id => $user2->id });
+
+    my $user3 = $user_rs->create({
+      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      username  => 'alh',
+      modseq(1)
+    });
+
+    $user3 = $user_rs->single({ id => $user3->id });
 
     my $a1 = $user1->datasetId;
     my $a2 = $user2->datasetId;
@@ -102,8 +112,8 @@ package Bakesale::Test {
     ]);
 
     return {
-      datasets => { rjbs => $a1, neilj => $a2 },
-      users    => { rjbs => $user1->id, neilj => $user2->id },
+      datasets => { rjbs => $a1, neilj => $a2, alh => $user3->datasetId, },
+      users    => { rjbs => $user1->id, neilj => $user2->id, alh => $user3->id, },
       recipes  => { 1 => $recipes[0]->id },
       cookies  => { map {; ($_+1) => $cookies[$_]->id } keys @cookies },
     };

@@ -158,7 +158,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   if ($statecmp->is_resync) {
     $ctx->error(cannotCalculateChanges => {
-      description => "client cache must be reconstucted"
+      description => "client cache must be reconstructed"
     })->throw
   }
 

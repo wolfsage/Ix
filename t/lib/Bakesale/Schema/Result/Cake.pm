@@ -64,7 +64,7 @@ sub ix_compare_state ($self, $since, $state) {
     return Ix::StateComparison->bogus;
   }
 
-  if ($cake_low >= $cake_since || $recipe_low >= $recipe_since) {
+  if ($cake_low > $cake_since || $recipe_low > $recipe_since) {
     return Ix::StateComparison->resync;
   }
 
