@@ -1480,4 +1480,87 @@ subtest "ix_created test" => sub {
   $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
 }
 
+subtest "deleted entites in get*Updates calls" => sub {
+  # Create a cookie at state A.
+  # Update it at state B.
+  # Destroy it at state C.
+  #
+  # If we ask for updates between A-1 and C, we should not see the cookie
+  # since it was created/destroyed entirely inside our window.
+  #
+  # If we ask for updates between A-C, we should only see that the cookie
+  # is destroyed, since it was updated and then destroyed entirely inside
+  # our window, and the update is inconsequential
+
+  # Get current state
+  my $res = $jmap_tester->request([
+    [ getCookies => {} ],
+  ]);
+  my $start = $res->single_sentence->arguments->{state};
+  ok($start, 'got starting cookie state');
+
+  # Create a cookie
+  $res = $jmap_tester->request([
+    [ setCookies => { create => { doomed => { type => 'pistachio' } } } ],
+  ]);
+
+  my $id = $res->single_sentence('cookiesSet')->as_set->created_id('doomed');
+  ok($id, 'created a doomed cookie');
+
+  my $create = $res->single_sentence->arguments->{newState};
+  ok($create, 'got created cookie state');
+
+  # Update it
+  $res = $jmap_tester->request([
+    [ setCookies => { update => { $id => { type => 'almond' } } } ],
+  ]);
+
+  is_deeply(
+    [ $res->single_sentence('cookiesSet')->as_set->updated_ids ],
+    [ $id ],
+    "cookie was updated"
+  );
+
+  my $update = $res->single_sentence->arguments->{newState};
+  ok($update, 'got updated cookie state');
+
+  # Destroy it with lazers
+  $res = $jmap_tester->request([
+    [ setCookies => { destroy => [ "$id" ] } ],
+  ]);
+
+  is_deeply(
+    [ $res->single_sentence('cookiesSet')->as_set->destroyed_ids ],
+    [ $id ],
+    "cookie was destroyed"
+  );
+
+  my $destroy = $res->single_sentence->arguments->{newState};
+  ok($destroy, 'got destroyed cookie state');
+
+  for my $test (
+    [ $start,  { changed => [     ], removed => [     ] },
+      "create/update/destroy in update window not seen",
+    ],
+    [ $create, { changed => [     ], removed => [ $id ] },
+      "update/destroy in window shows destroy but no update",
+    ],
+    [ $update, { changed => [     ], removed => [ $id ] },
+      "destroy in window shows destroy but no update",
+    ],
+  ) {
+    my ($state, $expect, $desc) = @$test;
+
+    my $res = $jmap_tester->request([
+      [ getCookieUpdates => { sinceState => $state } ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      superhashof($expect),
+      $desc
+    ) or diag explain $res->as_stripped_struct;
+  }
+};
+
 done_testing;

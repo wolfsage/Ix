@@ -191,6 +191,13 @@ sub ix_update_extra_search ($self, $ctx, $arg) {
   return (
     {
       'me.modSeqChanged' => { '>' => $since },
+
+      # Don't include rows that were created and deleted after
+      # our current state
+      -or => [
+        'me.dateDeleted' => undef,
+        'me.modSeqCreated' => { '<=' => $since },
+      ],
     },
     {},
   );
