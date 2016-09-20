@@ -162,8 +162,17 @@ package Bakesale {
   }
 
   sub context_from_plack_request ($self, $req) {
-    my $user_id = $req->cookies->{bakesaleUserId};
-    return $self->get_context({ userId => $user_id // 1 });
+    if (my $user_id = $req->cookies->{bakesaleUserId}) {
+      $user_id =~ s/"(.*)"/$1/;
+
+      if ($user_id < 0) {
+        return Bakesale::Context::BadAuth->new();
+      }
+
+      return $self->get_context({ userId => $user_id });
+    }
+
+    return Bakesale::Context::NoAuth->new();
   }
 
   sub schema_class { 'Bakesale::Schema' }

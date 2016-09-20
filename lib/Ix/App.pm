@@ -61,6 +61,10 @@ sub _build_psgi_app ($self) {
     }
 
     my $ctx = $self->processor->context_from_plack_request($req);
+    if ($ctx->does('Ix::Context::Error')) {
+      return $ctx->to_psgi_response;
+    }
+
     $req->env->{'ix.ctx'} = $ctx;
 
     state $transaction_number;
