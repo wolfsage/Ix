@@ -51,25 +51,4 @@ package Bakesale::Context::System {
   with 'Ix::Context';
 }
 
-package Bakesale::Context::NoAuth {
-  use Moose;
-
-  sub code { 401 }
-
-  with 'Ix::Context::Error';
-}
-
-package Bakesale::Context::BadAuth {
-  use Moose;
-  use experimental qw(lexical_subs signatures postderef);
-
-  sub code { 401 }
-
-  sub modify_response ($self, $resp) {
-    $resp->body('{"error":"bad auth"}');
-  }
-
-  with 'Ix::Context::Error';
-}
-
 1;

@@ -124,6 +124,8 @@ package Bakesale {
   use Moose;
   with 'Ix::Processor';
 
+  use HTTP::Throwable::JSONFactory qw(http_throw);
+
   use Bakesale::Context;
   use Data::GUID qw(guid_string);
 
@@ -166,13 +168,15 @@ package Bakesale {
       $user_id =~ s/"(.*)"/$1/;
 
       if ($user_id < 0) {
-        return Bakesale::Context::BadAuth->new();
+        http_throw(Gone => {
+          payload => { error => "bad auth" },
+        });
       }
 
       return $self->get_context({ userId => $user_id });
     }
 
-    return Bakesale::Context::NoAuth->new();
+    http_throw('Gone');
   }
 
   sub schema_class { 'Bakesale::Schema' }

@@ -7,6 +7,8 @@ use experimental qw(signatures postderef);
 use Data::GUID qw(guid_string);
 use JSON;
 use Plack::Request;
+use Try::Tiny;
+use Safe::Isa;
 
 use namespace::autoclean;
 
@@ -60,9 +62,20 @@ sub _build_psgi_app ($self) {
       ];
     }
 
-    my $ctx = $self->processor->context_from_plack_request($req);
-    if ($ctx->does('Ix::Context::Error')) {
-      return $ctx->to_psgi_response;
+    my ($ctx, $exception);
+
+    try {
+      $ctx = $self->processor->context_from_plack_request($req);
+    } catch {
+      $exception = $_;
+    };
+
+    if ($exception) {
+      unless ($exception->$_can('as_psgi')) {
+        die $exception;
+      }
+
+      return $exception->as_psgi;
     }
 
     $req->env->{'ix.ctx'} = $ctx;
