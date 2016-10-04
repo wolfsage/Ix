@@ -1429,7 +1429,7 @@ subtest "ix_created test" => sub {
   is("". $res->sentence(0)->arguments->{state}, $cstate, 'cake state unchanged');
 
   $res = $jmap_tester->request([ [ getCakeToppers => {} ] ]);
-  is("". $res->sentence(0)->arguments->{state}, $tstate, 'cake topper state unchanged');  
+  is("". $res->sentence(0)->arguments->{state}, $tstate, 'cake topper state unchanged');
 };
 
 {
@@ -1487,7 +1487,7 @@ subtest "ix_created test" => sub {
       ],
     ],
     "we can create cookies with ifInState 0",
-  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));  
+  ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
 
   my @created_ids = $res->single_sentence->as_set->created_ids;
   is(@created_ids, 2, 'got two created ids');
