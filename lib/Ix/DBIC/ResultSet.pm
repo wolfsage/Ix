@@ -382,8 +382,6 @@ sub ix_create ($self, $ctx, $to_create) {
         # Fire a hook inside this transaction if necessary
         $rclass->ix_created($ctx, $created);
 
-        $ctx->log_created_id($type_key, $id, $created->id);
-
         return $created;
       });
     } catch {
@@ -432,6 +430,8 @@ sub ix_create ($self, $ctx, $to_create) {
         id => $row->id,
         %created{ @changed },
       };
+
+      $ctx->log_created_id($type_key, $id, $row->id);
     } else {
       $result{not_created}{$id} = $error;
     }
