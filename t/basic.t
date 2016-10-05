@@ -20,6 +20,8 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
 
 {
+  $app->clear_transaction_log;
+
   my $res = $jmap_tester->request([
     [ pieTypes => { tasty => 1 } ],
     [ pieTypes => { tasty => 0 } ],
@@ -36,6 +38,9 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     "second call response group: one item, as expected",
   );
+
+  my @xacts = $app->drain_transaction_log;
+  is(@xacts, 1, "we log transactions (at least when testing)");
 }
 
 {
@@ -1620,6 +1625,8 @@ subtest "deleted entites in get*Updates calls" => sub {
 };
 
 subtest "additional request handling" => sub {
+  $app->clear_transaction_log;
+
   my $uri = $jmap_tester->jmap_uri;
   $uri =~ s/jmap$/secret/;
   my $res = $jmap_tester->ua->get($uri);
@@ -1627,6 +1634,15 @@ subtest "additional request handling" => sub {
     $res->content,
     "Your secret is safe with me.\n",
     "we can hijack request handling",
+  );
+
+  my @xacts = $app->drain_transaction_log;
+  is(@xacts, 1, "we log the /secret transaction");
+
+  is(
+    join(q{}, $xacts[0]{response}[2]->@*),
+    "Your secret is safe with me.\n",
+    "...and it has the response body, for example",
   );
 };
 

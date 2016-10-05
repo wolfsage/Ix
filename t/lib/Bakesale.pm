@@ -9,7 +9,9 @@ package Bakesale::Test {
     require JMAP::Tester;
     require LWP::Protocol::PSGI;
 
-    my $app = Bakesale::App->new;
+    my $app = Bakesale::App->new({
+      log_all_transactions => 1,
+    });
 
     state $n;
     $n++;
