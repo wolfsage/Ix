@@ -71,7 +71,7 @@ sub _build_psgi_app ($self) {
       content_type => $req->content_type,
     };
 
-    if ($req->content_type =~ m{^(text/|application/json)}n) {
+    if (($req->content_type // '') =~ m{^(text/|application/json)}n) {
       $req->env->{'ix.transaction'}{body} = $req->raw_body;
     }
 
