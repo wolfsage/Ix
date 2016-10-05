@@ -56,7 +56,7 @@ sub _build_psgi_app ($self) {
           'Access-Control-Allow-Origin' => '*',
           'Access-Control-Allow-Methods' => 'POST,GET,OPTIONS',
           'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
-          'Access-Control-Allow-Max-Age' => 60
+          'Access-Control-Max-Age' => 86400,
         ],
         [ '' ],
       ];
