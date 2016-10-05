@@ -62,44 +62,23 @@ sub _build_psgi_app ($self) {
       ];
     }
 
+    state $transaction_number;
+    $transaction_number++;
+    $req->env->{'ix.transaction'} = {
+      guid => guid_string(),
+      time => Ix::DateTime->now,
+      seq  => $transaction_number,
+      content_type => $req->content_type,
+    };
+
+    if ($req->content_type =~ m{^(text/|application/json)}n) {
+      $req->env->{'ix.transaction'}{body} = $req->raw_body;
+    }
+
     my $ctx;
 
     my $res = try {
-      $ctx = $self->processor->context_from_plack_request($req);
-
-      state $transaction_number;
-      $transaction_number++;
-      $req->env->{'ix.transaction'} = {
-        guid => guid_string(),
-        time => Ix::DateTime->now,
-        seq  => $transaction_number,
-      };
-
-      my $calls = try { $self->decode_json( $req->raw_body ); };
-      unless ($calls) {
-        return [
-          400,
-          [
-            'Content-Type', 'application/json',
-            'Access-Control-Allow-Origin' => '*',
-          ],
-          [ '{"error":"could not decode request"}' ],
-        ];
-      }
-
-      $req->env->{'ix.transaction'}{calls} = $calls;
-      my $result  = $ctx->process_request( $calls );
-      my $json    = $self->encode_json($result);
-
-      return [
-        200,
-        [
-          'Content-Type', 'application/json',
-          'Access-Control-Allow-Origin' => '*',
-          'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
-        ],
-        [ $json ],
-      ];
+      $self->_core_request(\$ctx, $req);
     } catch {
       my $error = $_;
 
@@ -141,6 +120,36 @@ sub _build_psgi_app ($self) {
 
     return $res;
   }
+}
+
+sub _core_request ($self, $ctx_ref, $req) {
+  $$ctx_ref = $self->processor->context_from_plack_request($req);
+
+  my $calls = try { $self->decode_json( $req->raw_body ); };
+  unless ($calls) {
+    return [
+      400,
+      [
+        'Content-Type', 'application/json',
+        'Access-Control-Allow-Origin' => '*',
+      ],
+      [ '{"error":"could not decode request"}' ],
+    ];
+  }
+
+  $req->env->{'ix.transaction'}{jmap}{calls} = $calls;
+  my $result  = $$ctx_ref->process_request( $calls );
+  my $json    = $self->encode_json($result);
+
+  return [
+    200,
+    [
+      'Content-Type', 'application/json',
+      'Access-Control-Allow-Origin' => '*',
+      'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
+    ],
+    [ $json ],
+  ];
 }
 
 1;
