@@ -68,12 +68,7 @@ sub _build_psgi_app ($self) {
       guid => guid_string(),
       time => Ix::DateTime->now,
       seq  => $transaction_number,
-      content_type => $req->content_type,
     };
-
-    if (($req->content_type // '') =~ m{^(text/|application/json)}n) {
-      $req->env->{'ix.transaction'}{body} = $req->raw_body;
-    }
 
     my $ctx;
 
