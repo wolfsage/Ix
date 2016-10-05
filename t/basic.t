@@ -1619,4 +1619,15 @@ subtest "deleted entites in get*Updates calls" => sub {
   }
 };
 
+subtest "additional request handling" => sub {
+  my $uri = $jmap_tester->jmap_uri;
+  $uri =~ s/jmap$/secret/;
+  my $res = $jmap_tester->ua->get($uri);
+  is(
+    $res->content,
+    "Your secret is safe with me.\n",
+    "we can hijack request handling",
+  );
+};
+
 done_testing;
