@@ -44,6 +44,7 @@ package Bakesale::Test {
     my $user1 = $user_rs->create({
       datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'testadmin',
+      status    => 'active',
       modSeqCreated => 1,
       modSeqChanged => 1,
     });
@@ -61,6 +62,7 @@ package Bakesale::Test {
     my $user1 = $user_rs->create({
       datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'rjbs',
+      status    => 'active',
       modseq(1)
     });
 
@@ -69,6 +71,7 @@ package Bakesale::Test {
     my $user2 = $user_rs->create({
       datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'neilj',
+      status    => 'active',
       modseq(1)
     });
 
@@ -77,6 +80,7 @@ package Bakesale::Test {
     my $user3 = $user_rs->create({
       datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'alh',
+      status    => 'active',
       modseq(1)
     });
 

@@ -106,7 +106,7 @@ sub ix_add_properties ($class, @pairs) {
                  // $def->{data_type};
 
     my $col_info = {
-      is_nullable   => $def->{is_optional},
+      is_nullable   => $def->{is_optional} ? 1 : 0,
       default_value => $def->{default_value},
       data_type     => $data_type,
     };
