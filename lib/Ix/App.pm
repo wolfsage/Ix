@@ -66,7 +66,6 @@ sub _build_psgi_app ($self) {
 
     my $res = try {
       $ctx = $self->processor->context_from_plack_request($req);
-      $req->env->{'ix.ctx'} = $ctx;
 
       state $transaction_number;
       $transaction_number++;
