@@ -80,13 +80,13 @@ sub ix_add_unique_constraint ($class, @constraint) {
   $class->ix_add_unique_constraints(@constraint);
 }
 
-my %TYPE_FOR_TYPE = (
+my %IX_TYPE = (
   # idstr should get done this way in the future
-  string   => 'text',
-  datetime => 'timestamptz',
+  string   => { data_type => 'text' },
+  datetime => { data_type => 'timestamptz' },
 
-  boolean  => 'boolean',
-  integer  => 'integer',
+  boolean  => { data_type => 'boolean' },
+  integer  => { data_type => 'integer' },
 );
 
 sub ix_add_properties ($class, @pairs) {
@@ -98,18 +98,19 @@ sub ix_add_properties ($class, @pairs) {
     Carp::confess("Attempt to add property $name with no data_type")
       unless defined $def->{data_type};
 
-    Carp::confess("Attempt to add property $name with unknown data_type $def->{data_type}")
-      unless $TYPE_FOR_TYPE{ $def->{data_type} };
+    my $ix_type = $IX_TYPE{ $def->{data_type} };
 
-    my $data_type = $def->{db_data_type}
-                 // $TYPE_FOR_TYPE{ $def->{data_type} }
-                 // $def->{data_type};
+    Carp::confess("Attempt to add property $name with unknown data_type $def->{data_type}")
+      unless $ix_type && $ix_type->{data_type};
 
     my $col_info = {
       is_nullable   => $def->{is_optional} ? 1 : 0,
       default_value => $def->{default_value},
-      data_type     => $data_type,
+      %$ix_type,
+
+      ($def->{db_data_type} ? (data_type => $def->{db_data_type}) : ()),
     };
+
     $class->add_columns($name, $col_info);
   }
 
