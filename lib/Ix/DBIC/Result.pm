@@ -86,7 +86,7 @@ my %IX_TYPE = (
   datetime => { data_type => 'timestamptz' },
 
   boolean  => { data_type => 'boolean' },
-  integer  => { data_type => 'integer' },
+  integer  => { data_type => 'integer', is_numeric => 1 },
 );
 
 sub ix_add_properties ($class, @pairs) {
