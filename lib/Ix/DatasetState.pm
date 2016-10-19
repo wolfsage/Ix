@@ -12,7 +12,13 @@ has context => (
   is => 'ro',
   required => 1,
   weak_ref => 1,
-  handles  => [ qw(datasetId schema) ],
+  handles  => [ qw(schema) ],
+);
+
+has [ qw(dataset_type datasetId) ] => (
+  is  => 'ro',
+  isa => 'Str',
+  required => 1,
 );
 
 has _state_rows => (
