@@ -28,7 +28,7 @@ sub ix_property_names ($self, @) {
 sub ix_mutable_properties ($self, $ctx) {
   my $prop_info = $self->ix_property_info;
 
-  if ($ctx->is_system) {
+  if ($ctx->root_context->is_system) {
     return keys %$prop_info;
   }
 
