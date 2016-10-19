@@ -9,8 +9,10 @@ use Ix::Result;
 
 use namespace::autoclean;
 
-requires 'datasetId';
+requires 'with_dataset'; # $dctx = $ctx->with_dataset(type => optional_id)
 requires 'is_system';
+
+sub root_context ($self) { $self }
 
 has schema => (
   is   => 'ro',
