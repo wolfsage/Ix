@@ -25,14 +25,26 @@ has processor => (
   required => 1,
 );
 
-has state => (
-  is => 'ro',
-  lazy => 1,
-  default => sub ($self) {
-    require Ix::DatasetState;
-    Ix::DatasetState->new({ context => $self });
-  },
+has _state_for => (
+  is      => 'ro',
+  default => sub {  {}  },
 );
+
+sub state_for_dataset ($self, $dataset_type, $dataset_id) {
+  my $states = $self->_state_for;
+
+  require Ix::DatasetState;
+  return $states->{ $dataset_type }{ $dataset_id } ||= Ix::DatasetState->new({
+    context => $self,
+    dataset_type => $dataset_type,
+    datasetId    => $dataset_id,
+  });
+}
+
+sub _save_states ($self) {
+  $_->_save_states for map {; values %$_ } values $self->_state_for->%*;
+  return;
+}
 
 has created_ids => (
   is => 'ro',
