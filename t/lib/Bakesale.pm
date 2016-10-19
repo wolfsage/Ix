@@ -161,9 +161,8 @@ package Bakesale {
     });
   }
 
-  sub get_system_context ($self, $dataset_id) {
+  sub get_system_context ($self) {
     Bakesale::Context::System->new({
-      datasetId => $dataset_id,
       schema    => $self->schema_connection,
       processor => $self,
     });
