@@ -1,6 +1,6 @@
 use 5.20.0;
 use warnings;
-package Ix::DatasetState;
+package Ix::AccountState;
 
 use Moose;
 
@@ -15,7 +15,7 @@ has context => (
   handles  => [ qw(schema) ],
 );
 
-has [ qw(dataset_type datasetId) ] => (
+has [ qw(account_type accountId) ] => (
   is  => 'ro',
   isa => 'Str',
   required => 1,
@@ -28,7 +28,7 @@ has _state_rows => (
   init_arg => undef,
   default  => sub ($self) {
     my @rows = $self->schema->resultset('State')->search({
-      datasetId => $self->datasetId,
+      accountId => $self->accountId,
     });
 
     my %map = map {; $_->type => $_ } @rows;
@@ -88,7 +88,7 @@ sub _save_states ($self) {
       $row->update({ highestModSeq => $pend->{$type} });
     } else {
       my $row = $self->schema->resultset('State')->create({
-        datasetId => $self->datasetId,
+        accountId => $self->accountId,
         type      => $type,
         highestModSeq => $pend->{$type},
         lowestModSeq  => 0,

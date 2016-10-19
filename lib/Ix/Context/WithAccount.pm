@@ -1,5 +1,5 @@
 use 5.20.0;
-package Ix::Context::WithDataset;
+package Ix::Context::WithAccount;
 
 use Moose::Role;
 use experimental qw(signatures postderef);
@@ -9,8 +9,8 @@ use Ix::Result;
 
 use namespace::autoclean;
 
-requires 'dataset_type';
-requires 'datasetId';
+requires 'account_type';
+requires 'accountId';
 
 has root_context => (
   is     => 'ro',
@@ -33,17 +33,17 @@ has root_context => (
 );
 
 sub state ($self) {
-  $self->root_context->state_for_dataset(
-    $self->dataset_type,
-    $self->datasetId,
+  $self->root_context->state_for_account(
+    $self->account_type,
+    $self->accountId,
   );
 }
 
-sub with_dataset ($self, $dataset_type, $datasetId) {
+sub with_account ($self, $account_type, $accountId) {
   if (
-    $dataset_type eq $self->dataset_type
+    $account_type eq $self->account_type
     &&
-    ($datasetId // $self->datasetId) eq $self->datasetId
+    ($accountId // $self->accountId) eq $self->accountId
   ) {
     return $self;
   }

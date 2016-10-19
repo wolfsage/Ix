@@ -44,7 +44,7 @@ package Bakesale::Test {
     my $user_rs = $schema->resultset('User');
 
     my $user1 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'testadmin',
       status    => 'active',
       modSeqCreated => 1,
@@ -53,16 +53,16 @@ package Bakesale::Test {
 
     $user1 = $user_rs->single({ id => $user1->id });
 
-    return ($user1->id, $user1->datasetId);
+    return ($user1->id, $user1->accountId);
   }
 
-  sub load_trivial_dataset ($self, $schema) {
+  sub load_trivial_account ($self, $schema) {
     my sub modseq ($x) { return (modSeqCreated => $x, modSeqChanged => $x) }
 
     my $user_rs = $schema->resultset('User');
 
     my $user1 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'rjbs',
       status    => 'active',
       modseq(1)
@@ -71,7 +71,7 @@ package Bakesale::Test {
     $user1 = $user_rs->single({ id => $user1->id });
 
     my $user2 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'neilj',
       status    => 'active',
       modseq(1)
@@ -80,7 +80,7 @@ package Bakesale::Test {
     $user2 = $user_rs->single({ id => $user2->id });
 
     my $user3 = $user_rs->create({
-      datasetId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      accountId => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
       username  => 'alh',
       status    => 'active',
       modseq(1)
@@ -88,37 +88,37 @@ package Bakesale::Test {
 
     $user3 = $user_rs->single({ id => $user3->id });
 
-    my $a1 = $user1->datasetId;
-    my $a2 = $user2->datasetId;
+    my $a1 = $user1->accountId;
+    my $a2 = $user2->accountId;
 
     my @cookies = $schema->resultset('Cookie')->populate([
-      { datasetId => $a1, modseq(1), type => 'tim tam',
+      { accountId => $a1, modseq(1), type => 'tim tam',
         baked_at => '2016-01-01T12:34:56Z', expires_at => '2016-01-03:T12:34:56Z', delicious => 'yes' },
-      { datasetId => $a1, modseq(1), type => 'oreo',
+      { accountId => $a1, modseq(1), type => 'oreo',
         baked_at => '2016-01-02T23:45:60Z', expires_at => '2016-01-04T23:45:60Z', delicious => 'yes', },
-      { datasetId => $a2, modseq(1), type => 'thin mint',
+      { accountId => $a2, modseq(1), type => 'thin mint',
         baked_at => '2016-01-23T01:02:03Z', expires_at => '2016-01-25T01:02:03Z', delicious => 'yes',},
-      { datasetId => $a1, modseq(3), type => 'samoa',
+      { accountId => $a1, modseq(3), type => 'samoa',
         baked_at => '2016-02-01T12:00:01Z', expires_at => '2016-02-03:t12:00:01Z', delicious => 'yes', },
-      { datasetId => $a1, modseq(8), type => 'tim tam',
+      { accountId => $a1, modseq(8), type => 'tim tam',
         baked_at => '2016-02-09T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
-      { datasetId => $a1, modseq(8), type => 'immortal',
+      { accountId => $a1, modseq(8), type => 'immortal',
         baked_at => '2016-02-10T09:09:09Z', expires_at => '2016-02-11T09:09:09Z', delicious => 'yes', },
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
-      { datasetId => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
+      { accountId => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
     ]);
 
     $schema->resultset('State')->populate([
-      { datasetId => $a1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
-      { datasetId => $a2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
-      { datasetId => $a1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
-      { datasetId => $a2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a1, type => 'cookies', lowestModSeq => 1, highestModSeq => 8 },
+      { accountId => $a2, type => 'cookies', lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a1, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
+      { accountId => $a2, type => 'users',   lowestModSeq => 1, highestModSeq => 1 },
     ]);
 
     return {
-      datasets => { rjbs => $a1, neilj => $a2, alh => $user3->datasetId, },
+      accounts => { rjbs => $a1, neilj => $a2, alh => $user3->accountId, },
       users    => { rjbs => $user1->id, neilj => $user2->id, alh => $user3->id, },
       recipes  => { 1 => $recipes[0]->id },
       cookies  => { map {; ($_+1) => $cookies[$_]->id } keys @cookies },

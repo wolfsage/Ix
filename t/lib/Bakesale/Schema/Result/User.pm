@@ -24,7 +24,7 @@ __PACKAGE__->ix_add_unique_constraint(
   [ qw(username) ],
 );
 
-sub ix_dataset_type { 'generic' }
+sub ix_account_type { 'generic' }
 
 sub ix_type_key { 'users' }
 
@@ -115,7 +115,7 @@ sub ix_get_extra_search ($self, $ctx, $arg = {}) {
     $attr->{'+columns'} ||= {};
     $attr->{'+columns'}{ranking} = \q{(
       SELECT COUNT(*)+1 FROM users s
-        WHERE s."modSeqCreated" < me."modSeqCreated" AND s."dateDeleted" IS NULL AND s."datasetId" = me."datasetId"
+        WHERE s."modSeqCreated" < me."modSeqCreated" AND s."dateDeleted" IS NULL AND s."accountId" = me."accountId"
     )};
   }
 
@@ -128,11 +128,11 @@ sub ix_postprocess_create ($self, $ctx, $rows) {
   # Fill in ranking on create response
   my $query = q{
     SELECT COUNT(*)+1 FROM users s
-      WHERE s.id != ? AND s."dateDeleted" IS NULL AND s."datasetId" = ?
+      WHERE s.id != ? AND s."dateDeleted" IS NULL AND s."accountId" = ?
   };
 
   for my $r (@$rows) {
-    my $res = $dbh->selectall_arrayref($query, {}, $r->{id}, $ctx->datasetId);
+    my $res = $dbh->selectall_arrayref($query, {}, $r->{id}, $ctx->accountId);
     $r->{ranking} = $res->[0]->[0];
   }
 

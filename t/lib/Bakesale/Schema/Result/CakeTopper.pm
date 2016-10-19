@@ -27,7 +27,7 @@ __PACKAGE__->set_primary_key('id');
 
 sub ix_type_key { 'cakeToppers' }
 
-sub ix_dataset_type { 'generic' }
+sub ix_account_type { 'generic' }
 
 sub ix_default_properties {
   return { type => 'basic' };

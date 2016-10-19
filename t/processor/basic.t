@@ -11,10 +11,10 @@ use Test::More;
 use Safe::Isa;
 
 my $Bakesale = Bakesale->new;
-\my %dataset = Bakesale::Test->load_trivial_dataset($Bakesale->schema_connection);
+\my %account = Bakesale::Test->load_trivial_account($Bakesale->schema_connection);
 
 my $ctx = $Bakesale->get_context({
-  userId => $dataset{users}{rjbs},
+  userId => $account{users}{rjbs},
 });
 
 {
@@ -73,9 +73,9 @@ my $ctx = $Bakesale->get_context({
           notFound => undef,
           state => 8,
           list  => [
-            { id => $dataset{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
-            { id => $dataset{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
-            { id => $dataset{cookies}{6}, type => 'immortal', }, # baked_at => 1455310000 },
+            { id => $account{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
+            { id => $account{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
+            { id => $account{cookies}{6}, type => 'immortal', }, # baked_at => 1455310000 },
           ],
         },
         'a',
@@ -87,7 +87,7 @@ my $ctx = $Bakesale->get_context({
 
 {
   my $res = $ctx->process_request([
-    [ setCookies => { ifInState => 3, destroy => [ $dataset{cookies}{4} ] }, 'a' ],
+    [ setCookies => { ifInState => 3, destroy => [ $account{cookies}{4} ] }, 'a' ],
   ]);
 
   is_deeply(
@@ -111,10 +111,10 @@ my @created_ids;
           blue   => {},
         },
         update => {
-          $dataset{cookies}{1} => { type => 'half-eaten tim-tam', delicious => 'no', },
-          $dataset{cookies}{2} => { pretty_delicious => 0 },
+          $account{cookies}{1} => { type => 'half-eaten tim-tam', delicious => 'no', },
+          $account{cookies}{2} => { pretty_delicious => 0 },
         },
-        destroy => [ $dataset{cookies}->@{3,4} ],
+        destroy => [ $account{cookies}->@{3,4} ],
       },
       'a'
     ],
@@ -138,16 +138,16 @@ my @created_ids;
               propertyErrors => { type => 'no value given for required field' }
             }),
           },
-          updated => [ $dataset{cookies}{1} ],
+          updated => [ $account{cookies}{1} ],
           notUpdated => {
-            $dataset{cookies}{2} => superhashof({
+            $account{cookies}{2} => superhashof({
               type => 'invalidProperties',
               propertyErrors => { pretty_delicious => "unknown property" },
             }),
           },
-          destroyed => [ $dataset{cookies}{4} ],
+          destroyed => [ $account{cookies}{4} ],
           notDestroyed => {
-            $dataset{cookies}{3} => superhashof({ type => ignore(), }),
+            $account{cookies}{3} => superhashof({ type => ignore(), }),
           },
         }),
         'a'
@@ -159,7 +159,7 @@ my @created_ids;
   @created_ids = map {; $_->{id} } values %{ $res->[0][1]{created} };
 
   my @rows = $ctx->schema->resultset('Cookie')->search(
-    { datasetId => $dataset{datasets}{rjbs} },
+    { accountId => $account{accounts}{rjbs} },
     {
       order_by => 'baked_at',
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -169,11 +169,11 @@ my @created_ids;
   cmp_deeply(
     \@rows,
     [
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{1}, type => 'half-eaten tim-tam', delicious => 'no', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{2}, type => 'oreo', delicious => 'yes', }),
-      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => $dataset{cookies}{4}, type => 'samoa', delicious => 'yes', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{5}, type => 'tim tam', delicious => 'yes', }),
-      superhashof({ dateDeleted => undef, id => $dataset{cookies}{6}, type => 'immortal', delicious => 'yes', }),
+      superhashof({ dateDeleted => undef, id => $account{cookies}{1}, type => 'half-eaten tim-tam', delicious => 'no', }),
+      superhashof({ dateDeleted => undef, id => $account{cookies}{2}, type => 'oreo', delicious => 'yes', }),
+      superhashof({ dateDeleted => re(qr/\A[0-9]{4}-/), id => $account{cookies}{4}, type => 'samoa', delicious => 'yes', }),
+      superhashof({ dateDeleted => undef, id => $account{cookies}{5}, type => 'tim tam', delicious => 'yes', }),
+      superhashof({ dateDeleted => undef, id => $account{cookies}{6}, type => 'immortal', delicious => 'yes', }),
       superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
       superhashof({ dateDeleted => undef, id => any(@created_ids), type => any(qw(shortbread anzac)), delicious => any(qw(yes no)), }),
     ],
@@ -181,7 +181,7 @@ my @created_ids;
   ) or diag explain(\@rows);
 
   my $state = $ctx->schema->resultset('State')->search({
-    datasetId => $dataset{datasets}{rjbs},
+    accountId => $account{accounts}{rjbs},
     type => 'cookies',
   })->first;
 
@@ -201,8 +201,8 @@ my @created_ids;
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag($dataset{cookies}{1}, @created_ids),
-          removed  => bag($dataset{cookies}{4}),
+          changed  => bag($account{cookies}{1}, @created_ids),
+          removed  => bag($account{cookies}{4}),
         },
         'a',
       ],
@@ -249,7 +249,7 @@ subtest "invalid sinceState" => sub {
 
 {
   my $get_res = $ctx->process_request([
-    [ getCookies => { ids => [ $dataset{cookies}{1}, @created_ids ] }, 'a' ],
+    [ getCookies => { ids => [ $account{cookies}{1}, @created_ids ] }, 'a' ],
   ]);
 
   my $res = $ctx->process_request([
@@ -264,8 +264,8 @@ subtest "invalid sinceState" => sub {
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag($dataset{cookies}{1}, @created_ids),
-          removed  => bag($dataset{cookies}{4}),
+          changed  => bag($account{cookies}{1}, @created_ids),
+          removed  => bag($account{cookies}{4}),
         },
         'a',
       ],
@@ -287,7 +287,7 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'layered', layer_count => 4, recipeId => $dataset{recipes}{1} }
+          yum => { type => 'layered', layer_count => 4, recipeId => $account{recipes}{1} }
         }
       },
       'cake!',
@@ -315,9 +315,9 @@ subtest "invalid sinceState" => sub {
     [
       setCookies => {
         ifInState => 9,
-        destroy   => [ $dataset{cookies}{3} ],
+        destroy   => [ $account{cookies}{3} ],
         create    => { blue => {} },
-        update    => { $dataset{cookies}{2} => { pretty_delicious => 0 } },
+        update    => { $account{cookies}{2} => { pretty_delicious => 0 } },
       },
       'poirot'
     ],
@@ -332,8 +332,8 @@ subtest "invalid sinceState" => sub {
           newState => 9,
 
           notCreated   => { blue => ignore() },
-          notUpdated   => { $dataset{cookies}{2} => ignore() },
-          notDestroyed => { $dataset{cookies}{3} => ignore() },
+          notUpdated   => { $account{cookies}{2} => ignore() },
+          notDestroyed => { $account{cookies}{3} => ignore() },
         }),
         'poirot'
       ],
@@ -342,7 +342,7 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($res);
 
   my $state = $ctx->schema->resultset('State')->search({
-    datasetId => $dataset{datasets}{rjbs},
+    accountId => $account{accounts}{rjbs},
     type => 'cookies',
   })->first;
 
@@ -512,20 +512,20 @@ subtest "invalid sinceState" => sub {
 
 {
   # Ensure system context can also create entities
-  my $dataset = $dataset{datasets}{rjbs};
+  my $account = $account{accounts}{rjbs};
   my $ctx = $Bakesale->get_system_context;
 
   my $res = $ctx->process_request([
     [
       setCookies => {
-        accountId => $dataset,
+        accountId => $account,
         ifInState => 11,
         create    => {
           yellow => { type => 'shortbread', },
           green => { type => 'what', id => undef, },
         },
         update => {
-          $dataset{cookies}{1} => { type => 'half-eaten sugar' },
+          $account{cookies}{1} => { type => 'half-eaten sugar' },
         },
       },
       'a'
@@ -543,7 +543,7 @@ subtest "invalid sinceState" => sub {
           created => {
             yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), },
           },
-          updated => [ $dataset{cookies}{1} ],
+          updated => [ $account{cookies}{1} ],
           notCreated => {
             green   => superhashof({
               type => 'invalidProperties',

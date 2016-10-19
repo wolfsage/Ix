@@ -29,9 +29,9 @@ sub _ix_rclass ($self) {
 
 sub ix_get ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
-  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   # XXX This is crap. -- rjbs, 2016-04-29
   $arg = $rclass->ix_preprocess_get_arg($ctx, $arg)
@@ -89,7 +89,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
   my @rows = $self->search(
     {
-      datasetId => $datasetId,
+      accountId => $accountId,
       ($ids ? (id => \@ids) : ()),
       dateDeleted => undef,
       %$x_get_cond,
@@ -124,9 +124,9 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
-  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $since = $arg->{sinceState};
 
@@ -174,7 +174,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my $search = $self->search(
     {
-      'me.datasetId'     => $datasetId,
+      'me.accountId'     => $accountId,
       %$x_update_cond,
     },
     {
@@ -268,16 +268,16 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
 sub ix_purge ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
-  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $type_key = $rclass->ix_type_key;
 
   my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
 
   my $rs = $self->search({
-    datasetId   => $datasetId,
+    accountId   => $accountId,
     dateDeleted => { '<', $since->as_string },
   });
 
@@ -295,7 +295,7 @@ sub ix_purge ($self, $ctx, $arg = {}) {
 }
 
 sub ix_create ($self, $ctx, $to_create) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -369,7 +369,7 @@ sub ix_create ($self, $ctx, $to_create) {
     my %rec = (
       %$properties,
 
-      datasetId => $datasetId,
+      accountId => $accountId,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
@@ -637,7 +637,7 @@ our $UPDATED = 1;
 our $SKIPPED = 2;
 
 sub ix_update ($self, $ctx, $to_update) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -659,7 +659,7 @@ sub ix_update ($self, $ctx, $to_update) {
     unless ($bad_idstr->($id)) {
       $row = $self->find({
         id => $id,
-        datasetId   => $datasetId,
+        accountId   => $accountId,
         dateDeleted => undef,
       });
     }
@@ -745,7 +745,7 @@ sub ix_update ($self, $ctx, $to_update) {
 }
 
 sub ix_destroy ($self, $ctx, $to_destroy) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -764,7 +764,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     unless ($bad_idstr->($id)) {
       $row = $self->search({
         id => $id,
-        datasetId => $datasetId,
+        accountId => $accountId,
         dateDeleted => undef,
       })->first;
     }
@@ -819,8 +819,8 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 sub ix_set ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
 
-  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
-  my $datasetId = $ctx->datasetId;
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+  my $accountId = $ctx->accountId;
 
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;

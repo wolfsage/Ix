@@ -14,9 +14,9 @@ use Test::Deep::JType;
 use Test::More;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
-\my %dataset = Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
+\my %account = Bakesale::Test->load_trivial_account($app->processor->schema_connection);
 
-$jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
+$jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 
 {
 # XXX - Create us some initial cakes. If we don't do this, we get a bizarre
@@ -31,8 +31,8 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
     [
       setCakes => {
         create => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
-          woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+          yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
         }
       }, "my id"
     ],
@@ -117,8 +117,8 @@ $res = $jmap_tester->request([
   [
     setCakes => {
       create => {
-        yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
-        woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+        yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
+        woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
       }
     }, "my id"
   ],

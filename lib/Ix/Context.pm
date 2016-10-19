@@ -9,7 +9,7 @@ use Ix::Result;
 
 use namespace::autoclean;
 
-requires 'with_dataset'; # $dctx = $ctx->with_dataset(type => optional_id)
+requires 'with_account'; # $dctx = $ctx->with_account(type => optional_id)
 requires 'is_system';
 
 sub root_context ($self) { $self }
@@ -30,14 +30,14 @@ has _state_for => (
   default => sub {  {}  },
 );
 
-sub state_for_dataset ($self, $dataset_type, $dataset_id) {
+sub state_for_account ($self, $account_type, $account_id) {
   my $states = $self->_state_for;
 
-  require Ix::DatasetState;
-  return $states->{ $dataset_type }{ $dataset_id } ||= Ix::DatasetState->new({
+  require Ix::AccountState;
+  return $states->{ $account_type }{ $account_id } ||= Ix::AccountState->new({
     context => $self,
-    dataset_type => $dataset_type,
-    datasetId    => $dataset_id,
+    account_type => $account_type,
+    accountId    => $account_id,
   });
 }
 

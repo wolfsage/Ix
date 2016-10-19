@@ -31,19 +31,19 @@ package Bakesale::Context {;
     },
   );
 
-  sub with_dataset ($self, $t, $i) {
-    $self->internal_error("unknown dataset type: $t")->throw
+  sub with_account ($self, $t, $i) {
+    $self->internal_error("unknown account type: $t")->throw
       unless $t eq 'generic';
 
-    $i //= $self->user->datasetId;
+    $i //= $self->user->accountId;
 
     $self->error("invalidArgument" => {})->throw
-      unless $i eq $self->user->datasetId;
+      unless $i eq $self->user->accountId;
 
-    return Bakesale::Context::WithDataset->new({
+    return Bakesale::Context::WithAccount->new({
       root_context => $self,
-      dataset_type => $t,
-      datasetId    => $i,
+      account_type => $t,
+      accountId    => $i,
     });
   }
 
@@ -56,11 +56,11 @@ package Bakesale::Context::System {
   use experimental qw(lexical_subs signatures postderef);
   use namespace::autoclean;
 
-  sub with_dataset ($self, $t, $i) {
-    return Bakesale::Context::WithDataset->new({
+  sub with_account ($self, $t, $i) {
+    return Bakesale::Context::WithAccount->new({
       root_context => $self,
-      dataset_type => $t,
-      datasetId    => $i,
+      account_type => $t,
+      accountId    => $i,
     });
   }
 
@@ -69,16 +69,16 @@ package Bakesale::Context::System {
   with 'Ix::Context';
 }
 
-package Bakesale::Context::WithDataset {
+package Bakesale::Context::WithAccount {
   use Moose;
 
   use experimental qw(lexical_subs signatures postderef);
   use namespace::autoclean;
 
-  sub dataset_type { 'generic' }
-  has datasetId => (is => 'ro', isa => 'Str', required => 1);
+  sub account_type { 'generic' }
+  has accountId => (is => 'ro', isa => 'Str', required => 1);
 
-  with 'Ix::Context::WithDataset';
+  with 'Ix::Context::WithAccount';
 }
 
 1;

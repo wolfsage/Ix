@@ -9,7 +9,7 @@ use experimental qw(signatures postderef);
 use Ix::StateComparison;
 use Ix::Validators;
 
-sub ix_dataset_type { Carp::confess("ix_dataset_type not implemented") }
+sub ix_account_type { Carp::confess("ix_account_type not implemented") }
 
 sub ix_type_key { Carp::confess("ix_type_key not implemented") }
 sub ix_type_key_singular ($self) {
@@ -52,7 +52,7 @@ sub ix_add_columns ($class) {
   );
 
   $class->add_columns(
-    datasetId     => { data_type => 'integer' },
+    accountId     => { data_type => 'integer' },
     modSeqCreated => { data_type => 'integer' },
     modSeqChanged => { data_type => 'integer' },
     dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
