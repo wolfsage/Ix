@@ -512,13 +512,13 @@ subtest "invalid sinceState" => sub {
 
 {
   # Ensure system context can also create entities
-  my $ctx = $Bakesale->get_system_context(
-    $dataset{datasets}{rjbs}
-  );
+  my $dataset = $dataset{datasets}{rjbs};
+  my $ctx = $Bakesale->get_system_context;
 
   my $res = $ctx->process_request([
     [
       setCookies => {
+        accountId => $dataset,
         ifInState => 11,
         create    => {
           yellow => { type => 'shortbread', },
