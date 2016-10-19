@@ -24,6 +24,8 @@ __PACKAGE__->ix_add_unique_constraint(
   [ qw(username) ],
 );
 
+sub ix_dataset_type { 'generic' }
+
 sub ix_type_key { 'users' }
 
 sub ix_default_properties ($self, $ctx) {

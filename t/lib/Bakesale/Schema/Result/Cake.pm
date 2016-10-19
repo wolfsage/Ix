@@ -29,6 +29,8 @@ __PACKAGE__->set_primary_key('id');
 
 sub ix_type_key { 'cakes' }
 
+sub ix_dataset_type { 'generic' }
+
 sub ix_default_properties {
   return { baked_at => Ix::DateTime->now };
 }
