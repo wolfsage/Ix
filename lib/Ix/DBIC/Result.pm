@@ -9,6 +9,8 @@ use experimental qw(signatures postderef);
 use Ix::StateComparison;
 use Ix::Validators;
 
+sub ix_dataset_type { Carp::confess("ix_dataset_type not implemented") }
+
 sub ix_type_key { Carp::confess("ix_type_key not implemented") }
 sub ix_type_key_singular ($self) {
   $self->ix_type_key =~ s/s\z//r;

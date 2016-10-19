@@ -28,9 +28,10 @@ sub _ix_rclass ($self) {
 }
 
 sub ix_get ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
 
-  my $rclass    = $self->_ix_rclass;
+  my $datasetId = $ctx->datasetId;
 
   # XXX This is crap. -- rjbs, 2016-04-29
   $arg = $rclass->ix_preprocess_get_arg($ctx, $arg)
@@ -38,7 +39,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # unknown argument checking
   my %allowed_arg = map {; $_ => 1 }
-    ( qw(properties ids), $rclass->ix_extra_get_args );
+    ( qw(accountId properties ids), $rclass->ix_extra_get_args );
   if (my @unknown = grep {; ! $allowed_arg{$_} } keys %$arg) {
     return $ctx->error("invalidArguments" => {
       description => "unknown arguments to get",
@@ -122,6 +123,9 @@ sub ix_get ($self, $ctx, $arg = {}) {
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
+  my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
+
   my $datasetId = $ctx->datasetId;
 
   my $since = $arg->{sinceState};
@@ -134,7 +138,6 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
   }
 
-  my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
@@ -263,10 +266,11 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   return @return;
 }
 
-sub ix_purge ($self, $ctx) {
-  my $datasetId = $ctx->datasetId;
-
+sub ix_purge ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
+
+  my $datasetId = $ctx->datasetId;
 
   my $type_key = $rclass->ix_type_key;
 
@@ -813,16 +817,19 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {
+  my $rclass = $self->_ix_rclass;
+
+  $ctx = $ctx->with_dataset($rclass->ix_dataset_type, $arg->{accountId});
   my $datasetId = $ctx->datasetId;
 
-  my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
   my $state = $ctx->state;
   my $curr_state = $rclass->ix_state_string($state);
 
-  my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
+  my %expected_arg  = map {; $_ => 1 }
+                      qw(accountId ifInState create update destroy);
   if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
     return $ctx->error('invalidArguments' => {
       description => "unknown arguments passed",
