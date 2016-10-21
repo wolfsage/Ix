@@ -34,6 +34,10 @@ has root_context => (
   ) ],
 );
 
+sub process_request ($self, $calls) {
+  $self->processor->process_request($self, $calls);
+}
+
 sub state ($self) {
   $self->root_context->state_for_account(
     $self->account_type,
