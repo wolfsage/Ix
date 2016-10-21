@@ -15,7 +15,6 @@ requires 'accountId';
 has root_context => (
   is     => 'ro',
   does   => 'Ix::Context',
-  weak_ref => 1,
   required => 1,
   handles  => [ qw(
     schema
