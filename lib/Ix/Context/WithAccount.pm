@@ -25,6 +25,9 @@ has root_context => (
     log_exception_guid
     report_exception
 
+    record_call_info
+    _save_states
+
     error
     internal_error
     result
