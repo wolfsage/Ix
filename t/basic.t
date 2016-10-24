@@ -15,9 +15,9 @@ use Test::More;
 use Unicode::Normalize;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
-\my %dataset = Bakesale::Test->load_trivial_dataset($app->processor->schema_connection);
+\my %account = Bakesale::Test->load_trivial_account($app->processor->schema_connection);
 
-$jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
+$jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 
 {
   $app->clear_transaction_log;
@@ -127,9 +127,9 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
           notFound => undef,
           state => 8,
           list  => [
-            { id => $dataset{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
-            { id => $dataset{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
-            { id => $dataset{cookies}{6}, type => 'immortal', }, # baked_at => 1455310000 },
+            { id => $account{cookies}{4}, type => 'samoa',   }, # baked_at => 1455319240 },
+            { id => $account{cookies}{5}, type => 'tim tam', }, # baked_at => 1455310000 },
+            { id => $account{cookies}{6}, type => 'immortal', }, # baked_at => 1455310000 },
           ],
         },
       ],
@@ -139,13 +139,13 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
 }
 
 {
-  my @ids = values $dataset{cookies}->%*;
+  my @ids = values $account{cookies}->%*;
   my $does_not_exist = $ids[-1]+1;
 
   my $res = $jmap_tester->request([
     [
       getCookies => {
-        ids        => [ $dataset{cookies}{4}, $does_not_exist ],
+        ids        => [ $account{cookies}{4}, $does_not_exist ],
         properties => [ qw(type) ]
       }
     ],
@@ -165,7 +165,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
           notFound => [ $does_not_exist ],
           state => 8,
           list  => [
-            { id => $dataset{cookies}{4}, type => "samoa" }, # baked_at => 1455319240 },
+            { id => $account{cookies}{4}, type => "samoa" }, # baked_at => 1455319240 },
           ],
         },
       ],
@@ -221,10 +221,10 @@ my @created_ids;
           orange => { type => 'apple', pretty_delicious => 1 },
         },
         update => {
-          $dataset{cookies}{1} => { type => 'half-eaten tim-tam' },
-          $dataset{cookies}{2} => { pretty_delicious => 0, id => 999 },
+          $account{cookies}{1} => { type => 'half-eaten tim-tam' },
+          $account{cookies}{2} => { pretty_delicious => 0, id => 999 },
         },
-        destroy => [ $dataset{cookies}->@{3, 4, 6} ],
+        destroy => [ $account{cookies}->@{3, 4, 6} ],
       },
     ],
   ]);
@@ -251,9 +251,9 @@ my @created_ids;
               propertyErrors => { pretty_delicious => "unknown property" },
             }),
           },
-          updated => [ $dataset{cookies}{1} ],
+          updated => [ $account{cookies}{1} ],
           notUpdated => {
-            $dataset{cookies}{2} => superhashof({
+            $account{cookies}{2} => superhashof({
               type => 'invalidProperties',
               propertyErrors => {
                 pretty_delicious => "unknown property",
@@ -261,10 +261,10 @@ my @created_ids;
               },
             }),
           },
-          destroyed => [ $dataset{cookies}{4} ],
+          destroyed => [ $account{cookies}{4} ],
           notDestroyed => {
-            $dataset{cookies}{3} => superhashof({ type => ignore() }),
-            $dataset{cookies}{6} => superhashof({ description => 'You can\'t destroy an immortal cookie!'}),
+            $account{cookies}{3} => superhashof({ type => ignore() }),
+            $account{cookies}{6} => superhashof({ description => 'You can\'t destroy an immortal cookie!'}),
           },
         }),
       ],
@@ -293,8 +293,8 @@ my @created_ids;
       setCookies => {
         ifInState => 9,
         update => {
-          $dataset{cookies}{1} => { type => 'tim-tam' },
-          $dataset{cookies}{2} => { baked_at => '2301-01-01T12:12:12Z' },
+          $account{cookies}{1} => { type => 'tim-tam' },
+          $account{cookies}{2} => { baked_at => '2301-01-01T12:12:12Z' },
         },
       },
     ],
@@ -306,11 +306,11 @@ my @created_ids;
       [
         cookiesSet => superhashof({
           notUpdated => {
-            $dataset{cookies}{1} => superhashof({
+            $account{cookies}{1} => superhashof({
               'type' => 'partyFoul',
               'description' => 'You can\'t pretend you haven\'t eaten a part of that coookie!',
             }),
-            $dataset{cookies}{2} => superhashof({
+            $account{cookies}{2} => superhashof({
               'type' => 'timeSpaceContinuumFoul',
               'description' => 'You can\'t claim to have baked a cookie in the future',
             }),
@@ -335,8 +335,8 @@ my @created_ids;
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag($dataset{cookies}{1}, @created_ids),
-          removed  => bag($dataset{cookies}{4}),
+          changed  => bag($account{cookies}{1}, @created_ids),
+          removed  => bag($account{cookies}{4}),
         },
       ],
     ],
@@ -372,7 +372,7 @@ subtest "invalid sinceState" => sub {
 
 {
   my $get_res = $jmap_tester->request([
-    [ getCookies => { ids => [ $dataset{cookies}{1}, @created_ids ] } ],
+    [ getCookies => { ids => [ $account{cookies}{1}, @created_ids ] } ],
   ]);
 
   my $res = $jmap_tester->request([
@@ -391,8 +391,8 @@ subtest "invalid sinceState" => sub {
           oldState => 8,
           newState => 9,
           hasMoreUpdates => bool(0),
-          changed  => bag($dataset{cookies}{1}, @created_ids),
-          removed  => bag($dataset{cookies}{4}),
+          changed  => bag($account{cookies}{1}, @created_ids),
+          removed  => bag($account{cookies}{4}),
         },
       ],
       [
@@ -412,8 +412,8 @@ subtest "invalid sinceState" => sub {
       setCakes => {
         ifInState => '0-0',
         create    => {
-          yum => { type => 'layered', layer_count => 4, recipeId => $dataset{recipes}{1} },
-          yow => { type => 'croquembouche', layer_count => 99, recipeId => $dataset{recipes}{1} }
+          yum => { type => 'layered', layer_count => 4, recipeId => $account{recipes}{1} },
+          yow => { type => 'croquembouche', layer_count => 99, recipeId => $account{recipes}{1} }
         }
       },
     ],
@@ -1354,8 +1354,8 @@ subtest "ix_created test" => sub {
     [
       setCakes => {
         create => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
-          woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+          yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
         }
       }, "my id"
     ],
@@ -1408,8 +1408,8 @@ subtest "ix_created test" => sub {
     [
       setCakes => {
         create => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $dataset{recipes}{1} },
-          woo => { type => 'wedding', layer_count => 8, recipeId => $dataset{recipes}{1} },
+          yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
         }
       }, "my id"
     ],
@@ -1438,7 +1438,7 @@ subtest "ix_created test" => sub {
 };
 
 {
-  $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{alh});
+  $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{alh});
 
   # Check state, should be 0
   my $res = $jmap_tester->request([
@@ -1538,7 +1538,7 @@ subtest "ix_created test" => sub {
   is_deeply($args->{changed}, [], 'no changes');
 
   # Put this back
-  $jmap_tester->_set_cookie('bakesaleUserId', $dataset{users}{rjbs});
+  $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 }
 
 subtest "deleted entites in get*Updates calls" => sub {

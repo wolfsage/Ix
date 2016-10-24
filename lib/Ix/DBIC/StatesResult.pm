@@ -8,13 +8,13 @@ use experimental qw(signatures postderef);
 
 sub ix_setup_states_result ($class) {
   $class->add_columns(
-    datasetId     => { data_type => 'integer' },
+    accountId     => { data_type => 'integer' },
     type          => { data_type => 'text' },
     lowestModSeq  => { data_type => 'integer' },
     highestModSeq => { data_type => 'integer' },
   );
 
-  $class->set_primary_key(qw( datasetId type ));
+  $class->set_primary_key(qw( accountId type ));
 }
 
 1;

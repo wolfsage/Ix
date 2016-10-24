@@ -28,9 +28,10 @@ sub _ix_rclass ($self) {
 }
 
 sub ix_get ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $rclass    = $self->_ix_rclass;
+  my $accountId = $ctx->accountId;
 
   # XXX This is crap. -- rjbs, 2016-04-29
   $arg = $rclass->ix_preprocess_get_arg($ctx, $arg)
@@ -38,7 +39,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
 
   # unknown argument checking
   my %allowed_arg = map {; $_ => 1 }
-    ( qw(properties ids), $rclass->ix_extra_get_args );
+    ( qw(accountId properties ids), $rclass->ix_extra_get_args );
   if (my @unknown = grep {; ! $allowed_arg{$_} } keys %$arg) {
     return $ctx->error("invalidArguments" => {
       description => "unknown arguments to get",
@@ -88,7 +89,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
   my @rows = $self->search(
     {
-      datasetId => $datasetId,
+      accountId => $accountId,
       ($ids ? (id => \@ids) : ()),
       dateDeleted => undef,
       %$x_get_cond,
@@ -122,7 +123,10 @@ sub ix_get ($self, $ctx, $arg = {}) {
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+
+  my $accountId = $ctx->accountId;
 
   my $since = $arg->{sinceState};
 
@@ -134,7 +138,6 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
   }
 
-  my $rclass   = $self->_ix_rclass;
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
   my $res_type = $rclass->ix_type_key_singular . "Updates";
@@ -171,7 +174,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
   my $search = $self->search(
     {
-      'me.datasetId'     => $datasetId,
+      'me.accountId'     => $accountId,
       %$x_update_cond,
     },
     {
@@ -263,17 +266,18 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   return @return;
 }
 
-sub ix_purge ($self, $ctx) {
-  my $datasetId = $ctx->datasetId;
-
+sub ix_purge ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+
+  my $accountId = $ctx->accountId;
 
   my $type_key = $rclass->ix_type_key;
 
   my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
 
   my $rs = $self->search({
-    datasetId   => $datasetId,
+    accountId   => $accountId,
     dateDeleted => { '<', $since->as_string },
   });
 
@@ -291,7 +295,7 @@ sub ix_purge ($self, $ctx) {
 }
 
 sub ix_create ($self, $ctx, $to_create) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -365,7 +369,7 @@ sub ix_create ($self, $ctx, $to_create) {
     my %rec = (
       %$properties,
 
-      datasetId => $datasetId,
+      accountId => $accountId,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
@@ -633,7 +637,7 @@ our $UPDATED = 1;
 our $SKIPPED = 2;
 
 sub ix_update ($self, $ctx, $to_update) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -655,7 +659,7 @@ sub ix_update ($self, $ctx, $to_update) {
     unless ($bad_idstr->($id)) {
       $row = $self->find({
         id => $id,
-        datasetId   => $datasetId,
+        accountId   => $accountId,
         dateDeleted => undef,
       });
     }
@@ -741,7 +745,7 @@ sub ix_update ($self, $ctx, $to_update) {
 }
 
 sub ix_destroy ($self, $ctx, $to_destroy) {
-  my $datasetId = $ctx->datasetId;
+  my $accountId = $ctx->accountId;
 
   my $rclass = $self->_ix_rclass;
 
@@ -760,7 +764,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     unless ($bad_idstr->($id)) {
       $row = $self->search({
         id => $id,
-        datasetId => $datasetId,
+        accountId => $accountId,
         dateDeleted => undef,
       })->first;
     }
@@ -813,16 +817,19 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 }
 
 sub ix_set ($self, $ctx, $arg = {}) {
-  my $datasetId = $ctx->datasetId;
+  my $rclass = $self->_ix_rclass;
 
-  my $rclass   = $self->_ix_rclass;
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+  my $accountId = $ctx->accountId;
+
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
   my $state = $ctx->state;
   my $curr_state = $rclass->ix_state_string($state);
 
-  my %expected_arg = map {; $_ => 1 } qw(ifInState create update destroy);
+  my %expected_arg  = map {; $_ => 1 }
+                      qw(accountId ifInState create update destroy);
   if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
     return $ctx->error('invalidArguments' => {
       description => "unknown arguments passed",

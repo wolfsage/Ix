@@ -148,7 +148,7 @@ sub process_request ($self, $ctx, $calls) {
       });
     }
 
-    $ctx->state->_save_states;
+    $ctx->_save_states;
   });
 
   return \@results;
