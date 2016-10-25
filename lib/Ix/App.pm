@@ -73,12 +73,19 @@ sub _build_psgi_app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
 
+    my @ACCESS = (Vary => 'Origin');
+    if (my $origin = $req->header('Origin')) {
+      push @ACCESS, (
+        'Access-Control-Allow-Origin' => $origin,
+        'Access-Control-Allow-Credentials' => 'true',
+      );
+    }
+
     if ($req->method eq 'OPTIONS') {
       return [
         200,
         [
-          'Access-Control-Allow-Origin' => '*',
-          'Access-Control-Allow-Credentials' => 'true',
+          @ACCESS,
           'Access-Control-Allow-Methods' => 'POST,GET,OPTIONS',
           'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
           'Access-Control-Max-Age' => 86400,
@@ -114,8 +121,7 @@ sub _build_psgi_app ($self) {
         500,
         [
           'Content-Type', 'application/json',
-          'Access-Control-Allow-Origin' => '*', # ?
-          'Access-Control-Allow-Credentials' => 'true',
+          @ACCESS,
           ($guid ? ('Ix-Request-GUID' => $guid) : ()),
         ],
         [ qq<{"error":"internal","guid":"$guid"}> ],
@@ -147,14 +153,22 @@ sub _build_psgi_app ($self) {
 sub _core_request ($self, $ctx_ref, $req) {
   $$ctx_ref = $self->processor->context_from_plack_request($req);
 
+  my @ACCESS = (Vary => 'Origin');
+  if (my $origin = $req->header('Origin')) {
+    push @ACCESS, (
+      'Access-Control-Allow-Origin' => $origin,
+      'Access-Control-Allow-Credentials' => 'true',
+    );
+  }
+
+
   my $calls = try { $self->decode_json( $req->raw_body ); };
   unless ($calls) {
     return [
       400,
       [
         'Content-Type', 'application/json',
-        'Access-Control-Allow-Origin' => '*',
-        'Access-Control-Allow-Credentials' => 'true',
+        @ACCESS,
       ],
       [ '{"error":"could not decode request"}' ],
     ];
@@ -168,8 +182,7 @@ sub _core_request ($self, $ctx_ref, $req) {
     200,
     [
       'Content-Type', 'application/json',
-      'Access-Control-Allow-Origin' => '*',
-      'Access-Control-Allow-Credentials' => 'true',
+      @ACCESS,
       'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
     ],
     [ $json ],
