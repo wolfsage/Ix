@@ -78,6 +78,7 @@ sub _build_psgi_app ($self) {
         200,
         [
           'Access-Control-Allow-Origin' => '*',
+          'Access-Control-Allow-Credentials' => 'true',
           'Access-Control-Allow-Methods' => 'POST,GET,OPTIONS',
           'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
           'Access-Control-Max-Age' => 86400,
@@ -114,6 +115,7 @@ sub _build_psgi_app ($self) {
         [
           'Content-Type', 'application/json',
           'Access-Control-Allow-Origin' => '*', # ?
+          'Access-Control-Allow-Credentials' => 'true',
           ($guid ? ('Ix-Request-GUID' => $guid) : ()),
         ],
         [ qq<{"error":"internal","guid":"$guid"}> ],
@@ -152,6 +154,7 @@ sub _core_request ($self, $ctx_ref, $req) {
       [
         'Content-Type', 'application/json',
         'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Credentials' => 'true',
       ],
       [ '{"error":"could not decode request"}' ],
     ];
@@ -166,6 +169,7 @@ sub _core_request ($self, $ctx_ref, $req) {
     [
       'Content-Type', 'application/json',
       'Access-Control-Allow-Origin' => '*',
+      'Access-Control-Allow-Credentials' => 'true',
       'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
     ],
     [ $json ],
