@@ -128,7 +128,7 @@ package Bakesale::Test {
 
 package Bakesale {
   use Moose;
-  with 'Ix::Processor';
+  with 'Ix::Processor::JMAP';
 
   use HTTP::Throwable::JSONFactory qw(http_throw);
 
