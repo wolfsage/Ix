@@ -60,16 +60,7 @@ has transaction_log_enabled => (
   default => 0,
 );
 
-has psgi_app => (
-  is  => 'ro',
-  isa => 'CodeRef',
-  lazy => 1,
-  builder => '_build_psgi_app',
-);
-
-sub to_app ($self) { $self->psgi_app }
-
-sub _build_psgi_app ($self) {
+sub to_app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
 
