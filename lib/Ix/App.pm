@@ -104,9 +104,11 @@ sub _build_psgi_app ($self) {
     };
 
     my $ctx;
-
     my $res = try {
-      $self->_core_request(\$ctx, $req);
+      $ctx = $self->processor->context_from_plack_request($req);
+      Carp::confess("could not establish context")
+        unless $ctx && $ctx->does('Ix::Context');
+      $self->_core_request($ctx, $req);
     } catch {
       my $error = $_;
 
@@ -150,9 +152,7 @@ sub _build_psgi_app ($self) {
   }
 }
 
-sub _core_request ($self, $ctx_ref, $req) {
-  $$ctx_ref = $self->processor->context_from_plack_request($req);
-
+sub _core_request ($self, $ctx, $req) {
   my @ACCESS = (Vary => 'Origin');
   if (my $origin = $req->header('Origin')) {
     push @ACCESS, (
@@ -160,7 +160,6 @@ sub _core_request ($self, $ctx_ref, $req) {
       'Access-Control-Allow-Credentials' => 'true',
     );
   }
-
 
   my $calls = try { $self->decode_json( $req->raw_body ); };
   unless ($calls) {
@@ -175,7 +174,7 @@ sub _core_request ($self, $ctx_ref, $req) {
   }
 
   $req->env->{'ix.transaction'}{jmap}{calls} = $calls;
-  my $result  = $$ctx_ref->process_request( $calls );
+  my $result  = $ctx->process_request( $calls );
   my $json    = $self->encode_json($result);
 
   return [

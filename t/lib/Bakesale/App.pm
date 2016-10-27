@@ -30,7 +30,7 @@ sub drain_transaction_log ($self) {
   return @log;
 }
 
-around _core_request => sub ($orig, $self, $ctx_ref, $req) {
+around _core_request => sub ($orig, $self, $ctx, $req) {
   if ($req->path_info eq '/secret') {
     return [
       200,
@@ -39,7 +39,7 @@ around _core_request => sub ($orig, $self, $ctx_ref, $req) {
     ];
   }
 
-  return $self->$orig($ctx_ref, $req);
+  return $self->$orig($ctx, $req);
 };
 
 1;
