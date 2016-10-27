@@ -152,42 +152,6 @@ sub _build_psgi_app ($self) {
   }
 }
 
-sub _core_request ($self, $ctx, $req) {
-  my @ACCESS = (Vary => 'Origin');
-  if (my $origin = $req->header('Origin')) {
-    push @ACCESS, (
-      'Access-Control-Allow-Origin' => $origin,
-      'Access-Control-Allow-Credentials' => 'true',
-    );
-  }
-
-  my $calls = try { $self->decode_json( $req->raw_body ); };
-  unless ($calls) {
-    return [
-      400,
-      [
-        'Content-Type', 'application/json',
-        @ACCESS,
-      ],
-      [ '{"error":"could not decode request"}' ],
-    ];
-  }
-
-  $req->env->{'ix.transaction'}{jmap}{calls} = $calls;
-  my $result  = $ctx->process_request( $calls );
-  my $json    = $self->encode_json($result);
-
-  return [
-    200,
-    [
-      'Content-Type', 'application/json',
-      @ACCESS,
-      'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
-    ],
-    [ $json ],
-  ];
-}
-
 sub log_access ($self, $req, $res, $ctx = undef) {
   my $entry = $self->build_access_log_entry($req, $res, $ctx);
 
