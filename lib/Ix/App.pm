@@ -60,16 +60,7 @@ has transaction_log_enabled => (
   default => 0,
 );
 
-has psgi_app => (
-  is  => 'ro',
-  isa => 'CodeRef',
-  lazy => 1,
-  builder => '_build_psgi_app',
-);
-
-sub to_app ($self) { $self->psgi_app }
-
-sub _build_psgi_app ($self) {
+sub to_app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
 
@@ -104,9 +95,11 @@ sub _build_psgi_app ($self) {
     };
 
     my $ctx;
-
     my $res = try {
-      $self->_core_request(\$ctx, $req);
+      $ctx = $self->processor->context_from_plack_request($req);
+      Carp::confess("could not establish context")
+        unless $ctx && $ctx->does('Ix::Context');
+      $self->_core_request($ctx, $req);
     } catch {
       my $error = $_;
 
@@ -148,45 +141,6 @@ sub _build_psgi_app ($self) {
 
     return $res;
   }
-}
-
-sub _core_request ($self, $ctx_ref, $req) {
-  $$ctx_ref = $self->processor->context_from_plack_request($req);
-
-  my @ACCESS = (Vary => 'Origin');
-  if (my $origin = $req->header('Origin')) {
-    push @ACCESS, (
-      'Access-Control-Allow-Origin' => $origin,
-      'Access-Control-Allow-Credentials' => 'true',
-    );
-  }
-
-
-  my $calls = try { $self->decode_json( $req->raw_body ); };
-  unless ($calls) {
-    return [
-      400,
-      [
-        'Content-Type', 'application/json',
-        @ACCESS,
-      ],
-      [ '{"error":"could not decode request"}' ],
-    ];
-  }
-
-  $req->env->{'ix.transaction'}{jmap}{calls} = $calls;
-  my $result  = $$ctx_ref->process_request( $calls );
-  my $json    = $self->encode_json($result);
-
-  return [
-    200,
-    [
-      'Content-Type', 'application/json',
-      @ACCESS,
-      'Ix-Exchange-GUID' => $req->env->{'ix.transaction'}{guid},
-    ],
-    [ $json ],
-  ];
 }
 
 sub log_access ($self, $req, $res, $ctx = undef) {
