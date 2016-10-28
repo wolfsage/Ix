@@ -117,7 +117,7 @@ sub to_app ($self) {
           @ACCESS,
           ($guid ? ('Ix-Request-GUID' => $guid) : ()),
         ],
-        [ qq<{"error":"internal","guid":"$guid"}> ],
+        [ $self->encode_json({ error => "internal", guid => $guid }) ],
       ];
     };
 
