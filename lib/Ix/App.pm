@@ -108,7 +108,10 @@ sub to_app ($self) {
         return $error->as_psgi;
       }
 
-      my $guid = $ctx ? $ctx->report_exception($error) : '';
+      my $guid = $ctx ? $ctx->report_exception($error) : undef;
+      unless ($guid) {
+        warn "could not report exception: $error";
+      }
 
       return [
         500,
