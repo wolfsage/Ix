@@ -77,7 +77,7 @@ sub to_app ($self) {
         200,
         [
           @ACCESS,
-          'Access-Control-Allow-Methods' => 'POST,GET,OPTIONS',
+          'Access-Control-Allow-Methods' => 'POST,GET,DELETE,OPTIONS',
           'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
           'Access-Control-Max-Age' => 86400,
         ],
