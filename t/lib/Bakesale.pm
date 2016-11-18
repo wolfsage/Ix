@@ -17,7 +17,7 @@ package Bakesale::Test {
     $n++;
     LWP::Protocol::PSGI->register($app->to_app, host => 'bakesale.local:' . $n);
     my $jmap_tester = JMAP::Tester->new({
-      jmap_uri => "http://bakesale.local:$n/jmap",
+      api_uri => "http://bakesale.local:$n/jmap",
     });
 
     return ($app, $jmap_tester);

@@ -1627,7 +1627,7 @@ subtest "deleted entites in get*Updates calls" => sub {
 subtest "additional request handling" => sub {
   $app->clear_transaction_log;
 
-  my $uri = $jmap_tester->jmap_uri;
+  my $uri = $jmap_tester->api_uri;
   $uri =~ s/jmap$/secret/;
   my $res = $jmap_tester->ua->get($uri);
   is(
