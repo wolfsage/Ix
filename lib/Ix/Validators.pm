@@ -46,12 +46,6 @@ sub boolean {
 
     return unless defined $value and length $value;
 
-    # I don't know why we reject this.  It was done in 2013 in 7dea1af377, but
-    # the comment is worthless.  I'm keeping it here on the assumption that I
-    # wouldn't have changed this routine for no good reason.
-    # -- rjbs, 2015-12-29
-    return if substr($value, 0, 1) eq '-';
-
     my @words = split /\./, $value, -1;
     return if grep { ! length or /[\x00-\x20\x7f<>()\[\]\\.,;:@"]/ } @words;
     return 1;
