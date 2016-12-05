@@ -8,7 +8,7 @@ use Safe::Isa;
 use experimental qw(lexical_subs postderef signatures);
 
 use Sub::Exporter -setup => [ qw(
-  boolean email enum domain idstr integer nonemptystr simplestr
+  boolean email enum domain idstr integer nonemptystr simplestr freetext
 ) ];
 
 sub boolean {
@@ -133,6 +133,15 @@ sub nonemptystr {
     return "string is empty" unless length $x;
     return "string contains only whitespace" unless $x =~ /\S/;
     return "string contains vertical whitespace" if $x =~ /\v/;
+    return;
+  };
+}
+
+sub freetext {
+  return sub ($x, @) {
+    return "not a string" unless defined $x; # weak
+    return "not a string" if ref $x;
+    return "string contains only whitespace" unless $x =~ /\S/;
     return;
   };
 }
