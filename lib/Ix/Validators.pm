@@ -128,6 +128,7 @@ sub simplestr {
 
 sub nonemptystr {
   return sub ($x, @) {
+    return "not a string" unless defined $x; # weak
     return "not a string" if ref $x;
     return "string is empty" unless length $x;
     return "string contains only whitespace" unless $x =~ /\S/;
