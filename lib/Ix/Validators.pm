@@ -118,6 +118,7 @@ sub idstr ($min = -2147483648, $max = 2147483647) {
 sub simplestr {
   return sub ($x, @) {
     return "not a string" unless defined $x; # weak
+    return "not a string" if ref $x;
     return unless length $x;
     return "string contains only whitespace" unless $x =~ /\S/;
     return "string contains vertical whitespace" if $x =~ /\v/;
@@ -127,6 +128,7 @@ sub simplestr {
 
 sub nonemptystr {
   return sub ($x, @) {
+    return "not a string" if ref $x;
     return "string is empty" unless length $x;
     return "string contains only whitespace" unless $x =~ /\S/;
     return "string contains vertical whitespace" if $x =~ /\v/;
