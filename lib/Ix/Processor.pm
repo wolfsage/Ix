@@ -16,6 +16,8 @@ requires 'schema_class';
 
 requires 'connect_info';
 
+requires 'context_from_plack_request';
+
 sub schema_connection ($self) {
   $self->schema_class->connect(
     $self->connect_info,
