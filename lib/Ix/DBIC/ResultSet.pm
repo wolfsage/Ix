@@ -736,7 +736,7 @@ sub ix_update ($self, $ctx, $to_update) {
     }
   }
 
-  $result{updated} = \@updated;
+  $result{updated} = { map {; $_ => undef } @updated };
 
   # Let rclasses do something with the updated ids if they like
   $rclass->ix_postprocess_update($ctx, $result{updated});
@@ -865,7 +865,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
     $result{updated} = $update_result->{updated};
     $result{not_updated} = $update_result->{not_updated};
     $state->ensure_state_bumped($type_key)
-      if $result{updated} && $result{updated}->@* && $update_result->{actual_updates};
+      if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
   }
 
   if ($arg->{destroy}) {

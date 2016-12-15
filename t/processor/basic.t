@@ -10,6 +10,8 @@ use Test::Deep;
 use Test::More;
 use Safe::Isa;
 
+my $no_updates = any({}, undef);
+
 my $Bakesale = Bakesale->new;
 \my %account = Bakesale::Test->load_trivial_account($Bakesale->schema_connection);
 
@@ -138,7 +140,7 @@ my @created_ids;
               propertyErrors => { type => 'no value given for required field' }
             }),
           },
-          updated => [ $account{cookies}{1} ],
+          updated => { $account{cookies}{1} => $no_updates },
           notUpdated => {
             $account{cookies}{2} => superhashof({
               type => 'invalidProperties',
@@ -461,9 +463,9 @@ subtest "invalid sinceState" => sub {
     [
       [
         cookiesSet => superhashof({
-          updated => [
-            $c_to_id{yellow}
-          ],
+          updated => {
+            $c_to_id{yellow} => $no_updates,
+          },
           notUpdated => {
             $c_to_id{red}  => superhashof({
               type => 'invalidProperties',
@@ -543,7 +545,7 @@ subtest "invalid sinceState" => sub {
           created => {
             yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), },
           },
-          updated => [ $account{cookies}{1} ],
+          updated => { $account{cookies}{1} => $no_updates },
           notCreated => {
             green   => superhashof({
               type => 'invalidProperties',

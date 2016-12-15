@@ -714,7 +714,7 @@ $state =~ s/-\d+//;
 
   jcmp_deeply(
     [ $res->single_sentence->as_set->updated_ids() ],
-    [ $cake_id{pb1}, ],
+    [ "$cake_id{pb1}", ],
     'upgraded a cake'
   ) or diag explain $res->as_stripped_struct;
 

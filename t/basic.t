@@ -14,6 +14,8 @@ use Test::Deep::JType;
 use Test::More;
 use Unicode::Normalize;
 
+my $no_updates = any({}, undef);
+
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 \my %account = Bakesale::Test->load_trivial_account($app->processor->schema_connection);
 
@@ -251,7 +253,7 @@ my @created_ids;
               propertyErrors => { pretty_delicious => "unknown property" },
             }),
           },
-          updated => [ $account{cookies}{1} ],
+          updated => { $account{cookies}{1} => $no_updates },
           notUpdated => {
             $account{cookies}{2} => superhashof({
               type => 'invalidProperties',
@@ -873,12 +875,12 @@ subtest "datetime field validations" => sub {
         cookiesSet => superhashof({
           oldState => $state,
           newState => $state + 1,
-          updated => set(
-            $c_to_id{yellow},
-            $c_to_id{gold},
-            $c_to_id{blue},
-            $c_to_id{onyx},
-          ),
+          updated => {
+            $c_to_id{yellow} => $no_updates,
+            $c_to_id{gold} => $no_updates,
+            $c_to_id{blue} => $no_updates,
+            $c_to_id{onyx} => $no_updates,
+          },
           notUpdated => {
             $c_to_id{white} => superhashof({
               type => 'invalidProperties',
@@ -1050,7 +1052,7 @@ subtest "db exceptions" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     superhashof({
-      updated => [ $first_id ],
+      updated => { $first_id => $no_updates },
       oldState => $state,
       newState => $state,
     }),
@@ -1167,7 +1169,7 @@ subtest "various string id tests" => sub {
             }
           },
           'oldState' => ignore(),
-          'updated' => [],
+          'updated' => {},
         },
         'a',
       ],

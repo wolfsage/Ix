@@ -173,7 +173,7 @@ sub ix_updated   { } # ($self, $ctx, $row)
 sub ix_destroyed { } # ($self, $ctx, $row)
 
 sub ix_postprocess_create  { } # ($self, $ctx, \@rows)
-sub ix_postprocess_update  { } # ($self, $ctx, \@row_ids)
+sub ix_postprocess_update  { } # ($self, $ctx, \%updated)
 sub ix_postprocess_destroy { } # ($self, $ctx, \@row_ids)
 
 sub _return_ix_get   { return $_[3]->@* }
