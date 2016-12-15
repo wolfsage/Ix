@@ -1432,6 +1432,9 @@ subtest "ix_created test" => sub {
     "errors bubble up"
   );
 
+  is($res->http_response->header('Vary'), 'Origin', 'got Vary header');
+  ok($res->http_response->header('Ix-Transaction-ID'), 'we have a request guid!');
+
   $res = $jmap_tester->request([ [ getCakes => { ids => [ 1 ] } ] ]);
   is("". $res->sentence(0)->arguments->{state}, $cstate, 'cake state unchanged');
 
@@ -1646,6 +1649,33 @@ subtest "additional request handling" => sub {
     "Your secret is safe with me.\n",
     "...and it has the response body, for example",
   );
+};
+
+subtest "good call gets headers" => sub {
+  $jmap_tester->ua->default_header('Origin' => 'example.net');
+
+  my $res = $jmap_tester->request([
+    [ getCookies => {} ],
+  ]);
+
+  ok($res->sentence(0)->arguments->{list}, 'got a good response');
+
+  my $http_res = $res->http_response;
+
+  for my $hdr (
+    [ 'Vary', 'Origin' ],
+    [ 'Access-Control-Allow-Origin', 'example.net' ],
+    [ 'Access-Control-Allow-Credentials', 'true' ],
+  ) {
+    is(
+      $http_res->header($hdr->[0]),
+      $hdr->[1],
+      "$hdr->[0] is correct"
+    );
+  }
+
+  ok($http_res->header('Ix-Transaction-ID'), 'we have a request guid!');
+
 };
 
 done_testing;

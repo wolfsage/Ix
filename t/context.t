@@ -41,6 +41,8 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
       "$hdr->[0] is correct"
     );
   }
+
+  ok($res->header('Ix-Transaction-ID'), 'we have a request guid!');
 }
 
 done_testing;

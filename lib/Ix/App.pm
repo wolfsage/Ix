@@ -64,10 +64,16 @@ sub to_app ($self) {
   return sub ($env) {
     my $req = Plack::Request->new($env);
 
-    my %ACCESS = (Vary => 'Origin');
+    my $guid = guid_string();
+
+    my %HEADER = (
+      Vary               => 'Origin',
+      'Ix-Transaction-ID' => $guid,
+    );
+
     if (my $origin = $req->header('Origin')) {
-      %ACCESS = (%ACCESS,
-        'Access-Control-Allow-Origin' => $origin,
+      %HEADER = (%HEADER,
+        'Access-Control-Allow-Origin'      => $origin,
         'Access-Control-Allow-Credentials' => 'true',
       );
     }
@@ -76,7 +82,7 @@ sub to_app ($self) {
       return [
         200,
         [
-          %ACCESS,
+          %HEADER,
           'Access-Control-Allow-Methods' => 'POST,GET,DELETE,OPTIONS',
           'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
           'Access-Control-Max-Age' => 86400,
@@ -88,7 +94,7 @@ sub to_app ($self) {
     state $transaction_number;
     $transaction_number++;
     $req->env->{'ix.transaction'} = {
-      guid  => guid_string(),
+      guid  => $guid,
       time  => Ix::DateTime->now,
       htime => [ gettimeofday ],
       seq   => $transaction_number,
@@ -105,17 +111,7 @@ sub to_app ($self) {
 
       # Let HTTP::Throwable pass through
       if ($error->$_can('as_psgi')) {
-        my $resp = $error->as_psgi;
-
-        if (blessed($resp)) {
-          for my $k (keys %ACCESS) {
-            $resp->header($k => $ACCESS{$k});
-          }
-        } else {
-          push $resp->[1]->@*, %ACCESS;
-        }
-
-        return $resp;
+        return $error->as_psgi;
       }
 
       my $guid = $ctx ? $ctx->report_exception($error) : undef;
@@ -127,8 +123,6 @@ sub to_app ($self) {
         500,
         [
           'Content-Type', 'application/json',
-          %ACCESS,
-          ($guid ? ('Ix-Request-GUID' => $guid) : ()),
         ],
         [ $self->encode_json({ error => "internal", guid => $guid }) ],
       ];
@@ -150,6 +144,15 @@ sub to_app ($self) {
 
     for (@error_guids) {
       $env->{'psgi.errors'}->print("exception was reported: $_\n")
+    }
+
+    if (blessed($res)) { 
+      for my $k (keys %HEADER) {
+        $res->header($k => $HEADER{$k});
+      }
+    } else {
+      # Danger here is we set multiple values for these headers...
+      push $res->[1]->@*, %HEADER;
     }
 
     return $res;
