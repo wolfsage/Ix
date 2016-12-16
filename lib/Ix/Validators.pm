@@ -37,8 +37,15 @@ sub boolean {
     my $value = shift;
     return unless defined $value and $value =~ /\A$domain_re\z/;
     my ($tld) = $value =~ /$tld_re\z/i;
+
+    # We used to further check that the TLD was a valid TLD.  This made a lot
+    # more sense when there was a list of, say, 50 TLDs that changed only under
+    # exceptional circumstances.  I just (2016-12-16) updated the Pobox TLD
+    # file from the root hosts and it added 336 new TLDs.  I think this is no
+    # longer worth the effort.  We can add an email at yourface.bogus and it
+    # will never be deliverable, and we'll eventually purge it because of that.
+    # Fine. -- rjbs, 2016-12-16
     return 1;
-    # return ICG::Handy::TLD::tld_exists($tld);
   }
 
   my sub is_email_localpart {
