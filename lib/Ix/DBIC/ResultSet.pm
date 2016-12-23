@@ -456,7 +456,7 @@ sub _ix_check_user_properties (
   my %property_error;
 
   my %date_fields = map {; $_ => 1 }
-                    grep {; ($prop_info->{$_}{data_type} // '') eq 'datetime' }
+                    grep {; ($prop_info->{$_}{data_type} // '') eq 'timestamptz' }
                     keys %$prop_info;
 
   # Dedupe
@@ -618,7 +618,7 @@ sub _ix_wash_rows ($self, $rows) {
       $row->{$key} = $row->{$key} ? $true : $false if defined $row->{$key};
     }
 
-    for my $key ($by_type{datetime}->@*) {
+    for my $key ($by_type{timestamptz}->@*) {
       if ($row->{$key}) {
         # Doesn't already look like an RFC3339 Zulu date?
         if ($row->{$key} !~ /Z/) {

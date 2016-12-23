@@ -753,7 +753,7 @@ subtest "duplicated creation ids" => sub {
   );
 };
 
-subtest "datetime field validations" => sub {
+subtest "timestamptz field validations" => sub {
   my $tsrez = code(sub {
     defined $_[0]
          && $_[0] =~ /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -801,7 +801,7 @@ subtest "datetime field validations" => sub {
             }),
             green => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
+              propertyErrors => { expires_at => 'null value given for field requiring a timestamptz' },
             }),
             orange => superhashof({
               'type' => 'timeSpaceContinuumFoul',
@@ -888,7 +888,7 @@ subtest "datetime field validations" => sub {
             }),
             $c_to_id{pink} => superhashof({
               type => 'invalidProperties',
-              propertyErrors => { expires_at => 'null value given for field requiring a datetime' },
+              propertyErrors => { expires_at => 'null value given for field requiring a timestamptz' },
             }),
           },
         }),
@@ -1675,7 +1675,40 @@ subtest "good call gets headers" => sub {
   }
 
   ok($http_res->header('Ix-Transaction-ID'), 'we have a request guid!');
+};
 
+subtest "dateDeleted has timezone" => sub {
+  my $res1 = $jmap_tester->request([
+    [ setCookies => { create => { doomed => { type => 'pistachio' } } } ],
+  ]);
+
+  my $set1 = $res1->single_sentence('cookiesSet')->as_set;
+  my $id = $set1->created_id('doomed');
+
+  my $res2 = $jmap_tester->request([
+    [ setCookies => { destroy => [ "$id" ] } ],
+  ]);
+
+  my $set2 = $res2->single_sentence('cookiesSet')->as_set;
+
+  is_deeply([ $set2->destroyed_ids ], [ $id ], "we destroy the item");
+
+  # Verify
+  $app->processor->schema_connection->storage->dbh_do(
+    sub {
+      my ($storage, $dbh) = @_;
+
+      my $raw = $dbh->selectall_arrayref(
+        'SELECT "dateDeleted" FROM cookies WHERE id = ?', {}, $id,
+      );
+
+      like(
+        $raw->[0][0],
+        qr/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\+00/a,
+        'dateDeleted contains a timezone (UTC by default)'
+      );
+    }
+  );
 };
 
 done_testing;

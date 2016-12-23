@@ -56,7 +56,7 @@ sub ix_add_columns ($class) {
     accountId     => { data_type => 'integer' },
     modSeqCreated => { data_type => 'integer' },
     modSeqChanged => { data_type => 'integer' },
-    dateDeleted   => { data_type => 'datetime', is_nullable => 1 },
+    dateDeleted   => { data_type => 'timestamptz', is_nullable => 1 },
     isActive      => { data_type => 'boolean', is_nullable => 1, default_value => 1 },
   );
 }
@@ -85,11 +85,11 @@ sub ix_add_unique_constraint ($class, @constraint) {
 
 my %IX_TYPE = (
   # idstr should get done this way in the future
-  string   => { data_type => 'text' },
-  datetime => { data_type => 'timestamptz' },
+  string       => { data_type => 'text' },
+  timestamptz  => { data_type => 'timestamptz' },
 
-  boolean  => { data_type => 'boolean' },
-  integer  => { data_type => 'integer', is_numeric => 1 },
+  boolean      => { data_type => 'boolean' },
+  integer      => { data_type => 'integer', is_numeric => 1 },
 );
 
 sub ix_add_properties ($class, @pairs) {
