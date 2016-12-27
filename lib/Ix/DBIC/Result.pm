@@ -54,6 +54,7 @@ sub ix_add_columns ($class) {
 
   $class->add_columns(
     accountId     => { data_type => 'integer' },
+    created       => { data_type => 'timestamptz', default_value => \'NOW()' },
     modSeqCreated => { data_type => 'integer' },
     modSeqChanged => { data_type => 'integer' },
     dateDeleted   => { data_type => 'timestamptz', is_nullable => 1 },
