@@ -694,13 +694,20 @@ sub ix_update ($self, $ctx, $to_update) {
 
     my ($ok, $error) = try {
       $ctx->schema->txn_do(sub {
+        my %old = $row->get_inflated_columns;
+
         $row->set_inflated_columns({ %$user_prop });
-        return $SKIPPED unless $row->get_dirty_columns;
+
+        my %changed = $row->get_dirty_columns;
+        return $SKIPPED unless %changed;
 
         $row->update({ modSeqChanged => $next_state });
 
+        # Hand the hook the old values for any columns that changed
+        my %orig = map {; $_ => $old{$_} } keys %changed;
+
         # Fire a hook inside this transaction if necessary
-        $rclass->ix_updated($ctx, $row);
+        $rclass->ix_updated($ctx, $row, \%orig);
 
         return $UPDATED;
       });
