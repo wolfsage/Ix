@@ -170,8 +170,11 @@ sub ix_create_error  { return; } # ($self, $ctx, \%error)
 sub ix_update_error  { return; } # ($self, $ctx, \%error)
 
 sub ix_created   { } # ($self, $ctx, $row)
-sub ix_updated   { } # ($self, $ctx, $row)
 sub ix_destroyed { } # ($self, $ctx, $row)
+
+# The input to ix_updated is not trivial to compute, so it is only called if
+# present, so we don't define it in the base class. -- rjbs, 2017-01-06
+# sub ix_updated   { } # ($self, $ctx, $row, \%changes)
 
 sub ix_postprocess_create  { } # ($self, $ctx, \@rows)
 sub ix_postprocess_update  { } # ($self, $ctx, \%updated)

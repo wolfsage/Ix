@@ -698,16 +698,18 @@ sub ix_update ($self, $ctx, $to_update) {
 
         $row->set_inflated_columns({ %$user_prop });
 
-        my %changed = $row->get_dirty_columns;
-        return $SKIPPED unless %changed;
+        my %new = $row->get_dirty_columns;
+        return $SKIPPED unless %new;
 
         $row->update({ modSeqChanged => $next_state });
 
-        # Hand the hook the old values for any columns that changed
-        my %orig = map {; $_ => $old{$_} } keys %changed;
+        if (my $code = $rclass->can('ix_updated')) {
+          my %changes = map {; $_ => { old => $old{$_}, new => $new{$_} } }
+                        keys %new;
 
-        # Fire a hook inside this transaction if necessary
-        $rclass->ix_updated($ctx, $row, \%orig);
+          # Fire a hook inside this transaction if necessary
+          $rclass->$code($ctx, $row, \%changes);
+        }
 
         return $UPDATED;
       });
