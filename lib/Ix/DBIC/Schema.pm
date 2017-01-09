@@ -7,7 +7,7 @@ use parent 'DBIx::Class';
 use experimental qw(signatures postderef);
 
 sub ix_finalize ($self) {
-	my $source_reg = $self->source_registrations;
+  my $source_reg = $self->source_registrations;
   for my $moniker (keys %$source_reg) {
     my $rclass = $source_reg->{$moniker}->result_class;
     $rclass->ix_finalize if $rclass->can('ix_finalize');
@@ -16,7 +16,7 @@ sub ix_finalize ($self) {
 
 # From https://wiki.postgresql.org/wiki/Skip32
 my $FN = <<'END_SQL';
-CREATE OR REPLACE FUNCTION ix_skip32(val int4, cr_key bytea, encrypt bool) returns int4
+CREATE OR REPLACE FUNCTION ix_skip32(val bigint, cr_key bytea, encrypt bool) returns bigint
 AS $$
 DECLARE
   kstep int;
@@ -29,10 +29,15 @@ DECLARE
   g4 int4;
   g5 int4;
   g6 int4;
+  ret bigint;
   ftable bytea:='\xa3d70983f848f6f4b321157899b1aff9e72d4d8ace4cca2e5295d91e4e3844280adf02a017f1606812b77ac3e9fa3d5396846bbaf2639a197caee5f5f7166aa239b67b0fc193811beeb41aead0912fb855b9da853f41bfe05a58805f660bd89035d5c0a733066569450094566d989b7697fcb2c2b0fedb20e1ebd6e4dd474a1d42ed9e6e493ccd4327d207d4dec7671889cb301f8dc68faac874dcc95d5c31a47088612c9f0d2b8750825464267d0340344b1c73d1c4fd3bccfb7fabe63e5ba5ad04239c145122f02979717eff8c0ee20cefbc72756f37a1ecd38e628b8610e8087711be924f24c532369dcff3a6bbac5e6ca9135725b5e3bda83a0105592a46';
 BEGIN
   IF (octet_length(cr_key)!=10) THEN
     RAISE EXCEPTION 'The encryption key must be exactly 10 bytes long.';
+  END IF;
+
+  IF (val > (2^32)-1) THEN
+    RAISE EXCEPTION 'We can only handle values in the range 0 - (2^32)-1';
   END IF;
 
   IF (encrypt) THEN
@@ -41,6 +46,15 @@ BEGIN
   ELSE
     kstep := -1;
     k := 23;
+    IF (val > (2^31)-1) THEN
+      -- Decrypting and large? Was actually negative before we transformed
+      -- it. Put it back
+      -- 2^32   becomes -1
+      -- 2^32+1 becomes -2, etc...
+
+      val := val - (2^31-1);
+      val := val * -1;
+    END IF;
   END IF;
 
   wl := (val & -65536) >> 16;
@@ -66,8 +80,17 @@ BEGIN
     k := k + kstep;
   END LOOP;
 
-  RETURN (wr << 16) | (wl & 65535);
+  ret = (wr << 16) | (wl & 65535);
 
+  if (encrypt AND ret < 0) THEN
+    -- Encrypting and negative? Push it to above 2^31-1 positive
+    -- -1 becomes 2^32
+    -- -2 becomes 2^32+1, etc...
+    ret := ret * -1;
+    ret := ret + (2^31-1); 
+  END IF;
+
+  RETURN ret;
 END
 $$ immutable strict language plpgsql;
 END_SQL
@@ -75,7 +98,7 @@ END_SQL
 # We'll fill in a secret for this install the first time we deploy
 # that it will use from then on
 my $FN_WRAPPER = <<'END_SQL';
-CREATE OR REPLACE FUNCTION ix_skip32_secret(val int4, encrypt bool) returns int4
+CREATE OR REPLACE FUNCTION ix_skip32_secret(val bigint, encrypt bool) returns bigint
 AS $$
 DECLARE
   secret bytea:='\x%s';

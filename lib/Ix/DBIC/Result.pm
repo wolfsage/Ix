@@ -48,17 +48,17 @@ sub ix_add_columns ($class) {
   $class->ix_add_properties(
     id            => {
       data_type     => 'string',
-      db_data_type  => 'integer',
-      default_value => \"ix_skip32_secret(nextval('${table}_seed_seq')::int, true)",
+      db_data_type  => 'bigint',
+      default_value => \"ix_skip32_secret(nextval('${table}_seed_seq')::bigint, true)",
       is_immutable  => 1,
     },
   );
 
   $class->add_columns(
-    accountId     => { data_type => 'integer' },
+    accountId     => { data_type => 'bigint' },
     created       => { data_type => 'timestamptz', default_value => \'NOW()' },
-    modSeqCreated => { data_type => 'integer' },
-    modSeqChanged => { data_type => 'integer' },
+    modSeqCreated => { data_type => 'bigint' },
+    modSeqChanged => { data_type => 'bigint' },
     dateDeleted   => { data_type => 'timestamptz', is_nullable => 1 },
     isActive      => { data_type => 'boolean', is_nullable => 1, default_value => 1 },
   );
