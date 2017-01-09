@@ -43,11 +43,13 @@ sub ix_mutable_properties ($self, $ctx) {
 sub ix_default_properties { return {} }
 
 sub ix_add_columns ($class) {
+  my $table = $class->table;
+
   $class->ix_add_properties(
     id            => {
       data_type     => 'string',
       db_data_type  => 'integer',
-      default_value => \q{pseudo_encrypt(nextval('key_seed_seq')::int)},
+      default_value => \"ix_skip32_secret(nextval('${table}_seed_seq')::int, true)",
       is_immutable  => 1,
     },
   );
