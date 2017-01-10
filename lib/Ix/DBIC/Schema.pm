@@ -14,7 +14,14 @@ sub ix_finalize ($self) {
   }
 }
 
-# From https://wiki.postgresql.org/wiki/Skip32
+# Taken from https://wiki.postgresql.org/wiki/Skip32, with one major
+# modification: Only positive numbers in the range of 0 to (2^32)-1) are
+# allowed as input/output, instead of -(2^31) to (2^31)-1).
+#
+# In order for this to work, we treat any number over (2^31)-1) as negative,
+# subtracting (2^31)-1) from it before multiplying it by -1.
+#
+# That is, 2^31 (2147483648) is -1, (2^31)+1 (2147483649) is -2, and so on.
 my $FN = <<'END_SQL';
 CREATE OR REPLACE FUNCTION ix_skip32(val bigint, cr_key bytea, encrypt bool) returns bigint
 AS $$
@@ -36,7 +43,7 @@ BEGIN
     RAISE EXCEPTION 'The encryption key must be exactly 10 bytes long.';
   END IF;
 
-  IF (val > (2^32)-1) THEN
+  IF (val > (2^32)-1 OR val < 0) THEN
     RAISE EXCEPTION 'We can only handle values in the range 0 - (2^32)-1';
   END IF;
 
@@ -46,15 +53,18 @@ BEGIN
   ELSE
     kstep := -1;
     k := 23;
-    IF (val > (2^31)-1) THEN
-      -- Decrypting and large? Was actually negative before we transformed
-      -- it. Put it back
-      -- 2^32   becomes -1
-      -- 2^32+1 becomes -2, etc...
+  END IF;
 
-      val := val - (2^31-1);
-      val := val * -1;
-    END IF;
+  IF (val > (2^31)-1) THEN
+    -- skip32 is supposed to be dealing with a signed 32 bit integer, but
+    -- we've changed it to only deal in positive values. To make this work
+    -- we must translate any values over the max positive value ((2^31)-1)
+    -- into their negative counterparts
+    -- 2^31   becomes -1
+    -- 2^31+1 becomes -2, etc...
+
+    val := val - (2^31-1);
+    val := val * -1;
   END IF;
 
   wl := (val & -65536) >> 16;
@@ -82,10 +92,11 @@ BEGIN
 
   ret = (wr << 16) | (wl & 65535);
 
-  if (encrypt AND ret < 0) THEN
-    -- Encrypting and negative? Push it to above 2^31-1 positive
-    -- -1 becomes 2^32
-    -- -2 becomes 2^32+1, etc...
+  if (ret < 0) THEN
+    -- Like on input, we only want consumers to see positive values, so
+    -- we must translate negative values to their positive counterparts
+    -- -1 becomes 2^31
+    -- -2 becomes 2^31+1, etc...
     ret := ret * -1;
     ret := ret + (2^31-1); 
   END IF;
