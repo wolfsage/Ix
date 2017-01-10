@@ -3,7 +3,7 @@ use warnings;
 package Ix::DBIC::Schema;
 
 use parent 'DBIx::Class';
-
+use Scalar::Util qw(blessed);
 use experimental qw(signatures postderef);
 
 sub ix_finalize ($self) {
@@ -117,11 +117,32 @@ BEGIN
   RETURN ix_skip32(val, secret, encrypt);
 END
 $$ immutable strict language plpgsql; 
+END_SQL
 
+sub ix_schema_version { "1" }
+
+my $CONFIG_TABLE = <<'END_SQL';
+CREATE TABLE ix_config (
+  ix_schema_version    text,
+  local_schema_version text,
+  ix_skip32_secret     bytea,
+  ix_skip32_secret_hex text
+);
+END_SQL
+
+my $CONFIG_INSERT = <<'END_SQL';
+INSERT INTO ix_config VALUES (
+  ?, ?, ?, ?
+);
 END_SQL
 
 sub deploy {
   my ($self) = shift;
+
+  unless ($self->can('local_schema_version')) {
+    my $class = blessed($self);
+    die "Unable to deploy: $class must define a local_schema_version sub\n";
+  }
 
   # 10 random bytes as hex
   my $secret = join '', map {
@@ -145,8 +166,26 @@ sub deploy {
         $dbh->do("CREATE SEQUENCE ${table}_seed_seq");
       }
     }
+
+    $dbh->do($CONFIG_TABLE);
+    $dbh->do($CONFIG_INSERT, {},
+      $self->ix_schema_version,
+      $self->local_schema_version,
+      '\x' . $secret,
+      uc $secret,
+    );
   });
   $self->DBIx::Class::Schema::deploy(@_)
+}
+
+sub ix_config {
+  my ($self) = shift;
+
+  return $self->storage->dbh_do(sub {
+    my ($storage, $dbh) = @_;
+
+    return $dbh->selectrow_hashref('SELECT * FROM ix_config');
+  });
 }
 
 1;
