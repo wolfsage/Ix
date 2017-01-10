@@ -364,7 +364,7 @@ subtest "invalid sinceState" => sub {
       sub {
         my ($storage, $dbh) = @_;
 
-        # Need to ensure 0 is the lowest state
+        # Need to ensure 0 is below the lowest state
         my $raw = $dbh->do(
           "UPDATE states SET \"lowestModSeq\" = 1 WHERE type = 'cookies'"
         );
@@ -1529,7 +1529,7 @@ subtest "ix_created test" => sub {
     sub {
       my ($storage, $dbh) = @_;
 
-      # Need to ensure 0 is the lowest state
+      # Need to ensure 0 is below the lowest state
       my $raw = $dbh->do(
         "UPDATE states SET \"lowestModSeq\" = 1 WHERE type = 'cookies'"
       );
