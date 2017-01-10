@@ -139,7 +139,7 @@ sub deploy {
 
     for my $source_name ($self->sources) {
       my $source = $self->source($source_name);
-      if ($source->has_column('id')) {
+      if ($source->has_column('modSeqCreated')) {
         my $table = $source->name;
 
         $dbh->do("CREATE SEQUENCE ${table}_seed_seq");
