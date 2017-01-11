@@ -47,8 +47,7 @@ sub ix_add_columns ($class) {
 
   $class->ix_add_properties(
     id            => {
-      data_type     => 'string',
-      db_data_type  => 'bigint',
+      data_type     => 'idstr',
       default_value => \"ix_skip32_secret(nextval('${table}_seed_seq')::bigint, true)",
       is_immutable  => 1,
     },
@@ -93,6 +92,7 @@ my %IX_TYPE = (
 
   boolean      => { data_type => 'boolean' },
   integer      => { data_type => 'integer', is_numeric => 1 },
+  idstr        => { data_type => 'bigint', is_numeric => 1 },
 );
 
 sub ix_add_properties ($class, @pairs) {
@@ -140,6 +140,7 @@ sub ix_add_properties ($class, @pairs) {
 
 my %DEFAULT_VALIDATOR = (
   integer => Ix::Validators::integer(),
+  idstr   => Ix::Validators::idstr(),
   string  => Ix::Validators::simplestr(),
   boolean => Ix::Validators::boolean(),
 );
