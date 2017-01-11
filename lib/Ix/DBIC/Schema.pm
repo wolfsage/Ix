@@ -119,6 +119,16 @@ END
 $$ immutable strict language plpgsql; 
 END_SQL
 
+# An easy way to get a new accountId
+my $ACID_FUNC = <<'END_SQL';
+CREATE OR REPLACE FUNCTION ix_new_account_id() returns bigint
+AS $$
+BEGIN
+  RETURN ix_skip32_secret(nextval('account_id_seed_seq'), true);
+END
+$$ immutable strict language plpgsql;
+END_SQL
+
 sub ix_schema_version { "1" }
 
 my $CONFIG_TABLE = <<'END_SQL';
@@ -157,6 +167,7 @@ sub deploy {
 
     $dbh->do(sprintf($FN_WRAPPER, $secret));
     $dbh->do('CREATE SEQUENCE "account_id_seed_seq";');
+    $dbh->do($ACID_FUNC);
 
     for my $source_name ($self->sources) {
       my $source = $self->source($source_name);
