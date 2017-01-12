@@ -98,6 +98,9 @@ my %common = (
   user_agent       => re('.+'),
 );
 
+# Should be ignored, behind_proxy defaults to disabled.
+$jmap_tester->ua->default_header('X-Forwarded-For' => '1.2.3.4');
+
 my $res = $jmap_tester->request([
   [ pieTypes => { tasty => 1 } ],
   [ pieTypes => { tasty => 0 } ],
@@ -170,6 +173,56 @@ for my $line (@lines) {
     },
     "log line looks right"
   ) or diag explain $json;
+}
+
+{
+  # Test behind_proxy setting
+  my $log_data;
+
+  open(my $log_fh, '>', \$log_data);
+
+  my $app = Bakesale::App->new({
+    transaction_log_enabled => 1,
+    processor => Bakesale->new({
+      behind_proxy => 1,
+    }),
+  });
+
+  $app->access_log_fh($log_fh);
+  $app->access_log_enabled(1);
+
+  LWP::Protocol::PSGI->register($app->to_app, host => 'bakesale.local:65534');
+
+  my $jmap_tester = JMAP::Tester->new({
+    api_uri => "http://bakesale.local:65534/jmap",
+  });
+
+  $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
+
+  # Our real request ip!
+  $jmap_tester->ua->default_header('X-Forwarded-For' => '1.2.3.4');
+
+  my $res = $jmap_tester->request([
+    [ pieTypes => { tasty => 1 } ],
+  ]);
+
+  jcmp_deeply(
+    $res->sentence(0)->as_pair,
+    [ pieTypes => { flavors => [ qw(pumpkin apple pecan) ] } ],
+    "first call response: as expected",
+  );
+
+  my @lines = split(qr/\n/, $log_data);
+  is(@lines, 1, 'got one log line');
+
+  my $json = eval { decode_json($lines[0]); }; warn $@ if $@;
+  ok($json, 'decoded the data');
+
+  is(
+    $json->{remote_ip},
+    '1.2.3.4',
+    'behind_proxy worked, we got the request ip from X-Forwarded-For'
+  );
 }
 
 done_testing;

@@ -18,6 +18,12 @@ requires 'connect_info';
 
 requires 'context_from_plack_request';
 
+has behind_proxy => (
+  is  => 'rw',
+  isa => 'Bool',
+  default => 0,
+);
+
 sub schema_connection ($self) {
   $self->schema_class->connect(
     $self->connect_info,
