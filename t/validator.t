@@ -7,13 +7,14 @@ use lib 't/lib';
 
 use Ix::Validators 'idstr';
 use Test::More;
+use Data::GUID qw(guid_string);
 
 my $iderr = idstr();
-for my $input (qw( -1 0 1 )) {
+for my $input (lc guid_string(), lc guid_string()) {
   ok( ! $iderr->($input), "$input is a valid idstr");
 }
 
-for my $input (qw( -0 +0 +1 banana )) {
+for my $input (qw( -0 +0 +1 banana ab-cd-ef), uc guid_string()) {
   ok( $iderr->($input), "$input is not a valid idstr");
 }
 

@@ -13,6 +13,7 @@ use Test::Deep;
 use Test::Deep::JType;
 use Test::More;
 use Unicode::Normalize;
+use Data::GUID qw(guid_string);
 
 my $no_updates = any({}, undef);
 
@@ -142,7 +143,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 
 {
   my @ids = values $account{cookies}->%*;
-  my $does_not_exist = $ids[-1]+1;
+  my $does_not_exist = guid_string();
 
   my $res = $jmap_tester->request([
     [
