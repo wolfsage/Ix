@@ -10,8 +10,10 @@ use Plack::Request;
 use Try::Tiny;
 use Safe::Isa;
 use Plack::Util;
+use Plack::Builder;
 use IO::Handle;
 use Time::HiRes qw(gettimeofday tv_interval);
+use Plack::Middleware::ReverseProxy;
 
 use namespace::autoclean;
 
@@ -61,7 +63,7 @@ has transaction_log_enabled => (
 );
 
 sub to_app ($self) {
-  return sub ($env) {
+  my $app = sub ($env) {
     my $req = Plack::Request->new($env);
 
     my $guid = guid_string();
@@ -156,7 +158,15 @@ sub to_app ($self) {
     }
 
     return $res;
+  };
+
+  if ($self->processor->behind_proxy) {
+    my $builder = Plack::Builder->new;
+    $builder->add_middleware('ReverseProxy');
+    $app = $builder->wrap($app);
   }
+
+  return $app;
 }
 
 sub log_access ($self, $req, $res, $ctx = undef) {
