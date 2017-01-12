@@ -128,7 +128,7 @@ sub idstr {
     return "invalid id string" if ref $x;
     # http://stackoverflow.com/questions/17146061/extract-guid-from-line-via-regular-expression-in-perl
     return "invalid id string"
-      if $x !~ /([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-([a-f\d]){12})/an;
+      if $x !~ /\A([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-([a-f\d]){12})/an;
     return;
   }
 }
