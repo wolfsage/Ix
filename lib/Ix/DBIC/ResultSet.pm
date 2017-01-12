@@ -227,9 +227,9 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
   my @removed;
   for my $item (@rows) {
     if ($item->{dateDeleted}) {
-      push @removed, "$item->{id}";
+      push @removed, lc "$item->{id}";
     } else {
-      push @changed, "$item->{id}";
+      push @changed, lc "$item->{id}";
     }
   }
 
