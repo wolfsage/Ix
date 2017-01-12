@@ -907,6 +907,8 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
   my $key = $rclass->ix_type_key;
   my $key1 = $rclass->ix_type_key_singular;
   my $fetch_arg = "fetch\u$key";
+  my $orig_filter = $arg->{filter};
+  my $orig_sort   = $arg->{sort};
 
   my $schema = $ctx->schema;
 
@@ -935,8 +937,8 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
   my $hms = "" . $ctx->state->highest_modseq_for($key);
 
   my @res = $ctx->result("${key1}List" => {
-    filter       => $arg->{filter},
-    sort         => $arg->{sort},
+    filter       => $orig_filter,
+    sort         => $orig_sort,
     state        => $hms,
     total        => $search->{rs}->search($search->{filter})->count,
     position     => $arg->{position} // 0,
