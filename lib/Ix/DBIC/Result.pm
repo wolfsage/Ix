@@ -8,7 +8,7 @@ use experimental qw(signatures postderef);
 
 use Ix::StateComparison;
 use Ix::Validators;
-use Data::GUID qw(guid_string);
+use Ix::Util qw(ix_new_id);
 
 sub ix_account_type { Carp::confess("ix_account_type not implemented") }
 
@@ -48,7 +48,7 @@ sub ix_default_properties { return {} }
 sub new ($class, $attrs) {
   # Are we an actual Ix result?
   if ($class->can('ix_type_key')) {
-    $attrs->{id} //= lc guid_string();
+    $attrs->{id} //= ix_new_id();
   }
 
   return $class->next::method($attrs);

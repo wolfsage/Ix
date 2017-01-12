@@ -5,11 +5,17 @@ use experimental qw(signatures postderef);
 
 use DateTime::Format::Pg;
 use DateTime::Format::RFC3339;
-use Sub::Exporter -setup => [ qw(parsedate parsepgdate differ) ];
 use Scalar::Util qw(reftype);
+use Data::GUID qw(guid_string);
+
+use Sub::Exporter -setup => [
+  qw(parsedate parsepgdate differ ix_new_id)
+];
 
 my $pg = DateTime::Format::Pg->new();
 my $rfc3339 = DateTime::Format::RFC3339->new();
+
+sub ix_new_id { lc guid_string() }
 
 sub parsepgdate ($str) {
   my $dt;
