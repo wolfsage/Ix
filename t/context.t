@@ -9,7 +9,7 @@ use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
 use Test::More;
-use Data::GUID qw(guid_string);
+use Ix::Util qw(ix_new_id);
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 
@@ -25,8 +25,8 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
   # are filled in
   local %ENV;
 
-  my $bad_guid = $ENV{BAD_GUID} = guid_string();
-  $jmap_tester->_set_cookie('bakesaleUserId', $bad_guid);
+  my $bad_id = $ENV{BAD_ID} = ix_new_id();
+  $jmap_tester->_set_cookie('bakesaleUserId', $bad_id);
 
   $jmap_tester->ua->default_header('Origin' => 'example.net');
 
