@@ -4,6 +4,7 @@ package Ix::Validators;
 
 use JSON ();
 use Safe::Isa;
+use Ix::Util qw($ix_id_re);
 
 use experimental qw(lexical_subs postderef signatures);
 
@@ -126,9 +127,7 @@ sub idstr {
   return sub ($x, @) {
     return "invalid id string" unless defined $x; # weak
     return "invalid id string" if ref $x;
-    # http://stackoverflow.com/questions/17146061/extract-guid-from-line-via-regular-expression-in-perl
-    return "invalid id string"
-      if $x !~ /\A([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-([a-f\d]){12})/an;
+    return "invalid id string" if $x !~ /\A$ix_id_re\z/;
     return;
   }
 }
