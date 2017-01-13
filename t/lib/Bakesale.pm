@@ -173,7 +173,7 @@ package Bakesale {
     if (my $user_id = $req->cookies->{bakesaleUserId}) {
       $user_id =~ s/"(.*)"/$1/;
 
-      if ($ENV{BAD_GUID} && $user_id eq $ENV{BAD_GUID}) {
+      if ($ENV{BAD_ID} && $user_id eq $ENV{BAD_ID}) {
         http_throw(Gone => {
           payload => { error => "bad auth" },
         });
