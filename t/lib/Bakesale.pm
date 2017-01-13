@@ -24,13 +24,13 @@ package Bakesale::Test {
     return ($app, $jmap_tester);
   }
 
-  my @TEST_DBS;
-  END { $_->cleanup for @TEST_DBS; }
+  my %TEST_DBS;
+  END { $_->cleanup for $TEST_DBS{$$}->@*; }
 
   sub test_schema_connect_info {
     require Test::PgMonger;
     my $db = Test::PgMonger->new->create_database;
-    push @TEST_DBS, $db;
+    push $TEST_DBS{$$}->@*, $db;
 
     my $schema = Bakesale->new({
       connect_info => [ $db->connect_info ],
