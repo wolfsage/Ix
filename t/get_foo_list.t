@@ -296,8 +296,7 @@ $state =~ s/-\d+//;
       },
       'canCalculateUpdates' => JSON::true,
       'position' => 0,
-      'sort' => [
-      ],
+      'sort' => undef,
       'state' => $state,
       'total' => 1,
     },
@@ -372,8 +371,7 @@ $state =~ s/-\d+//;
       },
       'canCalculateUpdates' => JSON::true,
       'position' => 0,
-      'sort' => [
-      ],
+      'sort' => undef,
       'state' => $state,
       'total' => 1,
     },
@@ -417,8 +415,7 @@ $state =~ s/-\d+//;
       },
       'canCalculateUpdates' => JSON::true,
       'position' => 0,
-      'sort' => [
-      ],
+      'sort' => undef,
       'state' => $state,
       'total' => 1,
     },
@@ -451,8 +448,7 @@ $state =~ s/-\d+//;
       },
       'canCalculateUpdates' => JSON::true,
       'position' => 0,
-      'sort' => [
-      ],
+      'sort' => undef,
       'state' => $state,
       'total' => 1,
     },
