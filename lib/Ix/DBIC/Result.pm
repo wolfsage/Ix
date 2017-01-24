@@ -29,6 +29,16 @@ sub ix_array_type_property_names ($self, @) {
   return grep {; $prop_info->{$_}{is_array_type} } keys %$prop_info;
 }
 
+sub ix_array_type_properties ($self, @) {
+  my $prop_info = $self->ix_property_info;
+
+  my %list = map {;
+    $_ => $prop_info->{$_}
+  } $self->ix_array_type_property_names;
+
+  return %list;
+}
+
 sub ix_real_property_names ($self, @) {
   my %skip = map {;
     $_ => 1
@@ -167,8 +177,6 @@ sub add_array_type ($class, $prop, $def) {
 
   my $data_type = $ix_type->{db_data_type} // $ix_type->{data_type};
 
-  $def->{is_array_type} = 1;
-
   my $belongs_to = $class->table;
   $belongs_to =~ s/s$//;
 
@@ -214,6 +222,17 @@ EOF
 
   no strict 'refs';
   *{"${class}::array_class"} = sub { return { $table => $class_name } };
+  $class->has_many(
+    $prop => $class_name,
+    {
+      "foreign.${belongs_to}Id" => "self.id",
+      "foreign.accountId"       => "self.accountId",
+    },
+  );
+
+  $def->{is_array_type} = 1;
+  $def->{array_class} = $class_name;
+  $def->{rs} = $table;
 
   # Install our info
   if ($class->can('ix_property_info')) {

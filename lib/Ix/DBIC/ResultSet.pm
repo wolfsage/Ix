@@ -366,6 +366,8 @@ sub ix_create ($self, $ctx, $to_create) {
       next TO_CREATE;
     }
 
+    my @array_type_rec = $self->_get_array_recs($ctx, $properties);
+
     my %rec = (
       %$properties,
 
@@ -382,6 +384,8 @@ sub ix_create ($self, $ctx, $to_create) {
     my ($row, $error) = try {
       $ctx->schema->txn_do(sub {
         my $created = $self->create(\%rec);
+
+        $self->_create_array_recs($ctx, $created->id, @array_type_rec) if @array_type_rec;
 
         # Fire a hook inside this transaction if necessary
         $rclass->ix_created($ctx, $created);
@@ -413,14 +417,20 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my %is_real = map {;
+      my %is_virtual = map {;
         $_ => 1
-      } $rclass->ix_real_property_names;
+      } $rclass->ix_virtual_property_names;
+
+      my %is_array = map {;
+        $_ => 1
+      } $rclass->ix_array_type_property_names;
 
       my %created = map {;
-        $_ => $row->$_
+        $_ => $is_array{$_}
+                ? [ map {; $_->value } $row->$_ ]
+                : $row->$_
       } grep {;
-        $is_real{$_}
+        ! $is_virtual{$_}
       } $rclass->ix_property_names;
 
       # We must return as part of the create response any data that
@@ -447,6 +457,42 @@ sub ix_create ($self, $ctx, $to_create) {
   $self->_ix_wash_rows([ values $result{created}->%* ]);
 
   return \%result;
+}
+
+sub _get_array_recs ($self, $ctx, $properties) {
+  my $accountId = $ctx->accountId;
+  my $rclass = $self->_ix_rclass;
+
+  my $cname = $rclass->table;
+  $cname =~ s/s$//;
+
+  my %array_type = $rclass->ix_array_type_properties;
+
+  my @rec;
+
+  for my $at (keys %array_type) {
+    if (my $val = delete $properties->{$at}) {
+      for my $item (@$val) {
+        push @rec, {
+          accountId         => $accountId,
+          value             => $item,
+          class             => $array_type{$at}{rs},
+          belongs_to_column => "${cname}Id",
+        }
+      }
+    }
+  }
+
+  return @rec;
+}
+
+sub _create_array_recs ($self, $ctx, $parent_id, @rec) {
+  for my $rec (@rec) {
+    my $rs         = delete $rec->{class};
+    my $belongs_to = delete $rec->{belongs_to_column};
+    my $class = $ctx->schema->resultset($rs);
+    $class->create({ %$rec, $belongs_to => $parent_id });
+  }
 }
 
 sub _ix_check_user_properties (
@@ -496,10 +542,18 @@ sub _ix_check_user_properties (
                   || $value->$_isa('JSON::XS::Boolean')
                 );
 
+      $ok ||= 1 if (
+           ref $value eq 'ARRAY'
+        && $prop_info->{$prop}{is_array_type}
+      );
+
       unless ($ok) {
         $property_error{$prop} = "invalid property value";
         next PROP;
       }
+    } elsif (! ref $value && $prop_info->{$prop}{is_array_type}) {
+      $property_error{$prop} = "invalid property value (must be an array)";
+      next PROP;
     }
 
     if (
@@ -544,9 +598,23 @@ sub _ix_check_user_properties (
 
     # These checks should probably always be last
     if (my $validator = $info->{validator}) {
-      if (my $error = $validator->($value)) {
-        $property_error{$prop} = $error;
-        next PROP;
+      if ($prop_info->{$prop}{is_array_type}) {
+        my $err;
+
+        for my $i (0..$#$value) {
+          if (my $error = $validator->($value->[$i])) {
+            $property_error{$prop}[$i] = $error;
+
+            $err++;
+          }
+        }
+
+        next PROP if $err;
+      } else {
+        if (my $error = $validator->($value)) {
+          $property_error{$prop} = $error;
+          next PROP;
+        }
       }
     }
 
@@ -556,8 +624,16 @@ sub _ix_check_user_properties (
       $value = $value ? 1 : 0;
     }
 
-    if (defined $value && $info->{data_type} eq 'string') {
-      $value = NFC($value);
+    if ($prop_info->{$prop}{is_array_type}) {
+      for my $item (@$value) {
+        if (defined $item && $info->{data_type} eq 'string') {
+          $item = NFC($item);
+        }
+      }
+    } else {
+      if (defined $value && $info->{data_type} eq 'string') {
+        $value = NFC($value);
+      }
     }
 
     $properties{$prop} = $value;
@@ -611,7 +687,13 @@ sub _ix_wash_rows ($self, $rows) {
     }
 
     for my $key ($by_type{string}->@*) {
-      $row->{$key} = "$row->{$key}" if defined $row->{$key};
+      if ($info->{$key}{is_array_type}) {
+        for my $val ($row->{$key}->@*) {
+          $val = "$val" if defined $val;
+        }
+      } else {
+        $row->{$key} = "$row->{$key}" if defined $row->{$key};
+      }
     }
 
     for my $key ($by_type{boolean}->@*) {
