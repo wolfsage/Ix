@@ -1741,6 +1741,76 @@ subtest "array types" => sub {
     ],
     "we can create a record with a null date field",
   ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
+
+  my $id = $res->single_sentence->as_set->created_id('raw');
+  ok($id, 'got created id');
+
+  my $state = $res->single_sentence->arguments->{newState} + 0;
+  ok($state, 'got state');
+
+  # Not a real update, should be detected
+  for my $test (
+    [ qw(sprinkles icing) ],
+    [ qw(icing sprinkles) ],
+  ) {
+    $res = $jmap_tester->request([
+      [
+        setCookies => {
+          update => {
+            $id => {
+              toppers => $test,
+            },
+          },
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments->{updated},
+      { $id => undef },
+      "toppers didn't change but still shows up in updated"
+    ) or diag explain $res->as_stripped_struct;
+
+    jcmp_deeply(
+      $res->single_sentence->arguments->{newState},
+      $state,
+     "state did not change so no real updates!"
+    );
+  }
+
+  # Real updates
+  for my $test (
+    [ qw(icing) ],           # Remove one
+    [ qw() ],                # Remove all
+    [ qw(icing) ],           # Add one
+    [ qw(bark)  ],           # Remove one add one
+    [ qw(bark mulch) ],      # Add one
+    [ qw(sprinkles icing) ], # Remove all add 2
+  ) {
+    $res = $jmap_tester->request([
+      [
+        setCookies => {
+          update => {
+            $id => {
+              toppers => $test,
+            },
+          },
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments->{updated},
+      { $id => undef },
+      "toppers may have caused an update (@$test)"
+    ) or diag explain $res->as_stripped_struct;
+
+    jcmp_deeply(
+      $res->single_sentence->arguments->{newState},
+      ++$state,
+     "state changed!"
+    );
+  }
 };
 
 done_testing;

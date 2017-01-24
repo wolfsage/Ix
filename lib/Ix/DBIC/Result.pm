@@ -196,11 +196,14 @@ use base qw/DBIx::Class::Core/;
 __PACKAGE__->table("$table");
 
 __PACKAGE__->add_columns(
+  id        => { data_type => 'bigserial' },
   accountId => { data_type => 'integer' },
   ${belongs_to}Id => { data_type => 'integer' },
   created   => { data_type => 'timestamptz', default_value => \\'NOW()' },
   value     => { data_type => '$data_type' },
 );
+
+__PACKAGE__->set_primary_key('id');
 
 __PACKAGE__->belongs_to(
   $belongs_to => '$class',

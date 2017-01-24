@@ -366,7 +366,7 @@ sub ix_create ($self, $ctx, $to_create) {
       next TO_CREATE;
     }
 
-    my @array_type_rec = $self->_get_array_recs($ctx, $properties);
+    my %array_type_rec = $self->_get_array_recs($ctx, $properties);
 
     my %rec = (
       %$properties,
@@ -385,7 +385,7 @@ sub ix_create ($self, $ctx, $to_create) {
       $ctx->schema->txn_do(sub {
         my $created = $self->create(\%rec);
 
-        $self->_create_array_recs($ctx, $created->id, @array_type_rec) if @array_type_rec;
+        $self->_create_array_recs($ctx, $created->id, %array_type_rec);
 
         # Fire a hook inside this transaction if necessary
         $rclass->ix_created($ctx, $created);
@@ -468,12 +468,16 @@ sub _get_array_recs ($self, $ctx, $properties) {
 
   my %array_type = $rclass->ix_array_type_properties;
 
-  my @rec;
+  my %rec;
 
   for my $at (keys %array_type) {
-    if (my $val = delete $properties->{$at}) {
+    if (defined(my $val = delete $properties->{$at})) {
+      # Must at least be here, means the argument was passed in
+      # and could be an empty list
+      $rec{$at} = [];
+
       for my $item (@$val) {
-        push @rec, {
+        push $rec{$at}->@*, {
           accountId         => $accountId,
           value             => $item,
           class             => $array_type{$at}{rs},
@@ -483,16 +487,57 @@ sub _get_array_recs ($self, $ctx, $properties) {
     }
   }
 
-  return @rec;
+  return %rec;
 }
 
-sub _create_array_recs ($self, $ctx, $parent_id, @rec) {
-  for my $rec (@rec) {
-    my $rs         = delete $rec->{class};
-    my $belongs_to = delete $rec->{belongs_to_column};
-    my $class = $ctx->schema->resultset($rs);
-    $class->create({ %$rec, $belongs_to => $parent_id });
+sub _create_array_recs ($self, $ctx, $parent_id, %rec) {
+  my $created;
+
+  for my $at_vals (values %rec) {
+    for my $rec (@$at_vals) {
+      my $rs         = delete $rec->{class};
+      my $belongs_to = delete $rec->{belongs_to_column};
+      my $class = $ctx->schema->resultset($rs);
+      $class->create({ %$rec, $belongs_to => $parent_id });
+      $created++;
+    }
   }
+
+  return $created;
+}
+
+sub _update_array_recs ($self, $ctx, $row, %rec) {
+  my %changed;
+
+  for my $at (keys %rec) {
+    my %old = map {; $_->value   => $_ } $row->$at;
+    my %new = map {; $_->{value} => $_ } $rec{$at}->@*;
+
+    my @to_delete = grep {;
+      ! $new{$_}
+    } keys %old;
+
+    my @to_add = grep {;
+      ! $old{$_}
+    } keys %new;
+
+    for my $del (@to_delete) {
+      $old{$del}->delete;
+
+      $changed{$at}++;
+    }
+
+    for my $add (@to_add) {
+      my $rec = $new{$add};
+      my $rs = delete $rec->{class};
+      my $belongs_to = delete $rec->{belongs_to_column};
+      my $class = $ctx->schema->resultset($rs);
+      $class->create({ %$rec, $belongs_to => $row->id });
+      $changed{$at}++;
+    }
+  }
+
+  return keys %changed;
 }
 
 sub _ix_check_user_properties (
@@ -774,20 +819,34 @@ sub ix_update ($self, $ctx, $to_update) {
       next UPDATE;
     }
 
+    my %array_type_rec = $self->_get_array_recs($ctx, $user_prop);
+
     my ($ok, $error) = try {
       $ctx->schema->txn_do(sub {
         my %old = $row->get_inflated_columns;
+        for my $at ($rclass->ix_array_type_property_names) {
+          $old{$at} = $row->$at;
+        }
 
         $row->set_inflated_columns({ %$user_prop });
 
+        my @changed = $self->_update_array_recs($ctx, $row, %array_type_rec);
+
         my %new = $row->get_dirty_columns;
-        return $SKIPPED unless %new;
+        return $SKIPPED unless %new || @changed;
 
         $row->update({ modSeqChanged => $next_state });
 
         if (my $code = $rclass->can('ix_updated')) {
           my %changes = map {; $_ => { old => $old{$_}, new => $new{$_} } }
                         keys %new;
+
+          for my $at (@changed) {
+            $changes{$at} = {
+              old => $old{$at},
+              new => $row->$at,
+            };
+          }
 
           # Fire a hook inside this transaction if necessary
           $rclass->$code($ctx, $row, \%changes);
