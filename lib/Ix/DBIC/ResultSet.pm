@@ -52,7 +52,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my $prop_info = $rclass->ix_property_info;
   my %is_prop   = map  {; $_ => 1 }
                   (keys %$prop_info),
-                  ($rclass->ix_virtual_property_names);
+                  ($rclass->ix_virtual_property_names); # XXX - Unneeded?
 
   my @props;
   if ($arg->{properties}) {
@@ -86,7 +86,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
     @ids = grep {; ! $bad_idstr->($_) } @$ids;
   }
 
-  my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
+  my %is_real = map {; $_ => 1 } $rclass->ix_real_property_names;
   my @rows = $self->search(
     {
       accountId => $accountId,
@@ -95,7 +95,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
       %$x_get_cond,
     },
     {
-      select => [ grep {; ! $is_virtual{$_} } @props ],
+      select => [ grep {; $is_real{$_} } @props ],
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
       %$x_get_attr,
     },
@@ -413,14 +413,14 @@ sub ix_create ($self, $ctx, $to_create) {
     };
 
     if ($row) {
-      my %is_virtual = map {;
+      my %is_real = map {;
         $_ => 1
-      } $rclass->ix_virtual_property_names;
+      } $rclass->ix_real_property_names;
 
       my %created = map {;
         $_ => $row->$_
       } grep {;
-        ! $is_virtual{$_}
+        $is_real{$_}
       } $rclass->ix_property_names;
 
       # We must return as part of the create response any data that
