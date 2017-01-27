@@ -90,12 +90,10 @@ cmp_deeply(
 my $state = $res->single_sentence->arguments->{newState};
 ok(defined($state), 'got new state');
 
-# Now make three calls that will happen simultaneously by creating a lock on
-# the cookies table that will prevent any call from succeeding until
-# the lock is complete. Two calls are in the same account, one separate.
-# At the end, the two calls should both succeed, state should be bumped twice,
-# and getCookieUpdates for those two state bumps should show correct data.
-
+# Start 3 processes, 2 with the same accountId. Of the latter 2, have one
+# do a setCakes then setCookies, and the other the reverse. This makes
+# sure we don't deadlock by holding onto a lock for too long. All calls
+# should succeed and the state should be bumped twice in the one account.
 my $signaled = 0;
 
 $SIG{'USR1'} = sub { $signaled++; };
@@ -104,7 +102,7 @@ my $lock = with_child {
   my $schema = $app->processor->schema_connection;
 
   $schema->txn_do(sub {
-    $schema->storage->dbh->do("LOCK TABLE cookies IN ACCESS EXCLUSIVE MODE");
+    $schema->storage->dbh->do("LOCK TABLE users IN ACCESS EXCLUSIVE MODE");
 
     # Let parent know we have the lock
     kill 'USR1' => $parent_pid;
@@ -138,9 +136,17 @@ my $child1 = with_child {
         create => { raw => { type => 'first', baked_at => undef } },
       },
     ],
+    [
+      setCakes   => {
+        create => { raw => { type => 'first', layer_count => 4, recipeId => $account{recipes}{1} } },
+      },
+    ],
   ]);
 
-  if (! $res->single_sentence->arguments->{created}) {
+  if (! $res->sentence(0)->arguments->{created}) {
+    die "Bad response: " . Dumper($res->as_stripped_struct);
+  }
+  if (! $res->sentence(1)->arguments->{created}) {
     die "Bad response: " . Dumper($res->as_stripped_struct);
   }
 };
@@ -149,13 +155,20 @@ my $child1 = with_child {
 my $child2 = with_child {
   my $res = $jmap_tester->request([
     [
+      setCakes   => {
+        create => { raw => { type => 'second', layer_count => 4, recipeId => $account{recipes}{1} } },
+      },
+    ], [
       setCookies => {
         create => { raw => { type => 'second', baked_at => undef } },
       },
     ],
   ]);
 
-  if (! $res->single_sentence->arguments->{created}) {
+  if (! $res->sentence(0)->arguments->{created}) {
+    die "Bad response: " . Dumper($res->as_stripped_struct);
+  }
+  if (! $res->sentence(1)->arguments->{created}) {
     die "Bad response: " . Dumper($res->as_stripped_struct);
   }
 };
@@ -168,9 +181,17 @@ my $child3 = with_child {
         create => { raw => { type => 'other', baked_at => undef } },
       },
     ],
+    [
+      setCakes   => {
+        create => { raw => { type => 'other', layer_count => 4, recipeId => $account{recipes}{1} } },
+      },
+    ],
   ]);
 
-  if (! $res->single_sentence->arguments->{created}) {
+  if (! $res->sentence(0)->arguments->{created}) {
+    die "Bad response: " . Dumper($res->as_stripped_struct);
+  }
+  if (! $res->sentence(1)->arguments->{created}) {
     die "Bad response: " . Dumper($res->as_stripped_struct);
   }
 };
@@ -220,14 +241,14 @@ is (@changed, 2, 'two cookies created')
 # This should give us one cookie, state increased by 1
 $res = $jmap_tester->request([
   [ getCookieUpdates => {
-    sinceState  => $new_state,
+    sinceState  => $state + 1,
   } ],
 ]);
 
 $new_state = $res->sentence(0)->arguments->{newState};
 is($new_state, $state + 2, "state bumped twice");
 
-my @changed = $res->sentence(0)->arguments->{changed}->@*;
+@changed = $res->sentence(0)->arguments->{changed}->@*;
 is (@changed, 1, 'one cookie created')
   or diag explain $res->as_stripped_struct;
 

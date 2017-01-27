@@ -362,7 +362,7 @@ subtest "invalid sinceState" => sub {
 
   subtest "too low" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => 0 } ],
+      [ getCookieUpdates => { sinceState => -1 } ],
     ]);
 
     cmp_deeply(

@@ -23,6 +23,9 @@ sub ix_type_key_singular ($self) {
 sub ix_get_list_enabled {}
 sub ix_extra_get_args { }
 
+# Must be specified if the rclass represents a new 'account'
+sub ix_is_account_base { 0 }
+
 sub ix_virtual_property_names ($self, @) {
   my $prop_info = $self->ix_property_info;
   return grep {; $prop_info->{$_}{is_virtual} } keys %$prop_info;
@@ -290,6 +293,31 @@ sub ix_compare_state ($self, $since, $state) {
   if ($high_ms == $since) { return Ix::StateComparison->in_sync; }
 
   return Ix::StateComparison->okay;
+}
+
+sub ix_create_base_state ($self) {
+  unless ($self->ix_is_account_base) {
+    require Carp;
+    Carp::croak("ix_create_base_state(): $self is not a base account type!");
+  }
+
+  my $schema = $self->result_source->schema;
+
+  my $source_reg = $schema->source_registrations;
+
+  for my $moniker (keys %$source_reg) {
+    my $rclass = $source_reg->{$moniker}->result_class;
+    next unless $rclass->can('ix_account_type');
+
+    if ($rclass->ix_account_type eq $self->ix_account_type) {
+      $schema->resultset('State')->create({
+        accountId     => $self->accountId,
+        type          => $rclass->ix_type_key,
+        highestModSeq => 0,
+        lowestModSeq  => 0,
+      });
+    }
+  }
 }
 
 1;

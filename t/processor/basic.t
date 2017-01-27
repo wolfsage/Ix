@@ -233,7 +233,7 @@ subtest "invalid sinceState" => sub {
 
   subtest "too low" => sub {
     my $res = $ctx->process_request([
-      [ getCookieUpdates => { sinceState => 0 }, 'a' ],
+      [ getCookieUpdates => { sinceState => -1 }, 'a' ],
     ]);
 
     cmp_deeply(

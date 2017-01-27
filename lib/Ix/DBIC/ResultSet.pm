@@ -880,72 +880,98 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
-  my $state = $ctx->state;
-  my $curr_state = $rclass->ix_state_string($state);
+  my @ret = $schema->txn_do(sub {
+    # Lock other ix_sets against updates to this collection type for this
+    # account ID.
+    # XXX - Set a timeout -- alh, 2017-01-27
+    my $locked = $schema->resultset('State')->search(
+      {
+        accountId => $accountId,
+        type      => $type_key,
+      }, {
+        for => 'update',
+      }
+    )->single;
 
-  my %expected_arg  = map {; $_ => 1 }
+    unless ($locked) {
+      return $ctx->internal_error(
+        "no state row for accountId $accountId, type $type_key ?!",
+      );
+    }
+
+    my $state = $ctx->state;
+    my $curr_state = $rclass->ix_state_string($state);
+
+    my %expected_arg  = map {; $_ => 1 }
                       qw(accountId ifInState create update destroy);
-  if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
-    return $ctx->error('invalidArguments' => {
-      description => "unknown arguments passed",
-      unknownArguments => \@unknown,
-    });
-  }
+    if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
+      return $ctx->error('invalidArguments' => {
+        description => "unknown arguments passed",
+        unknownArguments => \@unknown,
+      });
+    }
 
-  # TODO validate everything
+    # TODO validate everything
 
-  if (($arg->{ifInState} // $curr_state) ne $curr_state) {
-    return $ctx->error('stateMismatch');
-  }
+    if (($arg->{ifInState} // $curr_state) ne $curr_state) {
+      return $ctx->error('stateMismatch');
+    }
 
-  # Let consumers decide if they allow create/update/destroy or not
-  if (my $err = $rclass->ix_set_check($ctx, $arg)) {
-    return $err;
-  }
+    # Let consumers decide if they allow create/update/destroy or not
+    if (my $err = $rclass->ix_set_check($ctx, $arg)) {
+      return $err;
+    }
 
-  my %result;
+    my %result;
 
-  if ($arg->{create}) {
-    my $create_result = $self->ix_create($ctx, $arg->{create});
+    if ($arg->{create}) {
+      my $create_result = $self->ix_create($ctx, $arg->{create});
 
-    $result{created}     = $create_result->{created};
-    $result{not_created} = $create_result->{not_created};
+      $result{created}     = $create_result->{created};
+      $result{not_created} = $create_result->{not_created};
 
-    $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
-  }
+      $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
+    }
 
-  if ($arg->{update}) {
-    my $update_result = $self->ix_update($ctx, $arg->{update});
+    if ($arg->{update}) {
+      my $update_result = $self->ix_update($ctx, $arg->{update});
 
-    $result{updated} = $update_result->{updated};
-    $result{not_updated} = $update_result->{not_updated};
-    $state->ensure_state_bumped($type_key)
-      if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
-  }
+      $result{updated} = $update_result->{updated};
+      $result{not_updated} = $update_result->{not_updated};
+      $state->ensure_state_bumped($type_key)
+        if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
+    }
 
-  if ($arg->{destroy}) {
-    my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
+    if ($arg->{destroy}) {
+      my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
 
-    $result{destroyed} = $destroy_result->{destroyed};
-    $result{not_destroyed} = $destroy_result->{not_destroyed};
-    $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
-  }
+      $result{destroyed} = $destroy_result->{destroyed};
+      $result{not_destroyed} = $destroy_result->{not_destroyed};
+      $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
+    }
 
-  $ctx->state->_save_states;
+    $ctx->state->_save_states;
 
-  my $ret = [ Ix::Result::FoosSet->new({
-    result_type => "${type_key}Set",
-    old_state => $curr_state,
-    new_state => $rclass->ix_state_string($state),
-    %result,
-  }) ];
+    my $ret = [ Ix::Result::FoosSet->new({
+      result_type => "${type_key}Set",
+      old_state => $curr_state,
+      new_state => $rclass->ix_state_string($state),
+      %result,
+    }) ];
 
-  # This hook lets rclasses inject more responses into the result if they
-  # need to
-  $rclass->ix_postprocess_set($ctx, $ret)
-    if $rclass->can('ix_postprocess_set');
+    # This hook lets rclasses inject more responses into the result if they
+    # need to
+    $rclass->ix_postprocess_set($ctx, $ret)
+      if $rclass->can('ix_postprocess_set');
 
-  return @$ret;
+    return @$ret;
+  });
+
+  # Refresh state from db as they may have changed. This is important if
+  # there are more calls to make after this one
+  $ctx->state->refresh;
+
+  return @ret;
 }
 
 sub ix_get_list ($self, $ctx, $arg = {}) {
