@@ -107,7 +107,14 @@ package Bakesale::Test {
     ]);
 
     my @recipes = $schema->resultset('CakeRecipe')->populate([
-      { accountId => $a1, modseq(1), type => 'seven-layer', avg_review => 91, is_delicious => 1 },
+      {
+        modseq(1),
+        accountId    => $a1,
+        type         => 'seven-layer',
+        avg_review   => 91,
+        is_delicious =>  1,
+        sku          => '10203',
+      },
     ]);
 
     $schema->resultset('State')->populate([

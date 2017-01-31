@@ -463,7 +463,7 @@ subtest "passing in a boolean" => sub {
       [
         cakeRecipesSet => superhashof({
           created => {
-            boat => { id => ignore() },
+            boat => { id => ignore(), sku => re(qr/\A[0-9]{5}\z/), },
           }
         }),
       ],
@@ -546,13 +546,73 @@ subtest "make a recipe and a cake in one transaction" => sub {
     [
       [ cakeRecipesSet => superhashof({
           created => {
-            pav => { id => ignore(), is_delicious => bool(1) },
+            pav => {
+              id => ignore(),
+              is_delicious => bool(1),
+              sku => re(qr/\A[0-9]{5}\z/),
+            },
           }
       }) ],
       [ cakesSet       => superhashof({}) ],
     ],
     "we can bake cakes with recipes in one go",
   ) or note(explain($res->as_pairs));
+};
+
+subtest "subroutine defaults for lazy computation" => sub {
+  my $next_sku_initial = $Bakesale::Schema::Result::CakeRecipe::NEXT_SKU;
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        setCakeRecipes => {
+          create => { pac => { type => 'pat-a-cake', avg_review => 81 } },
+        },
+      ],
+    ]);
+
+    my $sku = $res->single_sentence('cakeRecipesSet')
+                  ->as_set
+                  ->created->{pac}{sku};
+
+    is("$sku", $next_sku_initial, "by default, next sku is from counter");
+    is(
+      $Bakesale::Schema::Result::CakeRecipe::NEXT_SKU,
+      $next_sku_initial+1,
+      "...and we update the next number"
+    );
+  }
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        setCakeRecipes => {
+          create => {
+            bug => { type => 'insect', avg_review => 8, sku => 'BUG001' }
+          },
+        },
+      ],
+    ]);
+
+    my $bug = $res->single_sentence('cakeRecipesSet')->as_set->created->{bug};
+    ok( ! exists $bug->{sku}, "non-default sku, so not returned in set");
+
+    is(
+      $Bakesale::Schema::Result::CakeRecipe::NEXT_SKU,
+      $next_sku_initial+1,
+      "...and in that case, we do not update the next number"
+    );
+
+    my $bug_get_res = $jmap_tester->request([
+      [ getCakeRecipes => { ids => [ $bug->{id} ] } ]
+    ]);
+
+    my $bug_get = $bug_get_res->single_sentence('cakeRecipes')
+                              ->arguments
+                              ->{list}[0];
+
+    is("$bug_get->{sku}", "BUG001", "and the sku was set to what we wanted");
+  }
 };
 
 {
