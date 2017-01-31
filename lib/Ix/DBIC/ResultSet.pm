@@ -469,6 +469,10 @@ sub _ix_check_user_properties (
       ($value, $is_default) = ($rec->{$prop}, 0);
     } elsif ($defaults && exists $defaults->{$prop}) {
       ($value, $is_default) = ($defaults->{$prop}, 1);
+
+      if (ref $value and ref $value eq 'CODE') { # Maybe use _CODELIKE someday
+        $value = $value->();
+      }
     }
 
     my $info = $prop_info->{$prop};
