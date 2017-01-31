@@ -1,3 +1,5 @@
+use strict;
+use warnings;
 package Bakesale::Schema::Result::CakeRecipe;
 use base qw/DBIx::Class::Core/;
 
