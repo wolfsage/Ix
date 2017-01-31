@@ -209,9 +209,9 @@ note 'children are blocked on our lock, waiting a second and releasing';
 
 sleep 1;
 
-end_child($lock);
-
 $signaled = 0;
+
+end_child($lock);
 
 my %exits;
 
