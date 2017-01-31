@@ -31,7 +31,19 @@ $jmap_tester2->_set_cookie('bakesaleUserId', $account{users}{alh});
 my %children;
 my $parent_pid = $$;
 
+# Each child needs to send us a different signal or we may miss a
+# signal if more than one child sends it to us at the same time
+my @SIGNALS = qw(USR1 USR2 TERM HUP);
+
+my $signaled = 0;
+
+for my $sig (@SIGNALS) {
+  $SIG{$sig} = sub { $signaled++; };
+}
+
 sub with_child ($code) :prototype(&) {
+  my $sig = shift @SIGNALS;
+
   my $res = fork;
   if ($res) {
     $children{$res} = 1;
@@ -40,7 +52,7 @@ sub with_child ($code) :prototype(&) {
   }
 
   # Let parent know we started
-  kill 'USR1' => $parent_pid;
+  kill $sig => $parent_pid;
 
   # unblock_child() will take us passed this
   sleep 30;
@@ -48,7 +60,7 @@ sub with_child ($code) :prototype(&) {
   $code->();
 
   # Signal our parent we're done
-  kill 'USR1' => $parent_pid;
+  kill $sig => $parent_pid;
 
   exit;
 }
@@ -58,7 +70,7 @@ sub unblock_child ($child) {
 }
 
 sub end_child ($child) {
-  kill 'TERM' => $child;
+  kill 'KILL' => $child;
 }
 
 END {
@@ -94,9 +106,6 @@ ok(defined($state), 'got new state');
 # do a setCakes then setCookies, and the other the reverse. This makes
 # sure we don't deadlock by holding onto a lock for too long. All calls
 # should succeed and the state should be bumped twice in the one account.
-my $signaled = 0;
-
-$SIG{'USR1'} = sub { $signaled++; };
 
 my $lock = with_child {
   my $schema = $app->processor->schema_connection;
