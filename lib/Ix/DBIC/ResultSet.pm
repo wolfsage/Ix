@@ -548,7 +548,10 @@ sub _ix_check_user_properties (
 
     # These checks should probably always be last
     if (my $validator = $info->{validator}) {
-      if (my $error = $validator->($value)) {
+      # Must validate it if there is a value or if it is non-optional
+      my $needs_check = defined $value || ! $info->{is_optional};
+
+      if ($needs_check && (my $error = $validator->($value))) {
         $property_error{$prop} = $error;
         next PROP;
       }

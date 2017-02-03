@@ -4,6 +4,7 @@ use experimental qw(postderef signatures);
 package Bakesale::Schema::Result::Cookie;
 use base qw/DBIx::Class::Core/;
 use DateTime;
+use Ix::Validators qw(idstr);
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
@@ -16,6 +17,7 @@ __PACKAGE__->ix_add_properties(
   baked_at   => { data_type => 'timestamptz', is_optional => 1 },
   expires_at => { data_type => 'timestamptz', is_optional => 0 },
   delicious  => { data_type => 'string', is_optional => 0 },
+  external_id => { data_type => 'string', is_optional => 1, validator => idstr() },
 );
 
 __PACKAGE__->set_primary_key('id');
