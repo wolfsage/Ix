@@ -1777,7 +1777,7 @@ subtest "optional idstr" => sub {
   my $res = $jmap_tester->request([
     [
       setCookies => {
-        create => { raw => { type => 'dough', baked_at => undef, external_id => 5 } },
+        create => { raw => { type => 'dough', baked_at => undef, external_id => ix_new_id() } },
       },
     ],
   ]);
