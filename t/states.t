@@ -94,7 +94,14 @@ my $res = $jmap_tester->request([
 cmp_deeply(
   $res->single_sentence->arguments,
   superhashof({
-        created => { raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore() } },
+    created => {
+      raw => {
+        id => re(qr/\S/),
+        expires_at => ignore(),
+        delicious => ignore(),
+        external_id => ignore(),
+      },
+    },
   }),
   "created a cookie",
 ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));
@@ -233,7 +240,7 @@ for my $pid ($child1, $child2, $child3) {
 # And they should have signaled us before exiting
 is($signaled, 3, 'children report they are complete');
 
-# This should give us two cookies, state increased by 2
+# This should give us two cookies, state increased by 1
 $res = $jmap_tester->request([
   [ getCookieUpdates => {
     sinceState   => $state,

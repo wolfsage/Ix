@@ -27,7 +27,16 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 #
 # Fix this failure. -- alh, 2016-10-19
 
+  # Get topper state
   my $res = $jmap_tester->request([
+    [
+      getCakeToppers => { ids => [] }
+    ],
+  ]);
+
+  ok(defined(my $state = $res->sentence(0)->arguments->{state}), 'got state');
+
+  $res = $jmap_tester->request([
     [
       setCakes => {
         create => {
@@ -64,7 +73,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
             },
           ),
           notFound => ignore(),
-          state => 2,
+          state => $state + 1,
         }), "my id"
       ],
     ],

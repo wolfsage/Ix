@@ -83,28 +83,24 @@ sub _save_states ($self) {
   my $rows = $self->_state_rows;
   my $pend = $self->_pending_states;
 
-  # XXX - Should only ever be one pending state. Croak if not true? Modify
-  #       code to expect only one? Other? -- alh, 2017-01-27
   for my $type (keys %$pend) {
     if (my $row = $rows->{$type}) {
       $row->update({ highestModSeq => $pend->{$type} });
     } else {
-      die sprintf "State row for %s %s does not exist?!\n",
-        $self->accountId,
-        $type;
+      my $row = $self->schema->resultset('State')->create({
+        accountId => $self->accountId,
+        type      => $type,
+        highestModSeq => $pend->{$type},
+        lowestModSeq  => 0,
+      });
+
+      $rows->{$type} = $row;
     }
 
     delete $pend->{$type};
   }
 
   return;
-}
-
-sub refresh ($self) {
-  # Refresh all rows from DB as they may have been changed by
-  # another call, or we may have recorded a change but our last call
-  # may have thrown an exception and not committed them
-  $_->discard_changes for values $self->_state_rows->%*;
 }
 
 1;

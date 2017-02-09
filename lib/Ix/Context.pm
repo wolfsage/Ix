@@ -25,27 +25,6 @@ has processor => (
   required => 1,
 );
 
-has _state_for => (
-  is      => 'ro',
-  default => sub {  {}  },
-);
-
-sub state_for_account ($self, $account_type, $account_id) {
-  my $states = $self->_state_for;
-
-  require Ix::AccountState;
-  return $states->{ $account_type }{ $account_id } ||= Ix::AccountState->new({
-    context => $self,
-    account_type => $account_type,
-    accountId    => $account_id,
-  });
-}
-
-sub _save_states ($self) {
-  $_->_save_states for map {; values %$_ } values $self->_state_for->%*;
-  return;
-}
-
 has created_ids => (
   is => 'ro',
   reader   => '_created_ids',
