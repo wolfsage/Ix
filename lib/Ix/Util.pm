@@ -48,11 +48,11 @@ package Ix::DateTime {
   use overload '""' => 'as_string';
 
   sub as_string ($self, @) {
-    $rfc3339->format_datetime($self);
+    $rfc3339->format_datetime($self->clone->truncate(to => 'second'));
   }
 
   sub TO_JSON ($self) {
-    $rfc3339->format_datetime($self);
+    $rfc3339->format_datetime($self->clone->truncate(to => 'second'));
   }
 }
 
