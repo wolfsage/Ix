@@ -7,8 +7,7 @@ use DateTime::Format::Pg;
 use DateTime::Format::RFC3339;
 use Scalar::Util qw(reftype);
 use Data::GUID qw(guid_string);
-
-use Package::Generator;
+use Package::Stash;
 
 use Sub::Exporter -setup => {
   exports    => [ qw(parsedate parsepgdate differ ix_new_id) ],
@@ -20,13 +19,12 @@ use Sub::Exporter -setup => {
 sub _export_ix_id_re {
   my ($class, $value, $data) = @_;
 
-  Package::Generator->assign_symbols(
-    $data->{into},
-    [
-      # http://stackoverflow.com/questions/17146061/extract-guid-from-line-via-regular-expression-in-perl
-      # For now, this is just a straight up guid
-      ix_id_re => \qr/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-([a-f\d]){12})/an,
-    ],
+  my $stash = Package::Stash->new($data->{into});
+  # http://stackoverflow.com/questions/17146061/extract-guid-from-line-via-regular-expression-in-perl
+  # For now, this is just a straight up guid
+  $stash->add_symbol(
+    '$ix_id_re',
+    \qr/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-([a-f\d]){12})/an,
   );
 
   return 1;
