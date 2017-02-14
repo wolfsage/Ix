@@ -2,7 +2,7 @@ use 5.22.0;
 use warnings;
 package Ix::Validators;
 
-use JSON ();
+use JSON::MaybeXS ();
 use Safe::Isa;
 use Ix::Util qw($ix_id_re);
 
@@ -14,9 +14,7 @@ use Sub::Exporter -setup => [ qw(
 
 sub boolean {
   return sub ($x, @) {
-    return "not a valid boolean value"
-      unless $x->$_isa('JSON::PP::Boolean')
-          || $x->$_isa('JSON::XS::Boolean');
+    return "not a valid boolean value" unless JSON::MaybeXS::is_bool($x);
     return;
   };
 }

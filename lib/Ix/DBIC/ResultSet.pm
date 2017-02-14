@@ -7,7 +7,7 @@ use parent 'DBIx::Class::ResultSet';
 use experimental qw(signatures postderef);
 
 use Ix::Util qw(parsedate parsepgdate differ);
-use JSON (); # XXX temporary?  for false() -- rjbs, 2016-02-22
+use JSON::MaybeXS (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
 use Safe::Isa;
 use Ix::Validators qw(idstr);
@@ -150,7 +150,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     return $ctx->result($res_type => {
       oldState => "$since",
       newState => "$since",
-      hasMoreUpdates => JSON::false(), # Gross. -- rjbs, 2016-02-21
+      hasMoreUpdates => JSON::MaybeXS::JSON->false(), # Gross. -- rjbs, 2017-02-13
       changed => [],
       removed => [],
     });
@@ -238,7 +238,9 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     newState => ($hasMoreUpdates
               ? $rclass->ix_highest_state($since, \@rows)
               : $rclass->ix_state_string($ctx->state)),
-    hasMoreUpdates => $hasMoreUpdates ? JSON::true() : JSON::false(),
+    hasMoreUpdates => $hasMoreUpdates
+                    ? JSON::MaybeXS::JSON->true()
+                    : JSON::MaybeXS::JSON->false(),
     changed => \@changed,
     removed => \@removed,
   });
@@ -495,10 +497,7 @@ sub _ix_check_user_properties (
       $ok = 1 if $date_fields{$prop} && $value->$_isa('DateTime');
 
       $ok ||= 1 if ($prop_info->{$prop}{data_type} // '') eq 'boolean'
-                && (
-                     $value->$_isa('JSON::PP::Boolean')
-                  || $value->$_isa('JSON::XS::Boolean')
-                );
+                && JSON::MaybeXS::is_bool($value);
 
       unless ($ok) {
         $property_error{$prop} = "invalid property value";
@@ -557,9 +556,7 @@ sub _ix_check_user_properties (
       }
     }
 
-    if (
-      $value->$_isa('JSON::PP::Boolean') || $value->$_isa('JSON::XS::Boolean')
-    ) {
+    if (JSON::MaybeXS::is_bool($value)) {
       $value = $value ? 1 : 0;
     }
 
@@ -611,8 +608,8 @@ sub _ix_wash_rows ($self, $rows) {
     push $by_type{$type}->@*, $key if $type;
   }
 
-  my $true  = JSON::true();
-  my $false = JSON::false();
+  my $true  = JSON::MaybeXS::JSON->true();
+  my $false = JSON::MaybeXS::JSON->false();
 
   for my $row (@$rows) {
     for my $key ($by_type{integer}->@*) {

@@ -8,7 +8,7 @@ use lib 't/lib';
 use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
-use JSON;
+use JSON::MaybeXS ();
 use Test::Deep;
 use Test::Deep::JType;
 use Test::More;
@@ -155,7 +155,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -191,7 +191,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => [
         'type desc'
@@ -226,7 +226,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -258,7 +258,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -294,7 +294,7 @@ $state =~ s/-\d+//;
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -331,7 +331,7 @@ $state =~ s/-\d+//;
         'filter' => {
           'recipeId' => $secret1_recipe_id
         },
-        'canCalculateUpdates' => JSON::true,
+        'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
         'position' => $p-1,
         'sort' => [],
         'state' => $state,
@@ -369,7 +369,7 @@ $state =~ s/-\d+//;
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -413,7 +413,7 @@ $state =~ s/-\d+//;
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -446,7 +446,7 @@ $state =~ s/-\d+//;
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -552,7 +552,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::true,
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => [
         'type asc',

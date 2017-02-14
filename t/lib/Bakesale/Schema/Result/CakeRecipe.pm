@@ -3,7 +3,7 @@ use warnings;
 package Bakesale::Schema::Result::CakeRecipe;
 use base qw/DBIx::Class::Core/;
 
-use JSON ();
+use JSON::MaybeXS ();
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
@@ -28,7 +28,7 @@ our $NEXT_SKU = '12345';
 
 sub ix_default_properties {
   return {
-    is_delicious => JSON::true,
+    is_delicious => JSON::MaybeXS::JSON->true(),
     sku => sub { $NEXT_SKU++ },
   };
 }

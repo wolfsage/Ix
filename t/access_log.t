@@ -8,7 +8,7 @@ use lib 't/lib';
 use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
-use JSON qw(decode_json);
+use JSON::MaybeXS qw(decode_json);
 use Test::Deep;
 use Test::Deep::JType;
 use Test::More;

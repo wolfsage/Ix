@@ -5,7 +5,7 @@ use experimental qw(signatures postderef);
 
 use Bakesale;
 
-use JSON;
+use JSON::MaybeXS;
 
 use namespace::autoclean;
 

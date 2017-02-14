@@ -5,7 +5,7 @@ use Moose::Role;
 use experimental qw(signatures postderef);
 
 use Data::GUID qw(guid_string);
-use JSON;
+use JSON::MaybeXS;
 use Plack::Request;
 use Try::Tiny;
 use Safe::Isa;
@@ -20,7 +20,7 @@ use namespace::autoclean;
 has json_codec => (
   is => 'ro',
   default => sub {
-    JSON->new->utf8->pretty->allow_blessed->convert_blessed->canonical
+    JSON::MaybeXS::JSON->new->utf8->pretty->allow_blessed->convert_blessed->canonical
   },
   handles => {
     encode_json => 'encode',
@@ -31,7 +31,7 @@ has json_codec => (
 has logger_json_codec => (
   is => 'ro',
   default => sub {
-    JSON->new->utf8->allow_blessed->convert_blessed->canonical
+    JSON::MaybeXS::JSON->new->utf8->allow_blessed->convert_blessed->canonical
   },
   handles => {
     encode_json_log => 'encode',
