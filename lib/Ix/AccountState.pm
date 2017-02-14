@@ -3,7 +3,7 @@ use warnings;
 package Ix::AccountState;
 
 use Moose;
-
+use MooseX::StrictConstructor;
 use experimental qw(signatures postderef);
 
 use namespace::clean;

@@ -12,6 +12,7 @@ requires 'result_arguments';
 package Ix::Result::Generic {
 
   use Moose;
+  use MooseX::StrictConstructor;
   use experimental qw(signatures postderef);
 
   use namespace::autoclean;
@@ -29,6 +30,7 @@ package Ix::Result::Generic {
 package Ix::Result::FoosSet {
 
   use Moose;
+  use MooseX::StrictConstructor;
   use experimental qw(signatures postderef);
 
   use namespace::autoclean;

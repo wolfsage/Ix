@@ -16,6 +16,7 @@ package
   Ix::ExceptionWrapper {
 
   use Moose;
+  use MooseX::StrictConstructor;
   use namespace::autoclean;
 
   with 'StackTrace::Auto';
@@ -36,7 +37,7 @@ package
 package Ix::Error::Internal {
 
   use Moose;
-
+  use MooseX::StrictConstructor;
   use experimental qw(signatures postderef);
 
   use namespace::autoclean;
@@ -75,7 +76,7 @@ package Ix::Error::Internal {
 package Ix::Error::Generic {
 
   use Moose;
-
+  use MooseX::StrictConstructor;
   use experimental qw(signatures postderef);
 
   use namespace::autoclean;
