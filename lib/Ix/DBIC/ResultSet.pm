@@ -4,7 +4,7 @@ package Ix::DBIC::ResultSet;
 
 use parent 'DBIx::Class::ResultSet';
 
-use experimental qw(signatures postderef);
+use experimental qw(lexical_subs postderef signatures);
 
 use Ix::Util qw(parsedate parsepgdate differ);
 use JSON::MaybeXS (); # XXX temporary?  for false() -- rjbs, 2016-02-22
@@ -12,6 +12,7 @@ use List::MoreUtils qw(uniq);
 use Safe::Isa;
 use Ix::Validators qw(idstr);
 use Unicode::Normalize qw(NFC);
+use Scalar::Util qw(blessed);
 use Try::Tiny;
 
 use namespace::clean;
@@ -296,6 +297,15 @@ sub ix_purge ($self, $ctx, $arg = {}) {
   return;
 }
 
+my sub _eqv ($x, $y) {
+  return 1 if ! defined $x and ! defined $y;
+  return   if   defined $x xor   defined $y;
+  return 1 if ! blessed $x and ! blessed $y and $x eq $y;
+  return not($x xor $y) if JSON::MaybeXS::is_bool($x)
+                       and JSON::MaybeXS::is_bool($y);
+  return $x eq $y;
+}
+
 sub ix_create ($self, $ctx, $to_create) {
   my $accountId = $ctx->accountId;
 
@@ -429,7 +439,7 @@ sub ix_create ($self, $ctx, $to_create) {
       # we've added or changed
       my @changed = grep {;
            ! exists $this->{$_}
-        || ($this->{$_} // '') ne ($created{$_} // '')
+        || ! _eqv($this->{$_}, $created{$_})
       } keys %created;
 
       $result{created}{$id} = {
