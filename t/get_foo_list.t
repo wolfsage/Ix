@@ -12,6 +12,7 @@ use JSON::MaybeXS ();
 use Test::Deep;
 use Test::Deep::JType;
 use Test::More;
+use Test::Abortable 'subtest';
 use Unicode::Normalize;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
@@ -99,7 +100,7 @@ $res = $jmap_tester->request([
     setCakes => {
       create => {
         'chocolate1' => {
-          type => 'chocolate', layer_count => 2, recipeId => $secret1_recipe_id,
+          type => 'chocolate', layer_count => 1, recipeId => $secret1_recipe_id,
         },
         'chocolate2' => {
           type => 'chocolate', layer_count => 3, recipeId => $secret1_recipe_id,
@@ -108,7 +109,7 @@ $res = $jmap_tester->request([
           type => 'peanut butter', layer_count => 3, recipeId => $secret1_recipe_id,
         },
         'marble1' => {
-          type => 'marble', layer_count => 2, recipeId => $secret2_recipe_id,
+          type => 'marble', layer_count => 1, recipeId => $secret2_recipe_id,
         },
         'marble2' => {
           type => 'marble', layer_count => 3, recipeId => $secret2_recipe_id,
@@ -202,6 +203,48 @@ $state =~ s/-\d+//;
     "getCakeList with sort+filter looks right (reverse sort)"
   );
 }
+
+subtest "custom condition builder" => sub {
+  # We have two recipes.  For each recipe, we have three cakes, and one of them
+  # is single-layer.
+  for my $recipe_id ($secret1_recipe_id, $secret2_recipe_id) {
+    my $total_res = $jmap_tester->request([
+      [ getCakeList => { filter => { recipeId => $recipe_id } } ],
+    ]);
+
+    jcmp_deeply(
+      $total_res->single_sentence('cakeList')->arguments,
+      superhashof({ total => jnum(3) }),
+      "there! are! THREE! cakes!",
+    );
+
+    my $short_res = $jmap_tester->request([
+      [ getCakeList => { filter => {
+          recipeId => $recipe_id, isLayered => jfalse
+        } }
+      ],
+    ]);
+
+    jcmp_deeply(
+      $short_res->single_sentence('cakeList')->arguments,
+      superhashof({ total => jnum(1) }),
+      "...one cake is single-layered",
+    );
+
+    my $tall_res = $jmap_tester->request([
+      [ getCakeList => { filter => {
+          recipeId => $recipe_id, isLayered => jtrue
+        } }
+      ],
+    ]);
+
+    jcmp_deeply(
+      $tall_res->single_sentence('cakeList')->arguments,
+      superhashof({ total => jnum(2) }),
+      "...two cakes are multi-layered",
+    );
+  }
+};
 
 {
   # Ensure multiple sort orders work. First, sort by layer_count asc

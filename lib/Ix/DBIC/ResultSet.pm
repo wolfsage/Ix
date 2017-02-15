@@ -1108,21 +1108,31 @@ sub _get_list_search_args ($self, $ctx, $arg) {
 
   my $filter_map = $rclass->ix_get_list_filter_map;
 
+  my @conds;
+
   FILTER: for my $field (keys $arg->{filter}->%*) {
     if (!$filter_map->{$field}) {
       $bad_filter{$field} = 'unknown filter field';
       next FILTER;
     }
-    my $sql_name = $field;
-    unless ($sql_name =~ /\./) {
-      $sql_name = "me.$sql_name"; # me.<...>
-    }
 
     my $val = defined $arg->{filter}{$field}
-                ? $arg->{filter}{$field} . ""
-                : undef;
-    $search{filter}{$sql_name} = $val;
+            ? $arg->{filter}{$field} . ""
+            : undef;
+
+    if (my $builder = $filter_map->{$field}{cond_builder}) {
+      push @conds, $builder->($val);
+    } else {
+      my $sql_name = $field;
+      unless ($sql_name =~ /\./) {
+        $sql_name = "me.$sql_name"; # me.<...>
+      }
+
+      push @conds, { $sql_name => $val };
+    }
   }
+
+  $search{filter}{'-and'} = \@conds;
 
   for my $field (grep {; $filter_map->{$_}->{required} } keys %$filter_map) {
     unless (exists $arg->{filter}->{$field}) {

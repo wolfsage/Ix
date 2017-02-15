@@ -202,6 +202,12 @@ sub ix_get_list_filter_map {
     recipeId    => { required => 1 },
     type        => { },
     layer_count => { },
+    isLayered   => {
+      cond_builder => sub ($is_layered) {
+        return $is_layered ? { layer_count => { '>'  => 1 } }
+                           : { layer_count => { '<=' => 1 } };
+      },
+    }
   };
 }
 
