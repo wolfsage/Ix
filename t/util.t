@@ -7,13 +7,26 @@ use Test::More;
 
 use Ix::Util qw(splitquoted);
 
-my $input = q{"foo \" bar" baz 'bingo' 'bi"n\g' "boo};
-my @result = splitquoted($input);
+{
+  my $input = q{"foo \" bar" baz 'bingo' 'bi"n\g' "boo};
+  my @result = splitquoted($input);
 
-is_deeply(
-  \@result,
-  [  'foo " bar', 'baz', 'bingo', 'bi"ng', '"boo' ],
-  "we split up quoted strings as expected",
-);
+  is_deeply(
+    \@result,
+    [  'foo " bar', 'baz', 'bingo', 'bi"ng', '"boo' ],
+    "we split up quoted strings as expected",
+  );
+}
+
+{
+  my $input = q{    };
+  my @result = splitquoted($input);
+
+  is_deeply(
+    \@result,
+    [],
+    "all-spaces string becomes () and not (undef)",
+  );
+}
 
 done_testing;

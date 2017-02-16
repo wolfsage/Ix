@@ -68,7 +68,7 @@ sub differ ($x, $y) {
 sub splitquoted ($str) {
   my @found;
 
-  while ($str) {
+  while ($str =~ /\S/) {
     $str =~ s/\A\s+//;
 
     my ($quote) = $str =~ /\A(["'])/;
