@@ -23,19 +23,17 @@ sub boolean {
   my $tld_re =
     qr{
        ([-0-9a-z]+)        # top level domain
-       \.?                 # possibly followed by root dot
      }xi;
 
   my $domain_re =
     qr{
        ([a-z0-9](?:[-a-z0-9]*[a-z0-9])?\.)+   # subdomain(s), sort of
-       [-0-9a-z]+\.?
+       $tld_re
      }xi;
 
   my sub is_domain {
     my $value = shift;
     return unless defined $value and $value =~ /\A$domain_re\z/;
-    my ($tld) = $value =~ /$tld_re\z/i;
 
     # We used to further check that the TLD was a valid TLD.  This made a lot
     # more sense when there was a list of, say, 50 TLDs that changed only under
@@ -85,6 +83,14 @@ sub boolean {
       return "not a valid email address";
     }
   }
+
+  sub domain {
+    return sub ($x, @) {
+      # XXX Obviously bogus.
+      return if is_domain($x);
+      return "not a valid domain";
+    };
+  }
 }
 
 sub enum ($values) {
@@ -92,14 +98,6 @@ sub enum ($values) {
   return sub ($x, @) {
     return "not a valid value" unless $is_valid{$x};
     return;
-  };
-}
-
-sub domain {
-  return sub ($x, @) {
-    # XXX Obviously bogus.
-    return if $x =~ /\A[-._a-z0-9]+\z/i;
-    return "not a valid domain";
   };
 }
 
