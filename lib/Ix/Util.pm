@@ -10,7 +10,7 @@ use Data::GUID qw(guid_string);
 use Package::Stash;
 
 use Sub::Exporter -setup => {
-  exports    => [ qw(parsedate parsepgdate differ ix_new_id) ],
+  exports    => [ qw(parsedate parsepgdate differ ix_new_id splitquoted) ],
   collectors => [
     '$ix_id_re' => \'_export_ix_id_re',
   ],
@@ -63,6 +63,26 @@ sub differ ($x, $y) {
   return $x ne $y if ! ref $x;
 
   Carp::croak "can't compare two references with Ix::Util::differ";
+}
+
+sub splitquoted ($str) {
+  my @found;
+
+  while ($str) {
+    $str =~ s/\A\s+//;
+
+    my ($quote) = $str =~ /\A(["'])/;
+    if ($quote && $str =~ s/\A$quote((?:[^$quote\\]++|\\.)*+)$quote//) {
+      my $extract = $1;
+      $extract =~ s/\\(.)/$1/g;
+      push @found, $extract;
+    } else {
+      $str =~ s/\A(\S+)\s*//;
+      push @found, $1;
+    }
+  }
+
+  return @found;
 }
 
 package Ix::DateTime {
