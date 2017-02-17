@@ -1125,6 +1125,10 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
   } keys %$filter_map;
 
   # XXX: stupid, gross, blah -- rjbs, 2016-04-13
+  # We must grab all rows that *could* match the filters, but
+  # we still must filter on required filters; hopefully, these
+  # are immutable. Below we will sort all returned rows into
+  # their expected places.
   my @entities = $search->{rs}->search(
     \%immutable,
     {
