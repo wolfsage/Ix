@@ -208,7 +208,8 @@ sub ix_get_list_filter_map {
         return $is_layered ? { layer_count => { '>'  => 1 } }
                            : { layer_count => { '<=' => 1 } };
       },
-    }
+    },
+    'recipe.is_delicious' => { },
   };
 }
 

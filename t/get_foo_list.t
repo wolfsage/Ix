@@ -28,12 +28,12 @@ my $res = $jmap_tester->request([
         secret1 => {
           type          => 'secret1',
           avg_review    => 0,
-          is_delicious  => \1,
+          is_delicious  => jtrue,
         },
         secret2 => {
           type          => 'secret2',
           avg_review    => 0,
-          is_delicious  => \1,
+          is_delicious  => jfalse,
         },
       },
     },
@@ -156,7 +156,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -192,7 +192,7 @@ $state =~ s/-\d+//;
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
         'type desc'
@@ -269,7 +269,7 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -301,7 +301,7 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -337,7 +337,7 @@ subtest "custom condition builder" => sub {
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -374,7 +374,7 @@ subtest "custom condition builder" => sub {
         'filter' => {
           'recipeId' => $secret1_recipe_id
         },
-        'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+        'canCalculateUpdates' => jtrue,
         'position' => $p-1,
         'sort' => [],
         'state' => $state,
@@ -397,7 +397,7 @@ subtest "custom condition builder" => sub {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchCakes => \1,
+        fetchCakes => jtrue,
       },
     ],
   ]);
@@ -412,7 +412,7 @@ subtest "custom condition builder" => sub {
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -440,7 +440,7 @@ subtest "custom condition builder" => sub {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchRecipes => \1,
+        fetchRecipes => jtrue,
       },
     ],
   ]);
@@ -455,7 +455,7 @@ subtest "custom condition builder" => sub {
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -483,8 +483,8 @@ subtest "custom condition builder" => sub {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchCakes   => \1,
-        fetchRecipes => \1,
+        fetchCakes   => jtrue,
+        fetchRecipes => jtrue,
       },
     ],
   ]);
@@ -499,7 +499,7 @@ subtest "custom condition builder" => sub {
         'recipeId' => $secret1_recipe_id,
         'type'     => 'peanut butter',
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
       'state' => $state,
@@ -541,8 +541,8 @@ subtest "custom condition builder" => sub {
           fake => 'not a real field',
         },
         sort => [ 'type', 'fake asc', 'layer_count asc bad', 'layer_count bad' ],
-        fetchCakes   => \1,
-        fetchRecipes => \1,
+        fetchCakes   => jtrue,
+        fetchRecipes => jtrue,
       },
     ],
   ]);
@@ -605,7 +605,7 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id
       },
-      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
         'type asc',
@@ -690,7 +690,7 @@ subtest "custom condition builder" => sub {
       'total' => 2
     },
     "getCakeListUpdates looks right for removed cake"
-  );
+  ) or diag explain $res->as_stripped_struct;
 }
 
 {
@@ -1077,6 +1077,274 @@ subtest 'custom differ, and no required filters' => sub {
       "Correctly reported addition of 1 cookie and removal of another"
     ) or diag explain $clu_res->as_stripped_struct;
   }
+};
+
+subtest "filters on joined tables" => sub {
+  subtest "filter matches" => sub {
+    $res = $jmap_tester->request([
+      [
+        getCakeList => {
+          filter => {
+            'recipeId' => $secret1_recipe_id,
+            'recipe.is_delicious' => jtrue,
+          },
+          sort => [ 'type asc' ],
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'cakeIds' => [
+          $cake_id{chocolate2},
+          $cake_id{pb1},
+        ],
+        'filter' => {
+          'recipeId' => $secret1_recipe_id,
+          'recipe.is_delicious' => jtrue,
+
+        },
+        'canCalculateUpdates' => jtrue,
+        'position' => 0,
+        'sort' => [
+          'type asc',
+        ],
+        'state' => $state,
+        'total' => 2,
+      },
+      "getCakeList with filter on join with match looks right"
+    ) or diag explain $res->as_stripped_struct;
+
+    $res = $jmap_tester->request([
+      [
+        getCakeListUpdates => {
+          filter => {
+            recipeId => $secret1_recipe_id,
+            'recipe.is_delicious' => jtrue,
+          },
+          sort => [ 'type asc' ],
+          sinceState => $state - 3,
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'added' => [
+          {
+            'cakeId' => $cake_id{chocolate2},
+            'index' => 0,
+          },
+          {
+            'cakeId' => $cake_id{pb1},
+            'index' => 1,
+          }
+        ],
+        'filter' => {
+          'recipeId' => $secret1_recipe_id,
+          'recipe.is_delicious' => jtrue,
+        },
+        'newState' => $state,
+        'oldState' => $state - 3,
+        'removed' => [],
+        'sort' => [
+          'type asc'
+        ],
+        'total' => 2
+      },
+      "getCakeListUpdates with filter on join with match looks right"
+    ) or diag explain $res->as_stripped_struct;
+  };
+
+  subtest "filter doesn't match" => sub {
+    $res = $jmap_tester->request([
+      [
+        getCakeList => {
+          filter => {
+            'recipeId' => $secret1_recipe_id,
+            'recipe.is_delicious' => jfalse, # But these are delicious!
+          },
+          sort => [ 'type asc' ],
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'cakeIds' => [],
+        'filter' => {
+          'recipeId' => $secret1_recipe_id,
+          'recipe.is_delicious' => jfalse,
+        },
+        'canCalculateUpdates' => jtrue,
+        'position' => 0,
+        'sort' => [
+          'type asc',
+        ],
+        'state' => $state,
+        'total' => 0,
+      },
+      "getCakeList with filter on join no match looks right"
+    ) or diag explain $res->as_stripped_struct;
+
+    $res = $jmap_tester->request([
+      [
+        getCakeListUpdates => {
+          filter => {
+            recipeId => $secret1_recipe_id,
+            'recipe.is_delicious' => jfalse,
+          },
+          sort => [ 'type asc' ],
+          sinceState => $state - 3,
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      superhashof({
+        added    => [],
+        removed  => [],
+        total    => 0,
+        newState => $state,
+        oldState => $state - 3,
+        filter => {
+          recipeId => $secret1_recipe_id,
+          'recipe.is_delicious' => jfalse,
+        },
+        total => 0,
+      }),
+      "getCakeListUpdates with filter on join no match looks right"
+    );
+  };
+};
+
+subtest "differ boolean comparison when db row is false" => sub {
+  # The above test ensured we matched booleans properly when the DB
+  # value is true and the filter is true/false, this test ensures
+  # we handle things properly when the DB value is false and the filter
+  # is true/false
+  subtest "filter is false" => sub {
+    $res = $jmap_tester->request([
+      [
+        getCakeListUpdates => {
+          filter => {
+            recipeId => $secret2_recipe_id,
+            'recipe.is_delicious' => jfalse,
+          },
+          sort => [ 'type asc' ],
+          sinceState => $state - 3,
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'added' => set(
+          superhashof({
+            'cakeId' => $cake_id{marble1},
+          }),
+          superhashof({
+            'cakeId' => $cake_id{marble2},
+            'index'  => ignore(),
+          }),
+          superhashof({
+            'cakeId' => $cake_id{lemon1},
+            'index'  => ignore(),
+          }),
+        ),
+        'filter' => {
+          'recipeId' => $secret2_recipe_id,
+          'recipe.is_delicious' => jfalse,
+        },
+        'newState' => $state,
+        'oldState' => $state - 3,
+        'removed' => [],
+        'sort' => [
+          'type asc'
+        ],
+        'total' => 3,
+      },
+      "getCakeListUpdates with filter on join with match looks right"
+    ) or diag explain $res->as_stripped_struct;
+  };
+
+  subtest "filter is true" => sub {
+    # Starting at state 0, the rows were added and removed, so
+    # we should see no changes
+    $res = $jmap_tester->request([
+      [
+        getCakeListUpdates => {
+          filter => {
+            recipeId => $secret2_recipe_id,
+            'recipe.is_delicious' => jtrue,
+          },
+          sort => [ 'type asc' ],
+          sinceState => $state - 3,
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'added' => [],
+        'filter' => {
+          'recipeId' => $secret2_recipe_id,
+          'recipe.is_delicious' => jtrue,
+        },
+        'newState' => $state,
+        'oldState' => $state - 3,
+        'removed' => [],
+        'sort' => [
+          'type asc'
+        ],
+        'total' => 0,
+      },
+      "getCakeListUpdates with filter on join with no match looks right"
+    ) or diag explain $res->as_stripped_struct;
+
+    # Now from the state where they were added, we should see removed
+    $res = $jmap_tester->request([
+      [
+        getCakeListUpdates => {
+          filter => {
+            recipeId => $secret2_recipe_id,
+            'recipe.is_delicious' => jtrue,
+          },
+          sort => [ 'type asc' ],
+          sinceState => $state - 2,
+        },
+      ],
+    ]);
+
+    jcmp_deeply(
+      $res->single_sentence->arguments,
+      {
+        'added' => [],
+        'filter' => {
+          'recipeId' => $secret2_recipe_id,
+          'recipe.is_delicious' => jtrue,
+        },
+        'newState' => $state,
+        'oldState' => $state - 2,
+        'removed' => set(
+          $cake_id{marble1},
+          $cake_id{marble2},
+          $cake_id{lemon1},
+        ),
+        'sort' => [
+          'type asc'
+        ],
+        'total' => 0,
+      },
+      "getCakeListUpdates with filter on join with no match looks right"
+    ) or diag explain $res->as_stripped_struct;
+  };
 };
 
 done_testing;

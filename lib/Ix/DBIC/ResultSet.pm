@@ -975,10 +975,21 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     return $error;
   }
 
+  # XXX - make sure isActive is true on all joined tables?
+  #       -- alh, 2017-02-17
+  my $total = $search->{rs}->search(
+    $search->{filter},
+    {
+      $search->{sort}->%*,
+      $search->{join}->%*,
+    },
+  )->count;
+
   my $search_page = $search->{rs}->search(
     $search->{filter},
     {
       $search->{sort}->%*,
+      $search->{join}->%*,
       rows      => $limit,
       offset    => $arg->{position} // 0,
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -993,7 +1004,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     filter       => $orig_filter,
     sort         => $orig_sort,
     state        => $hms,
-    total        => $search->{rs}->search($search->{filter})->count,
+    total        => $total,
     position     => $arg->{position} // 0,
     "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
 
@@ -1071,8 +1082,13 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     return $error;
   }
 
-  my $total = $search->{rs}->search($search->{filter})
-                           ->search({ isActive => 1 })->count;
+  my $total = $search->{rs}->search(
+    $search->{filter},
+    {
+      $search->{sort}->%*,
+      $search->{join}->%*,
+    },
+  )->search({ 'me.isActive' => 1 })->count;
 
   if ($arg->{sinceState} == $hms) {
     # Nothing changed!  But we still promise to return the total,
@@ -1111,7 +1127,10 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
   # XXX: stupid, gross, blah -- rjbs, 2016-04-13
   my @entities = $search->{rs}->search(
     \%immutable,
-    $search->{sort}
+    {
+      $search->{sort}->%*,
+      $search->{join}->%*,
+    },
   )->all;
 
   my $i = 0;
@@ -1130,7 +1149,17 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
         if (my $differ = $filter_map->{$filter}->{differ}) {
           $diff = $differ->($entity, $arg->{filter}{$filter});
         } else {
-          $diff = differ($entity->$filter, $arg->{filter}{$filter});
+          # Filters can look across tables, like 'recipe.is_delicious'.
+          # In these cases we need to walk the method tree to get the
+          # info.
+          my @methods = split('\.', $filter);
+
+          my $val = $entity;
+          while (my $meth = shift @methods) {
+            $val = $val->$meth;
+          }
+
+          $diff = differ($val, $arg->{filter}{$filter});
         }
 
         if ($diff) {
@@ -1262,9 +1291,12 @@ sub _get_list_search_args ($self, $ctx, $arg) {
     })->throw;
   }
 
-  $search{sort} = {
-    order_by => \@sort,
-    ( $rclass->ix_get_list_joins ? ( join => [ $rclass->ix_get_list_joins ] ) : () ),
+  $search{sort} = { order_by => \@sort };
+  $search{join} = {
+    ( $rclass->ix_get_list_joins
+      ? ( join => [ $rclass->ix_get_list_joins ] )
+      : ()
+    ),
   };
 
   return \%search;
