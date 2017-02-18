@@ -59,21 +59,23 @@ sub ix_create_check ($self, $ctx, $arg) {
   return;
 }
 
-sub ix_update_check ($self, $ctx, $row, $arg) {
+sub ix_update_check ($self, $ctx, $row, $rec) {
   # Can't make a half-eaten cookie into a new cookie
   if (
-       $arg->{type}
-    && $arg->{type} !~ /eaten/i
+       $rec->{type}
+    && $rec->{type} !~ /eaten/i
     && $row->type =~ /eaten/i
   ) {
     return $ctx->error(partyFoul => {
       description => "You can't pretend you haven't eaten a part of that coookie!",
     });
-
-    return;
   }
 
-  if (my $err = $self->_check_baked_at($ctx, $arg)) {
+  if ($rec->{type} && $rec->{type} eq 'macaron') {
+    $rec->{delicious} = 'eh';
+  }
+
+  if (my $err = $self->_check_baked_at($ctx, $rec)) {
     return $err;
   }
 

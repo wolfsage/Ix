@@ -667,7 +667,7 @@ sub ix_update ($self, $ctx, $to_update) {
   my $type_key   = $rclass->ix_type_key;
   my $next_state = $ctx->state->next_state_for($type_key);
 
-  my @updated;
+  my %updated;
 
   my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
   my $prop_info = $rclass->ix_property_info;
@@ -691,6 +691,14 @@ sub ix_update ($self, $ctx, $to_update) {
       });
       next UPDATE;
     }
+
+    # We get the keys the user actually supplied so that we can, later, see
+    # whether we've subsequently added more changes.  This isn't an ideal
+    # check, since we should also detect values that differ from what the user
+    # gave, if we decide it's okay for the user to say update{x:1,y:2} and us
+    # to say "we updated x:1 but set y:3".  We can cross that bridge when we
+    # come to it. -- rjbs, 2017-02-18
+    my %user_gave_prop = map {; $_ => 1  } keys $to_update->{$id}->%*;
 
     my ($user_prop, $property_error) = $self->_ix_check_user_properties(
       $ctx,
@@ -759,14 +767,16 @@ sub ix_update ($self, $ctx, $to_update) {
     };
 
     if ($ok) {
-      push @updated, $id;
+      my @unrequested = grep {; ! $user_gave_prop{$_} } keys %$user_prop;
+      $updated{$id} = @unrequested ? { $user_prop->%{ @unrequested } }
+                                   : undef;
       $result{actual_updates}++ if $ok == $UPDATED;
     } else {
       $result{not_updated}{$id} = $error;
     }
   }
 
-  $result{updated} = { map {; $_ => undef } @updated };
+  $result{updated} = \%updated;
 
   # Let rclasses do something with the updated ids if they like
   $rclass->ix_postprocess_update($ctx, $result{updated});

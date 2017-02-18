@@ -8,7 +8,9 @@ use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
 use Test::Deep;
+use Test::Deep::JType;
 use Test::More;
+use Test::Abortable;
 
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 my ($admin_id, $accountId) = Bakesale::Test->load_single_user($app->processor->schema_connection);
@@ -432,6 +434,75 @@ subtest "complex state comparisons" => sub {
       "the eight expected items updated",
     );
   };
+};
+
+subtest "updated null and updated Object" => sub {
+  my $cookie_id;
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        setCookies => {
+          create => { foo => { type => 'macaroon' } }
+        },
+      ],
+    ]);
+
+    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $cookie = $set->created->{foo};
+    $cookie_id = $cookie->{id};
+
+    jcmp_deeply(
+      $cookie,
+      {
+        id => jstr(),
+        baked_at => ignore(),
+        expires_at => ignore(),
+        delicious => jstr('yes'),
+
+        external_id => undef, # is this really needed?
+      },
+      "created a cookie"
+    );
+  }
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        setCookies => {
+          update => { $cookie_id => { delicious => 'maybe' } }
+        },
+      ],
+    ]);
+
+    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $cookie = $set->updated->{ $cookie_id };
+
+    jcmp_deeply(
+      $cookie,
+      undef,
+      "we updated the cookie, no server-provided updates",
+    );
+  }
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        setCookies => {
+          update => { $cookie_id => { type => 'macaron' } }
+        },
+      ],
+    ]);
+
+    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $cookie = $set->updated->{ $cookie_id };
+
+    jcmp_deeply(
+      $cookie,
+      { delicious => jstr('eh') },
+      "we updated the cookie, so did the server",
+    );
+  }
 };
 
 done_testing;
