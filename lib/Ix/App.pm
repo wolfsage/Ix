@@ -124,7 +124,7 @@ sub to_app ($self) {
       return [
         500,
         [
-          'Content-Type', 'application/json',
+          'Content-Type', 'application/json; charset=utf-8',
         ],
         [ $self->encode_json({ error => "internal", guid => $guid }) ],
       ];

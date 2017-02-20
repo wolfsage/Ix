@@ -16,7 +16,7 @@ sub _core_request ($self, $ctx, $req) {
     return [
       400,
       [
-        'Content-Type', 'application/json',
+        'Content-Type', 'application/json; charset=utf-8',
       ],
       [ '{"error":"could not decode request"}' ],
     ];
@@ -29,7 +29,7 @@ sub _core_request ($self, $ctx, $req) {
   return [
     200,
     [
-      'Content-Type', 'application/json',
+      'Content-Type', 'application/json; charset=utf-8',
     ],
     [ $json ],
   ];
