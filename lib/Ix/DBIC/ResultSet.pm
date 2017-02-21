@@ -1153,6 +1153,8 @@ sub _get_list_search_args ($self, $ctx, $arg) {
       push @conds, $builder->($val);
     } else {
       my $sql_name = $field;
+
+      # In case we join and share column names
       unless ($sql_name =~ /\./) {
         $sql_name = "me.$sql_name"; # me.<...>
       }
@@ -1196,7 +1198,17 @@ sub _get_list_search_args ($self, $ctx, $arg) {
       next SORT;
     }
 
-    push @sort, { "-$order" => $sort_map->{$field}{sort_by} || $field };
+    my $sorter = $sort_map->{$field}{sort_by};
+    unless ($sorter) {
+      $sorter = $field;
+
+      # In case we join and share column names
+      unless ($sorter =~ /\./) {
+        $sorter = "me.$sorter";
+      }
+    }
+
+    push @sort, { "-$order" => $sorter };
   }
 
   # We need to be consistently ordered on multiple requests.  This will

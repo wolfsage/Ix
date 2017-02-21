@@ -54,7 +54,7 @@ ok($secret2_recipe_id, 'created a marble recipe');
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
+        sort => [ 'created asc' ],
       },
     ],
   ]);
@@ -75,7 +75,7 @@ ok($secret2_recipe_id, 'created a marble recipe');
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
+        sort => [ 'created asc' ],
         sinceState => 0,
       },
     ],

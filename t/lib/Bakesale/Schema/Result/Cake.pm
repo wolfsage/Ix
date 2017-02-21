@@ -184,6 +184,7 @@ sub ix_postprocess_set ($self, $ctx, $results) {
 
 sub ix_get_list_sort_map {
   return {
+    created     => { },
     layer_count => { },
     baked_at    => { },
     recipeId    => { },
