@@ -49,7 +49,6 @@ has state => (
   lazy => 1,
   builder => '_build_state',
   predicate => '_has_state',
-  clearer   => '_clear_state',
 );
 
 sub _build_state ($self) {
@@ -87,9 +86,7 @@ sub txn_do ($self, $code) {
   }
 
   # Start of a tree? Localize state so it goes away when we're done
-  if ($self->_txn_level == 0) {
-    local $self->{state} = $self->_build_state;
-  }
+  local $self->{state} = $self->_build_state if $self->_txn_level == 0;
 
   my $state = $self->state;
 
@@ -113,8 +110,6 @@ sub txn_do ($self, $code) {
   # Are we the start of this tree? Commit the state changes if any
   if ($self->_txn_level == 0) {
     $state->_save_states;
-
-    $self->_clear_state;
   }
 
   return @rv;

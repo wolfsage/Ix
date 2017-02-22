@@ -9,6 +9,7 @@ use Bakesale::Schema;
 use Test::Deep;
 use Test::More;
 use Safe::Isa;
+use Try::Tiny;
 
 my $no_updates = any({}, undef);
 
@@ -558,7 +559,54 @@ subtest "invalid sinceState" => sub {
     ],
     "we can create cookies with setCookies",
   ) or diag explain($res);
+}
 
+{
+  # Ensure even after exceptions that our context's state is cleared and
+  # not reused
+  $ctx = $ctx->with_account('generic' => undef);
+
+  print STDERR "Ignore the next exception report for now..\n";
+  my $error = try {
+    $ctx->process_request([
+      [
+        setCakes => { create => [] },
+      ],
+    ]);
+
+    return;
+  } catch {
+    return $_;
+  };
+
+  ok($error, 'process_request died');
+
+  # Make another call with that ctx, should succeed
+  my $cake_res = $ctx->process_request([
+    [
+      setCakes => {
+        create    => {
+          yum => { type => 'layered', layer_count => 4, recipeId => $account{recipes}{1} }
+        }
+      },
+      'cake!',
+    ],
+  ]);
+
+  cmp_deeply(
+    $cake_res,
+    [
+      [
+        cakesSet => superhashof({
+          created => {
+            yum => superhashof({ baked_at => ignore() }),
+          }
+        }),
+        'cake!',
+      ],
+    ],
+    "we can bake cakes",
+  ) or diag explain($cake_res);
 }
 
 done_testing;

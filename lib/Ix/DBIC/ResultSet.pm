@@ -881,6 +881,7 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
 
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+
   my $accountId = $ctx->accountId;
 
   my $type_key = $rclass->ix_type_key;
