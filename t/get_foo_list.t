@@ -432,8 +432,7 @@ subtest "custom condition builder" => sub {
     "got cake back with fetchCakes => 1"
   ) or diag explain $res->as_stripped_struct;
 
-  # This fetch arg is useless without the first.
-  # XXX - Throw error? -- alh, 2016-11-22
+  # Fetching just the recipes should work
   $res = $jmap_tester->request([
     [
       getCakeList => {
@@ -447,7 +446,7 @@ subtest "custom condition builder" => sub {
   ]);
 
   jcmp_deeply(
-    $res->single_sentence->arguments,
+    $res->sentence(0)->arguments,
     {
       'cakeIds' => [
         @cake_id{qw(pb1)},
@@ -462,7 +461,18 @@ subtest "custom condition builder" => sub {
       'state' => $state,
       'total' => 1,
     },
-    "getCakeList with fetchRecipes => 1 but no fetchCakes doesn't grab recipes"
+    "getCakeList with fetchRecipes => 1 but no fetchCakes"
+  ) or diag explain $res->as_stripped_struct;
+
+  jcmp_deeply(
+    $res->sentence(1)->arguments->{list},
+    [
+      superhashof({
+        id => $secret1_recipe_id,
+        type => 'secret1',
+      }),
+    ],
+    "got recipe back with no fetchCakes and fetchRecipes => 1"
   ) or diag explain $res->as_stripped_struct;
 
   # Provide both

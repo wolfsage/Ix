@@ -984,7 +984,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     },
   );
 
-  my @ids = $search_page->get_column('id')->all;
+  my @items = $search_page->all;
 
   my $hms = "" . $ctx->state->highest_modseq_for($key);
 
@@ -994,28 +994,27 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     state        => $hms,
     total        => $search->{rs}->search($search->{filter})->count,
     position     => $arg->{position} // 0,
-    "${key1}Ids" => [ map {; "$_" } @ids ],
+    "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
 
     canCalculateUpdates => \1,
   });
 
+  # fetchFoos
   if ($arg->{$fetch_arg}) {
-    push @res, $self->ix_get($ctx, { ids => \@ids });
+    push @res, $self->ix_get($ctx, { ids => [ map {; "" . $_->{id} } @items ] });
+  }
 
-    my $res_list = $res[-1]->result_arguments->{list};
+  # Any other fetch* args?
+  for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
+    if ($arg->{$field}) {
+      my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
 
-    # Any other fetch* args?
-    for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
-      if ($arg->{$field}) {
-        my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
+      my @ids = map {; "" . $_->{$fetchable->{field}} } @items;
 
-        my @ids = map {; "$_->{$fetchable->{field}}" } $res_list->@*;
-
-        push @res, $schema->resultset($fetchable->{result_set})->ix_get(
-          $ctx,
-          { ids => \@ids },
-        );
-      }
+      push @res, $schema->resultset($fetchable->{result_set})->ix_get(
+        $ctx,
+        { ids => \@ids },
+      );
     }
   }
 
