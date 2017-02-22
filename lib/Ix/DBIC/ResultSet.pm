@@ -959,6 +959,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
   my $key = $rclass->ix_type_key;
   my $key1 = $rclass->ix_type_key_singular;
   my $fetch_arg = "fetch\u$key";
+  my $fetch_properties_arg = "fetch\u${key1}Properties";
   my $orig_filter = $arg->{filter};
   my $orig_sort   = $arg->{sort};
 
@@ -1001,20 +1002,38 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
 
   # fetchFoos
   if ($arg->{$fetch_arg}) {
-    push @res, $self->ix_get($ctx, { ids => [ map {; "" . $_->{id} } @items ] });
+    push @res, $self->ix_get($ctx, {
+      ids => [ map {; "" . $_->{id} } @items ],
+
+      # fetchFooProperties => [ '...' ]
+      ( $arg->{$fetch_properties_arg}
+        ? ( properties => $arg->{$fetch_properties_arg } )
+        : ()
+      ),
+    });
   }
 
   # Any other fetch* args?
   for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
     if ($arg->{$field}) {
       my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
+      my $result_set = $schema->resultset($fetchable->{result_set});
+      my $properties_arg = $fetchable->{properties_arg};
 
-      my @ids = map {; "" . $_->{$fetchable->{field}} } @items;
+      unless (defined $properties_arg) {
+        my $singular = $field =~ s/s\z//r;
+        $properties_arg = "${singular}Properties";
+      }
 
-      push @res, $schema->resultset($fetchable->{result_set})->ix_get(
-        $ctx,
-        { ids => \@ids },
-      );
+      push @res, $result_set->ix_get($ctx, {
+        ids => [ map {; "" . $_->{$fetchable->{field}} } @items ],
+
+        # fetchOtherFooProperties
+        ( $arg->{$properties_arg}
+          ? ( properties => $arg->{$properties_arg} )
+          : ()
+        ),
+      });
     }
   }
 

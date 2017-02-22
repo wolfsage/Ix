@@ -848,7 +848,98 @@ subtest "custom condition builder" => sub {
     },
     "getCakeListUpdates ix_get_list_updates_check hook works"
   );
-};
+}
+
+{
+  # fetchFooProperties
+  $res = $jmap_tester->request([
+    [
+      getCakeList => {
+        filter => {
+          recipeId   => $secret1_recipe_id,
+          type       => 'peanut butter',
+        },
+        fetchCakes => \1,
+        fetchCakeProperties => [ 'type', 'baked_at' ],
+      },
+    ],
+  ]);
+
+  jcmp_deeply(
+    $res->sentence(0)->arguments,
+    {
+      'cakeIds' => [
+        @cake_id{qw(pb1)},
+      ],
+      'filter' => {
+        'recipeId' => $secret1_recipe_id,
+        'type'     => 'peanut butter',
+      },
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'position' => 0,
+      'sort' => undef,
+      'state' => $state,
+      'total' => 1,
+    },
+    "getCakeList with fetchRecipes => 1 but no fetchCakes"
+  ) or diag explain $res->as_stripped_struct;
+
+  jcmp_deeply(
+    $res->sentence(1)->arguments->{list},
+    [
+      {
+        id       => $cake_id{pb1},
+        type     => 'peanut butter',
+        baked_at => ignore(),
+      },
+    ],
+    "got cake back with fetchCakes => 1"
+  ) or diag explain $res->as_stripped_struct;
+
+  # fetchOtherFooProperties
+  $res = $jmap_tester->request([
+    [
+      getCakeList => {
+        filter => {
+          recipeId   => $secret1_recipe_id,
+          type       => 'peanut butter',
+        },
+        fetchRecipes => \1,
+        fetchRecipeProperties => [ 'is_delicious' ],
+      },
+    ],
+  ]);
+
+  jcmp_deeply(
+    $res->sentence(0)->arguments,
+    {
+      'cakeIds' => [
+        @cake_id{qw(pb1)},
+      ],
+      'filter' => {
+        'recipeId' => $secret1_recipe_id,
+        'type'     => 'peanut butter',
+      },
+      'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
+      'position' => 0,
+      'sort' => undef,
+      'state' => $state,
+      'total' => 1,
+    },
+    "getCakeList with fetchRecipes => 1 but no fetchCakes"
+  ) or diag explain $res->as_stripped_struct;
+
+  jcmp_deeply(
+    $res->sentence(1)->arguments->{list},
+    [
+      {
+        id           => $secret1_recipe_id,
+        is_delicious => jtrue,
+      },
+    ],
+    "got recipe back with no fetchCakes and fetchRecipes => 1"
+  ) or diag explain $res->as_stripped_struct;
+}
 
 done_testing;
 
