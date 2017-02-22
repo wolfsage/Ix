@@ -1112,7 +1112,15 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
 
     unless ($is_removed) {
       FILTER: for my $filter (keys $arg->{filter}->%*) {
-        if (differ($entity->$filter, $arg->{filter}{$filter})) {
+        my $diff;
+
+        if (my $differ = $filter_map->{$filter}->{differ}) {
+          $diff = $differ->($entity, $arg->{filter}{$filter});
+        } else {
+          $diff = differ($entity->$filter, $arg->{filter}{$filter});
+        }
+
+        if ($diff) {
           $is_removed = 1;
           last FILTER;
         }
@@ -1164,7 +1172,7 @@ sub _get_list_search_args ($self, $ctx, $arg) {
     }
 
     my $val = defined $arg->{filter}{$field}
-            ? $arg->{filter}{$field} . ""
+            ? $arg->{filter}{$field}
             : undef;
 
     if (my $builder = $filter_map->{$field}{cond_builder}) {
