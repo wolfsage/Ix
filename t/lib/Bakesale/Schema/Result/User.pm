@@ -60,6 +60,9 @@ sub ix_create_error ($self, $ctx, $error, $args) {
       delete $input->{id};
 
       return $nobody;
+    } elsif ($rec->{username} eq 'kaboom') {
+      # Let Ix handle this duplicate key error
+      return ();
     }
 
     return (
@@ -85,7 +88,11 @@ sub ix_update_error ($self, $ctx, $error, $args) {
       });
 
       return $Ix::DBIC::ResultSet::SKIPPED;
+    } elsif ($row->username eq 'kaboom') {
+      # Let Ix handle this duplicate key error
+      return ();
     }
+
     return (
       undef,
       $ctx->error(alreadyExists => {

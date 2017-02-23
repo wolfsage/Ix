@@ -1809,4 +1809,52 @@ subtest "optional idstr" => sub {
   ) or diag explain $res->as_stripped_struct;
 };
 
+subtest "friendly duplicate key errors" => sub {
+  my $create_res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        first  => { username => 'kaboom', },
+        second => { username => 'anewuser2' },
+        kaboom => { username => 'kaboom'  },
+      },
+    } ],
+  ]);
+
+  my $set = $create_res->single_sentence->as_set;
+
+  ok(my $second = $set->created_id('second'), 'created second user');
+
+  my $err = $create_res->single_sentence->arguments->{notCreated};
+  is(keys %$err, 1, 'one row failed to create');
+
+  jcmp_deeply(
+    (values %$err)[0],
+    {
+      type => 'invalidRecord',
+      description => 'create conflicts with existing object',
+    },
+    'got frieindly duplicate key error'
+  );
+
+  # Same with update
+  my $update_res = $jmap_tester->request([
+    [ setUsers => {
+      update => {
+        $second => { username => 'kaboom' },
+      },
+    } ],
+  ]);
+
+  jcmp_deeply(
+    $update_res->single_sentence->arguments->{notUpdated},
+    {
+      $second => {
+        type => 'invalidRecord',
+        description => 'update conflicts with existing object',
+      },
+    },
+    'got frieindly duplicate key error'
+  );
+};
+
 done_testing;

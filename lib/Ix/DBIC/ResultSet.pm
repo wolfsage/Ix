@@ -412,6 +412,16 @@ sub ix_create ($self, $ctx, $to_create) {
       );
 
       unless ($row or $error) {
+        # Mask duplicate key errors nicely
+        if ($exception =~ /\ADBIx.*ERROR:\s+duplicate key/) {
+          return (
+            undef,
+            $ctx->error(invalidRecord => {
+              description => 'create conflicts with existing object'
+            }),
+          );
+        }
+
         return (
           undef,
           $ctx->error(
@@ -754,6 +764,15 @@ sub ix_update ($self, $ctx, $to_update) {
       );
 
       unless ($ok or $error) {
+        if ($exception =~ /\ADBIx.*ERROR:\s+duplicate key/) {
+          return (
+            undef,
+            $ctx->error(invalidRecord => {
+              description => 'update conflicts with existing object'
+            }),
+          );
+        }
+
         return (
           undef,
           $ctx->error(
