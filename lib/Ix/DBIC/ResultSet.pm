@@ -1088,16 +1088,29 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     });
   }
 
+  # Query on all immutable fields that were passed in to the filter to
+  # condense our list of possible changes; otherwise we may end up querying
+  # the entire table.
   my $filter_map = $rclass->ix_get_list_filter_map;
-  my %required = map {;
-    $_ => $arg->{filter}{$_}
+  my $prop_info = $rclass->ix_property_info;
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
+
+  my %immutable = map {;
+    my $prop = $_ =~ /\./ ? $_ : "me.$_"; # me.<...>
+
+    $prop => defined $arg->{filter}{$_} ? "" . $arg->{filter}{$_} : undef;
   } grep {;
-    $filter_map->{$_}->{required}
+       exists $arg->{filter}{$_}
+    && $prop_info->{$_}
+    && (
+         ! $is_user_prop{$_}         # Mutable? Skip
+      || $prop_info->{$_}->{xref_to} # xref_tos aren't really mutable
+    )
   } keys %$filter_map;
 
   # XXX: stupid, gross, blah -- rjbs, 2016-04-13
   my @entities = $search->{rs}->search(
-    \%required,
+    \%immutable,
     $search->{sort}
   )->all;
 
