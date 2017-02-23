@@ -1185,7 +1185,7 @@ sub _get_list_search_args ($self, $ctx, $arg) {
         $sql_name = "me.$sql_name"; # me.<...>
       }
 
-      push @conds, { $sql_name => $val };
+      push @conds, { $sql_name => defined $val ? "" . $val : undef };
     }
   }
 
