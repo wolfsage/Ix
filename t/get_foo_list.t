@@ -941,5 +941,143 @@ subtest "custom condition builder" => sub {
   ) or diag explain $res->as_stripped_struct;
 }
 
+subtest 'custom differ, and no required filters' => sub {
+  # Ensure our custom differ works. Also ensure that if we don't have
+  # required filters, we limit our updates list to those that could
+  # have changed, not the entire table
+
+  my @states;
+
+  my %cl_args = (
+    filter => {
+      types => [ 'oatmeal stout', 'oreo stout' ],
+      batch => $Bakesale::Schema::Result::Cookie::next_batch,
+    },
+    sort   => [ "type asc" ],
+  );
+
+  {
+    # Get base state
+    my $cl_res = $jmap_tester->request([[
+      getCookieList => \%cl_args,
+    ]]);
+
+    jcmp_deeply(
+      $cl_res->single_sentence->arguments,
+      superhashof({
+        cookieIds => [],
+      }),
+      "No cookies match our filter yet"
+    ) or diag explain $cl_res->as_stripped_struct;
+
+    my $base_state = $cl_res->single_sentence->arguments->{state};
+    ok(defined $base_state, 'got cookie state');
+
+    push @states, $base_state;
+  }
+
+  my ($oatmeal, $oreo, $peanut);
+
+  {
+    # Create some weird cookies
+    my $set_cookies = $jmap_tester->request([
+      [ setCookies => { create => {
+        oatmeal1 => { type => 'oatmeal stout' },
+        oreo1    => { type => 'oreo stout'    },
+        peanut1  => { type => 'peanut stout'  },
+      } } ],
+    ]);
+
+    my $set = $set_cookies->sentence(0)->as_set;
+
+    is(
+      $set->created_ids,
+      3,
+      'created 3 cookies'
+    ) or diag explain $set_cookies->as_stripped_struct;
+
+    $oatmeal = $set->created_id('oatmeal1') . "";
+    $oreo = $set->created_id('oreo1') . "";
+    $peanut = $set->created_id('peanut1') . "";
+
+    # Verify
+    my $clu_res = $jmap_tester->request([[
+      getCookieListUpdates => {
+        %cl_args,
+        sinceState => $states[0],
+      },
+    ]]);
+
+    jcmp_deeply(
+      $clu_res->single_sentence->arguments,
+      superhashof({
+        added => [
+          {
+            index => 0,
+            cookieId => $oatmeal,
+          }, {
+            index => 1,
+            cookieId => $oreo,
+          }
+        ],
+        removed => [ ],
+      }),
+      "Got two cookies out of three"
+    ) or diag explain $clu_res->as_stripped_struct;
+
+    my $state = $clu_res->single_sentence->arguments->{newState};
+    ok(defined $state, 'got next cookie state')
+      or diag explain $clu_res->as_stripped_struct;
+
+    cmp_ok($state, '>', $states[-1], 'cookie state increased');
+
+    push @states, $state;
+  }
+
+  {
+    # Change two cookies, one so it no longer matches the filter, another
+    # so it now matches the filter
+    my $upd_res = $jmap_tester->request([[
+      setCookies => {
+        update => {
+          $oatmeal => { type => 'banana' },
+          $peanut  => { type => 'oatmeal stout' },
+        },
+      },
+    ]]);
+
+    is(
+      $upd_res->single_sentence->as_set->updated_ids,
+      2,
+      'updated the type of two cookies'
+    );
+
+    # Verify
+    my $clu_res = $jmap_tester->request([[
+      getCookieListUpdates => {
+        %cl_args,
+        sinceState => $states[-1],
+      },
+    ]]);
+
+    jcmp_deeply(
+      $clu_res->single_sentence->arguments,
+      superhashof({
+        added => [
+          {
+            index => 0,
+            cookieId => $peanut,
+          },
+        ],
+        removed => [
+          $oatmeal,
+          $peanut # Spurious remove, but spec says that's okay
+        ],
+      }),
+      "Correctly reported addition of 1 cookie and removal of another"
+    ) or diag explain $clu_res->as_stripped_struct;
+  }
+};
+
 done_testing;
 

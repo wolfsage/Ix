@@ -131,8 +131,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
-            gold   => { id => ignore(), baked_at => ignore(), expires_at => ignore(), external_id => ignore, },
+            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore() },
+            gold   => { id => ignore(), baked_at => ignore(), expires_at => ignore(), external_id => ignore, batch => ignore() },
           },
           notCreated => {
             blue   => superhashof({
@@ -381,8 +381,8 @@ subtest "invalid sinceState" => sub {
       [
         cookiesSet => superhashof({
           created => {
-            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
-            red    => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
+            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
+            red    => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
           },
           notCreated => {
             green  => superhashof({
@@ -543,7 +543,7 @@ subtest "invalid sinceState" => sub {
           newState => 12,
 
           created => {
-            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore(), },
+            yellow => { id => ignore(), baked_at => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore(), batch => ignore(), },
           },
           updated => { $account{cookies}{1} => $no_updates },
           notCreated => {

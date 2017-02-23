@@ -5,6 +5,8 @@ package Bakesale::Schema::Result::Cookie;
 use base qw/DBIx::Class::Core/;
 use DateTime;
 use Ix::Validators qw(idstr);
+use Ix::Util qw(differ);
+use List::Util qw(first);
 
 __PACKAGE__->load_components(qw/+Ix::DBIC::Result/);
 
@@ -14,6 +16,7 @@ __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
   type       => { data_type => 'string', },
+  batch      => { data_type => 'integer', is_immutable => 1 },
   baked_at   => { data_type => 'timestamptz', is_optional => 1 },
   expires_at => { data_type => 'timestamptz', is_optional => 0 },
   delicious  => { data_type => 'string', is_optional => 0 },
@@ -28,11 +31,15 @@ sub ix_account_type { 'generic' }
 
 sub ix_extra_get_args { qw(tasty) }
 
+our $next_batch = 2;
+sub ix_postprocess_set { $next_batch++ }
+
 sub ix_default_properties {
   return {
-    baked_at => Ix::DateTime->now,
+    baked_at  => Ix::DateTime->now,
     expires_at => Ix::DateTime->now->add(days => 3),
-    delicious => 'yes',
+    delicious  => 'yes',
+    batch      => sub { $next_batch }
   };
 }
 
@@ -42,7 +49,7 @@ sub ix_set_check ($self, $ctx, $arg) {
     for my $cookie (values $arg->{create}->%*) {
       if ($cookie->{type} && $cookie->{type} eq 'cake') {
         return $ctx->error(invalidArguments => {
-          descriptoin => "A cake is not a cookie",
+          description => "A cake is not a cookie",
         });
       }
     }
@@ -105,5 +112,53 @@ sub ix_destroy_check ($self, $ctx, $row) {
 
   return;
 }
+
+sub ix_get_list_sort_map {
+  return {
+    type        => { },
+    baked_at    => { },
+    expires_at  => { },
+    delicious   => { },
+  };
+}
+
+sub ix_get_list_filter_map {
+  return {
+    types => {
+      cond_builder => sub ($types) {
+        return { type => $types },
+      },
+      differ => sub ($entity, $filter) {
+        # This difffers if its type is not in filter list
+        my $found = first { ! differ($entity->type, $_) } @$filter;
+
+        return $found ? 0 : 1;
+      },
+    },
+    batch => { },
+  };
+}
+
+sub ix_get_list_fetchable_map { { } }
+
+sub ix_get_list_joins { () }
+
+sub ix_get_list_check ($self, $ctx, $arg, $search) {
+  if ($arg->{filter}{types}) {
+    unless ((ref($arg->{filter}{types}) || '') eq 'ARRAY') {
+      return $ctx->error(invalidArguments => {
+        description => "filter.types must be a list of types",
+      });
+    }
+  }
+
+  return;
+}
+
+sub ix_get_list_updates_check ($self, $ctx, $arg, $search) {
+  return $self->ix_get_list_check($ctx, $arg, $search);
+}
+
+sub ix_get_list_enabled { 1 }
 
 1;
