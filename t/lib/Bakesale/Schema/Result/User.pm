@@ -24,6 +24,12 @@ __PACKAGE__->ix_add_unique_constraint(
   [ qw(username) ],
 );
 
+sub ix_extra_deployment_statements {
+  return (
+    'CREATE UNIQUE INDEX users_username_lower ON users ("isActive", lower(username))',
+  );
+}
+
 sub ix_account_type { 'generic' }
 
 sub ix_type_key { 'users' }

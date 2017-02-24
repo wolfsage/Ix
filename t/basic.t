@@ -1809,6 +1809,29 @@ subtest "optional idstr" => sub {
   ) or diag explain $res->as_stripped_struct;
 };
 
+subtest "ix_custom_deployment_statements" => sub {
+  my $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        first       => { username => 'case', },
+        second      => { username => 'CASE', },
+      },
+    } ],
+  ]);
+
+  my $arg = $res->single_sentence->arguments;
+
+  is(keys $arg->{created}->%*, 1, 'created one user');
+  is(keys $arg->{notCreated}->%*, 1, 'failed to create one user');
+  jcmp_deeply(
+    (values $arg->{notCreated}->%*)[0],
+    superhashof({
+      description => re(qr/already exists/),
+    }),
+    'our custom sql works'
+  );
+};
+
 subtest "friendly duplicate key errors" => sub {
   my $create_res = $jmap_tester->request([
     [ setUsers => {

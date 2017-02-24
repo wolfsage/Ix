@@ -14,6 +14,23 @@ sub ix_finalize ($self) {
   }
 }
 
+# Allow rclasses to define custom sql (for special indexes,
+# functions, etc...)
+sub deployment_statements {
+  my $self = shift;
+
+  my @extra_statements = map {
+    $_->result_class->ix_extra_deployment_statements
+  } grep {
+    $_->result_class->can('ix_extra_deployment_statements')
+  } values $self->source_registrations->%*;
+
+  return (
+    $self->DBIx::Class::Schema::deployment_statements(@_),
+    @extra_statements
+  );
+}
+
 sub deploy {
   my ($self) = shift;
   $self->storage->dbh_do(sub {
