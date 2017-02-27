@@ -459,7 +459,7 @@ subtest "updated null and updated Object" => sub {
         baked_at => ignore(),
         expires_at => ignore(),
         delicious => jstr('yes'),
-
+        batch => ignore,
         external_id => undef, # is this really needed?
       },
       "created a cookie"

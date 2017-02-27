@@ -19,7 +19,7 @@ __PACKAGE__->ix_add_properties(
   baked_at    => { data_type => 'timestamptz', is_immutable => 1 },
   recipeId    => {
     data_type    => 'idstr',
-    xref_to      => 'cakeRecipes'
+    xref_to      => 'cakeRecipes',
   },
 );
 

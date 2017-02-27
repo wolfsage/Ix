@@ -959,6 +959,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
   my $key = $rclass->ix_type_key;
   my $key1 = $rclass->ix_type_key_singular;
   my $fetch_arg = "fetch\u$key";
+  my $fetch_properties_arg = "fetch\u${key1}Properties";
   my $orig_filter = $arg->{filter};
   my $orig_sort   = $arg->{sort};
 
@@ -984,7 +985,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     },
   );
 
-  my @ids = $search_page->get_column('id')->all;
+  my @items = $search_page->all;
 
   my $hms = "" . $ctx->state->highest_modseq_for($key);
 
@@ -994,28 +995,45 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     state        => $hms,
     total        => $search->{rs}->search($search->{filter})->count,
     position     => $arg->{position} // 0,
-    "${key1}Ids" => [ map {; "$_" } @ids ],
+    "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
 
     canCalculateUpdates => \1,
   });
 
+  # fetchFoos
   if ($arg->{$fetch_arg}) {
-    push @res, $self->ix_get($ctx, { ids => \@ids });
+    push @res, $self->ix_get($ctx, {
+      ids => [ map {; "" . $_->{id} } @items ],
 
-    my $res_list = $res[-1]->result_arguments->{list};
+      # fetchFooProperties => [ '...' ]
+      ( $arg->{$fetch_properties_arg}
+        ? ( properties => $arg->{$fetch_properties_arg } )
+        : ()
+      ),
+    });
+  }
 
-    # Any other fetch* args?
-    for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
-      if ($arg->{$field}) {
-        my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
+  # Any other fetch* args?
+  for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
+    if ($arg->{$field}) {
+      my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
+      my $result_set = $schema->resultset($fetchable->{result_set});
+      my $properties_arg = $fetchable->{properties_arg};
 
-        my @ids = map {; "$_->{$fetchable->{field}}" } $res_list->@*;
-
-        push @res, $schema->resultset($fetchable->{result_set})->ix_get(
-          $ctx,
-          { ids => \@ids },
-        );
+      unless (defined $properties_arg) {
+        my $singular = $field =~ s/s\z//r;
+        $properties_arg = "${singular}Properties";
       }
+
+      push @res, $result_set->ix_get($ctx, {
+        ids => [ map {; "" . $_->{$fetchable->{field}} } @items ],
+
+        # fetchOtherFooProperties
+        ( $arg->{$properties_arg}
+          ? ( properties => $arg->{$properties_arg} )
+          : ()
+        ),
+      });
     }
   }
 
@@ -1070,16 +1088,29 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     });
   }
 
+  # Query on all immutable fields that were passed in to the filter to
+  # condense our list of possible changes; otherwise we may end up querying
+  # the entire table.
   my $filter_map = $rclass->ix_get_list_filter_map;
-  my %required = map {;
-    $_ => $arg->{filter}{$_}
+  my $prop_info = $rclass->ix_property_info;
+  my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
+
+  my %immutable = map {;
+    my $prop = $_ =~ /\./ ? $_ : "me.$_"; # me.<...>
+
+    $prop => defined $arg->{filter}{$_} ? "" . $arg->{filter}{$_} : undef;
   } grep {;
-    $filter_map->{$_}->{required}
+       exists $arg->{filter}{$_}
+    && $prop_info->{$_}
+    && (
+         ! $is_user_prop{$_}         # Mutable? Skip
+      || $prop_info->{$_}->{xref_to} # xref_tos aren't really mutable
+    )
   } keys %$filter_map;
 
   # XXX: stupid, gross, blah -- rjbs, 2016-04-13
   my @entities = $search->{rs}->search(
-    \%required,
+    \%immutable,
     $search->{sort}
   )->all;
 
@@ -1094,7 +1125,15 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
 
     unless ($is_removed) {
       FILTER: for my $filter (keys $arg->{filter}->%*) {
-        if (differ($entity->$filter, $arg->{filter}{$filter})) {
+        my $diff;
+
+        if (my $differ = $filter_map->{$filter}->{differ}) {
+          $diff = $differ->($entity, $arg->{filter}{$filter});
+        } else {
+          $diff = differ($entity->$filter, $arg->{filter}{$filter});
+        }
+
+        if ($diff) {
           $is_removed = 1;
           last FILTER;
         }
@@ -1146,7 +1185,7 @@ sub _get_list_search_args ($self, $ctx, $arg) {
     }
 
     my $val = defined $arg->{filter}{$field}
-            ? $arg->{filter}{$field} . ""
+            ? $arg->{filter}{$field}
             : undef;
 
     if (my $builder = $filter_map->{$field}{cond_builder}) {
@@ -1159,7 +1198,7 @@ sub _get_list_search_args ($self, $ctx, $arg) {
         $sql_name = "me.$sql_name"; # me.<...>
       }
 
-      push @conds, { $sql_name => $val };
+      push @conds, { $sql_name => defined $val ? "" . $val : undef };
     }
   }
 

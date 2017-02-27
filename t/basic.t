@@ -241,8 +241,8 @@ my @created_ids;
           newState => 9,
 
           created => {
-            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, }, # no baked_at, because not default
-            gold   => { id => ignore(), expires_at => ignore, baked_at => ignore(), delicious => ignore(), external_id => ignore, },
+            yellow => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, }, # no baked_at, because not default
+            gold   => { id => ignore(), expires_at => ignore, baked_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
           },
           notCreated => {
             blue   => superhashof({
@@ -660,7 +660,7 @@ subtest "subroutine defaults for lazy computation" => sub {
     [
       [
         cookiesSet => superhashof({
-          created => { raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore(), external_id => ignore() } },
+          created => { raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore(), external_id => ignore(), batch => ignore(), } },
         }),
       ],
     ],
@@ -848,12 +848,12 @@ subtest "timestamptz field validations" => sub {
           oldState => ignore(),
           newState => code(sub { $state = $_[0]; 1}),
           created => {
-            yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez, delicious => ignore(), external_id => ignore, },
-            gold   => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
-            blue   => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
-            white  => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, },
-            pink   => { id => ignore(), baked_at => ignore(), delicious => ignore(), external_id => ignore, },
-            onyx   => { id => ignore(), baked_at => ignore(), delicious => ignore(), external_id => ignore, },
+            yellow => { id => ignore(), expires_at => ignore(), baked_at => $tsrez, delicious => ignore(), external_id => ignore, batch => ignore, },
+            gold   => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
+            blue   => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
+            white  => { id => ignore(), expires_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
+            pink   => { id => ignore(), baked_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
+            onyx   => { id => ignore(), baked_at => ignore(), delicious => ignore(), external_id => ignore, batch => ignore, },
           },
           notCreated => {
             red => superhashof({
@@ -1138,7 +1138,7 @@ subtest "db exceptions" => sub {
     [
       'error',
       {
-        'descriptoin' => 'A cake is not a cookie',
+        'description' => 'A cake is not a cookie',
         'type' => 'invalidArguments'
       },
       'first',
@@ -1785,7 +1785,7 @@ subtest "optional idstr" => sub {
   jcmp_deeply(
     $res->sentence(0)->arguments->{created},
     {
-      raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore() }
+      raw => { id => re(qr/\S/), expires_at => ignore(), delicious => ignore(), batch => ignore, }
     },
     "created a cookie with an external_id",
   ) or diag(explain($jmap_tester->strip_json_types( $res->as_pairs )));

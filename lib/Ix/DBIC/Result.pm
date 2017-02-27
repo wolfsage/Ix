@@ -164,6 +164,28 @@ sub ix_finalize ($class) {
     Carp::confess("Class $class must define an 'ix_type_key' method");
   }
 
+  if ($class->ix_get_list_enabled) {
+    my @missing;
+
+    for my $method (qw(
+      ix_get_list_check
+      ix_get_list_updates_check
+      ix_get_list_fetchable_map
+      ix_get_list_filter_map
+      ix_get_list_sort_map
+      ix_get_list_joins
+    )) {
+      push @missing, $method unless $class->can($method);
+    }
+
+    if (@missing) {
+      Carp::confess(
+          "$class - ix_get_list_enabled is true but these required methods are missing: "
+        . join(', ', @missing)
+      );
+    }
+  }
+
   my $prop_info = $class->ix_property_info;
 
   for my $name (keys %$prop_info) {
@@ -179,8 +201,6 @@ sub ix_get_check              { } # ($self, $ctx, \%arg)
 sub ix_create_check           { } # ($self, $ctx, \%rec)
 sub ix_update_check           { } # ($self, $ctx, $row, \%rec)
 sub ix_destroy_check          { } # ($self, $ctx, $row)
-sub ix_get_list_check         { } # ($self, $ctx, \%arg, \%search)
-sub ix_get_list_updates_check { } # ($self, $ctx, \%arg, \%search)
 
 sub ix_create_error  { return; } # ($self, $ctx, \%error)
 sub ix_update_error  { return; } # ($self, $ctx, \%error)
