@@ -28,7 +28,7 @@ sub ix_type_key { 'cakeToppers' }
 sub ix_account_type { 'generic' }
 
 sub ix_default_properties {
-  return { type => 'basic' };
+  return { type => 'wedding' };
 }
 
 __PACKAGE__->belongs_to(

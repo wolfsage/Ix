@@ -1441,12 +1441,12 @@ subtest "ix_created test" => sub {
             {
               cakeId => $res->as_stripped_struct->[0][1]{created}{yum}{id},
               id => ignore(),
-              type => 'basic'
+              type => 'wedding'
             },
             {
               cakeId => $res->as_stripped_struct->[0][1]{created}{woo}{id},
               id => ignore(),
-              type => 'basic'
+              type => 'wedding'
             },
           ),
           notFound => ignore(),
