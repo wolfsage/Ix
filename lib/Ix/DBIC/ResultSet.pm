@@ -576,10 +576,6 @@ sub _ix_check_user_properties (
       }
     }
 
-    if (JSON::MaybeXS::is_bool($value)) {
-      $value = $value ? 1 : 0;
-    }
-
     if (defined $value && $info->{data_type} eq 'string') {
       $value = NFC($value);
     }

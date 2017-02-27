@@ -9,6 +9,7 @@ use experimental qw(signatures postderef);
 use Ix::StateComparison;
 use Ix::Validators;
 use Ix::Util qw(ix_new_id);
+use JSON::MaybeXS;
 
 sub ix_account_type { Carp::confess("ix_account_type not implemented") }
 
@@ -127,6 +128,18 @@ sub ix_add_properties ($class, @pairs) {
     };
 
     $class->add_columns($name, $col_info);
+
+    if ($def->{data_type} eq 'boolean') {
+      # So differ() can compare these to API inputs sensibly
+      $class->inflate_column($name, {
+        inflate => sub ($raw_value_from_db, $result_object) {
+          return $raw_value_from_db ? JSON->true : JSON->false;
+        },
+        deflate => sub ($input_value, $result_object) {
+          $input_value ? 1 : 0,
+        },
+      });
+    }
   }
 
   if ($class->can('ix_property_info')) {

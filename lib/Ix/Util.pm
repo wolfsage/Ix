@@ -8,7 +8,7 @@ use DateTime::Format::RFC3339;
 use Scalar::Util qw(reftype);
 use Data::GUID qw(guid_string);
 use Package::Stash;
-use JSON::MaybeXS ();
+use JSON::MaybeXS qw(is_bool);
 
 use Sub::Exporter -setup => {
   exports    => [ qw(parsedate parsepgdate differ ix_new_id splitquoted) ],
@@ -59,17 +59,11 @@ sub differ ($x, $y) {
   return 1 if defined $x xor defined $y;
   return unless defined $x;
 
-  if (JSON::MaybeXS::is_bool($x)) {
-    $x = $x ? 1 : 0;
-  }
-
-  if (JSON::MaybeXS::is_bool($y)) {
-    $y = $y ? 1 : 0;
-  }
-
   return 1 if Scalar::Util::reftype($x) xor Scalar::Util::reftype($y);
 
   return $x ne $y if ! ref $x;
+
+  return $x ne $y if is_bool($x) && is_bool($y);
 
   Carp::croak "can't compare two references with Ix::Util::differ";
 }
