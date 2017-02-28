@@ -648,8 +648,8 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => $state,
-      'oldState' => $state-2,
+      'newState' => jstr($state),
+      'oldState' => jstr($state-2),
       'removed' => [],
       'sort' => [
         'type asc'
@@ -679,8 +679,8 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => $state,
-      'oldState' => $state-1,
+      'newState' => jstr($state),
+      'oldState' => jstr($state-1),
       'removed' => [
         $cake_id{chocolate1},
       ],
@@ -737,8 +737,8 @@ subtest "custom condition builder" => sub {
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => $state,
-      'oldState' => $state,
+      'newState' => jstr($state),
+      'oldState' => jstr($state),
       'removed' => [],
       'sort' => [
         'type asc'
