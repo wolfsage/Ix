@@ -63,7 +63,7 @@ sub differ ($x, $y) {
 
   return $x ne $y if ! ref $x;
 
-  return $x ne $y if is_bool($x) && is_bool($y);
+  return ($x xor $y) if is_bool($x) && is_bool($y);
 
   Carp::croak "can't compare two references with Ix::Util::differ";
 }
