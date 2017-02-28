@@ -165,7 +165,7 @@ $state =~ s/-\d+//;
       'total' => 3,
     },
     "getCakeList with sort+filter looks right"
-  );
+  ) or diag explain $res->as_stripped_struct;
 
   # Same but reverse sort
   $res = $jmap_tester->request([
@@ -1345,6 +1345,66 @@ subtest "differ boolean comparison when db row is false" => sub {
       "getCakeListUpdates with filter on join with no match looks right"
     ) or diag explain $res->as_stripped_struct;
   };
+};
+
+subtest "distinct rows only" => sub {
+  # If a cake has many toppers it should still only come back once
+  my $res = $jmap_tester->request([[ setCakeToppers => {
+    create => {
+      first  => { cakeId => $cake_id{pb1}, type => 'sprinkles' },
+      second => { cakeId => $cake_id{pb1}, type => 'candles'   },
+    },
+  } ]]);
+
+  is($res->single_sentence->as_set->created_ids, 2, 'created toppers');
+
+  # This causes our generated SQL to allow for duplicate rows which
+  # can happen in downstream consumers
+  $ENV{RECIPEID_NOT_REQUIRED} = 1;
+
+  delete $cake_id{chocolate1};
+
+  $res = $jmap_tester->request([
+    [
+      getCakeList => {
+        sort => [ 'id asc' ],
+      },
+    ],
+  ]);
+  jcmp_deeply(
+    $res->single_sentence->arguments,
+    superhashof({
+      cakeIds => [
+        sort { $a cmp $b } values %cake_id,
+      ],
+      total => 5,
+    }),
+    "no duplicates in getFooList"
+  ) or diag explain $res->as_stripped_struct;
+
+  $res = $jmap_tester->request([
+    [
+      getCakeListUpdates => {
+        sort => [ 'id asc' ],
+        sinceState => 0,
+      },
+    ],
+  ]);
+  jcmp_deeply(
+    $res->single_sentence->arguments,
+    superhashof({
+      added => [
+        map {;
+          {
+            index  => ignore(),
+            cakeId => $_
+          },
+        } sort { $a cmp $b } values %cake_id,
+      ],
+      total => 5,
+    }),
+    "no duplicates in getFooListUpdates"
+  ) or diag explain $res->as_stripped_struct;
 };
 
 done_testing;

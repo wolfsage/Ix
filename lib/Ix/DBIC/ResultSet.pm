@@ -978,6 +978,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
     {
       $search->{sort}->%*,
       $search->{join}->%*,
+      distinct => 1,
     },
   )->count;
 
@@ -989,6 +990,7 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
       rows      => $limit,
       offset    => $arg->{position} // 0,
       result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+      distinct => 1,
     },
   );
 
@@ -1083,6 +1085,7 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     {
       $search->{sort}->%*,
       $search->{join}->%*,
+      distinct => 1,
     },
   )->search({ 'me.isActive' => 1 })->count;
 
@@ -1130,6 +1133,7 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     {
       $search->{sort}->%*,
       $search->{join}->%*,
+      distinct => 1,
     },
   )->all;
 

@@ -30,6 +30,11 @@ __PACKAGE__->belongs_to(
   { 'foreign.id' => 'self.recipeId' },
 );
 
+__PACKAGE__->has_many(
+  topper => 'Bakesale::Schema::Result::CakeTopper',
+  { 'foreign.cakeId' => 'self.id' },
+);
+
 sub ix_type_key { 'cakes' }
 
 sub ix_account_type { 'generic' }
@@ -185,6 +190,7 @@ sub ix_postprocess_set ($self, $ctx, $results) {
 sub ix_get_list_sort_map {
   return {
     created     => { },
+    id          => { },
     layer_count => { },
     baked_at    => { },
     recipeId    => { },
@@ -200,7 +206,9 @@ sub ix_get_list_sort_map {
 
 sub ix_get_list_filter_map {
   return {
-    recipeId    => { required => 1 },
+    recipeId    => {
+      $ENV{RECIPEID_NOT_REQUIRED} ? () : (required => 1)
+    },
     type        => { },
     layer_count => { },
     isLayered   => {
@@ -223,7 +231,9 @@ sub ix_get_list_fetchable_map {
 }
 
 sub ix_get_list_joins {
-  return ('recipe');
+  return $ENV{RECIPEID_NOT_REQUIRED}
+    ? ('topper')
+    : ('recipe', 'topper');
 }
 
 sub ix_get_list_check ($self, $ctx, $arg, $search) {
@@ -236,6 +246,14 @@ sub ix_get_list_check ($self, $ctx, $arg, $search) {
       description => "That recipe is too secret for you",
     });
   }
+
+  # Hide wedding cakes, they are secrets I guess...
+  push $search->{filter}->{'-and'}->@*, { -or => [
+    'me.type'     => { '!=', 'wedding', },
+    'topper.type' => { '!=', 'wedding', },
+  ] };
+
+  return;
 }
 
 sub ix_get_list_updates_check ($self, $ctx, $arg, $search) {
@@ -248,6 +266,14 @@ sub ix_get_list_updates_check ($self, $ctx, $arg, $search) {
       description => "That recipe is way too secret for you",
     });
   }
+
+  # Hide wedding cakes, they are secrets I guess...
+  push $search->{filter}->{'-and'}->@*, { -or => [
+    'me.type'     => { '!=', 'wedding', },
+    'topper.type' => { '!=', 'wedding', },
+  ] };
+
+  return;
 }
 
 sub ix_get_list_enabled { 1 }
