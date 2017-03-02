@@ -26,7 +26,7 @@ sub deployment_statements {
   } values $self->source_registrations->%*;
 
   return (
-    "CREATE EXTENSION citext;",
+    "CREATE EXTENSION IF NOT EXISTS citext;",
     $self->DBIx::Class::Schema::deployment_statements(@_),
     @extra_statements,
   );
