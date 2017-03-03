@@ -18,60 +18,6 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 
 $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 
-{
-# XXX - Create us some initial cakes. If we don't do this, we get a bizarre
-#       failure:
-#
-# DBIx::Class::Row::update(): Can't update Bakesale::Schema::Result::State=HASH(0x5982e18):
-# row not found at lib/Ix/DatasetState.pm line 81
-#
-# Fix this failure. -- alh, 2016-10-19
-
-  my $res = $jmap_tester->request([
-    [
-      setCakes => {
-        create => {
-          yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
-          woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
-        }
-      }, "my id"
-    ],
-  ]);
-
-  cmp_deeply(
-    $jmap_tester->strip_json_types( $res->as_stripped_struct ),
-    [
-      [
-        cakesSet => superhashof({
-          created => {
-            yum => superhashof({ id => ignore() }),
-            woo => superhashof({ id => ignore() }),
-          },
-        }), "my id"
-      ],
-      [
-        cakeToppers => superhashof({
-          list => set(
-            {
-              cakeId => $res->as_stripped_struct->[0][1]{created}{yum}{id},
-              id => ignore(),
-              type => 'wedding'
-            },
-            {
-              cakeId => $res->as_stripped_struct->[0][1]{created}{woo}{id},
-              id => ignore(),
-              type => 'wedding'
-            },
-          ),
-          notFound => ignore(),
-          state => 2,
-        }), "my id"
-      ],
-    ],
-    "we can bake wedding cakes and get back toppers",
-  ) or diag explain( $jmap_tester->strip_json_types( $res->as_pairs ) );
-}
-
 my $log_data;
 open(my $log_fh, '>', \$log_data);
 

@@ -32,269 +32,275 @@ sub ix_get ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $accountId = $ctx->accountId;
+  return $ctx->txn_do(sub {
+    my $accountId = $ctx->accountId;
 
-  # XXX This is crap. -- rjbs, 2016-04-29
-  $arg = $rclass->ix_preprocess_get_arg($ctx, $arg)
-    if $rclass->can('ix_preprocess_get_arg');
+    # XXX This is crap. -- rjbs, 2016-04-29
+    $arg = $rclass->ix_preprocess_get_arg($ctx, $arg)
+      if $rclass->can('ix_preprocess_get_arg');
 
-  # unknown argument checking
-  my %allowed_arg = map {; $_ => 1 }
-    ( qw(accountId properties ids), $rclass->ix_extra_get_args );
-  if (my @unknown = grep {; ! $allowed_arg{$_} } keys %$arg) {
-    return $ctx->error("invalidArguments" => {
-      description => "unknown arguments to get",
-      unknownArguments => \@unknown,
-    });
-  }
-
-  my $ids   = $arg->{ids};
-
-  my $prop_info = $rclass->ix_property_info;
-  my %is_prop   = map  {; $_ => 1 }
-                  (keys %$prop_info),
-                  ($rclass->ix_virtual_property_names);
-
-  my @props;
-  if ($arg->{properties}) {
-    if (my @invalid = grep {; ! $is_prop{$_} } $arg->{properties}->@*) {
-      return $ctx->error("invalidArguments", {
-        description       => "requested unknown property",
-        unknownProperties => \@invalid,
+    # unknown argument checking
+    my %allowed_arg = map {; $_ => 1 }
+      ( qw(accountId properties ids), $rclass->ix_extra_get_args );
+    if (my @unknown = grep {; ! $allowed_arg{$_} } keys %$arg) {
+      return $ctx->error("invalidArguments" => {
+        description => "unknown arguments to get",
+        unknownArguments => \@unknown,
       });
     }
 
-    @props = uniq('id', $arg->{properties}->@*);
-  } else {
-    @props = keys %is_prop;
-  }
+    my $ids   = $arg->{ids};
 
-  if (my $error = $rclass->ix_get_check($ctx, $arg)) {
-    return $error;
-  }
+    my $prop_info = $rclass->ix_property_info;
+    my %is_prop   = map  {; $_ => 1 }
+                    (keys %$prop_info),
+                    ($rclass->ix_virtual_property_names);
 
-  my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search(
-    $ctx,
-    {
-      properties => \@props,
-    },
-  );
+    my @props;
+    if ($arg->{properties}) {
+      if (my @invalid = grep {; ! $is_prop{$_} } $arg->{properties}->@*) {
+        return $ctx->error("invalidArguments", {
+          description       => "requested unknown property",
+          unknownProperties => \@invalid,
+        });
+      }
 
-  state $bad_idstr = Ix::Validators::idstr();
-  my @ids;
+      @props = uniq('id', $arg->{properties}->@*);
+    } else {
+      @props = keys %is_prop;
+    }
 
-  if ($ids) {
-    @ids = grep {; ! $bad_idstr->($_) } @$ids;
-  }
+    if (my $error = $rclass->ix_get_check($ctx, $arg)) {
+      return $error;
+    }
 
-  my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
-  my @rows = $self->search(
-    {
-      accountId => $accountId,
-      ($ids ? (id => \@ids) : ()),
-      dateDestroyed => undef,
-      %$x_get_cond,
-    },
-    {
-      select => [ grep {; ! $is_virtual{$_} } @props ],
-      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-      %$x_get_attr,
-    },
-  )->all;
+    my ($x_get_cond, $x_get_attr) = $rclass->ix_get_extra_search(
+      $ctx,
+      {
+        properties => \@props,
+      },
+    );
 
-  $self->_ix_wash_rows(\@rows);
+    state $bad_idstr = Ix::Validators::idstr();
+    my @ids;
 
-  my @not_found;
-  if ($ids) {
-    my %found  = map  {; $_->{id} => 1 } @rows;
-    @not_found = grep {; ! $found{$_} } @$ids;
-  }
+    if ($ids) {
+      @ids = grep {; ! $bad_idstr->($_) } @$ids;
+    }
 
-  return $rclass->_return_ix_get(
-    $ctx,
-    $arg,
-    [
-      $ctx->result($rclass->ix_type_key => {
-        state => $rclass->ix_state_string($ctx->state),
-        list  => \@rows,
-        notFound => (@not_found ? \@not_found : undef),
-      }),
-    ]
-  );
+    my %is_virtual = map {; $_ => 1 } $rclass->ix_virtual_property_names;
+    my @rows = $self->search(
+      {
+        accountId => $accountId,
+        ($ids ? (id => \@ids) : ()),
+        dateDestroyed => undef,
+        %$x_get_cond,
+      },
+      {
+        select => [ grep {; ! $is_virtual{$_} } @props ],
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+        %$x_get_attr,
+      },
+    )->all;
+
+    $self->_ix_wash_rows(\@rows);
+
+    my @not_found;
+    if ($ids) {
+      my %found  = map  {; $_->{id} => 1 } @rows;
+      @not_found = grep {; ! $found{$_} } @$ids;
+    }
+
+    return $rclass->_return_ix_get(
+      $ctx,
+      $arg,
+      [
+        $ctx->result($rclass->ix_type_key => {
+          state => $rclass->ix_state_string($ctx->state),
+          list  => \@rows,
+          notFound => (@not_found ? \@not_found : undef),
+        }),
+      ]
+    );
+  });
 }
 
 sub ix_get_updates ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $accountId = $ctx->accountId;
+  return $ctx->txn_do(sub {
+    my $accountId = $ctx->accountId;
 
-  my $since = $arg->{sinceState};
+    my $since = $arg->{sinceState};
 
-  return $ctx->error(invalidArguments => { description => "no sinceState given" })
-    unless defined $since;
+    return $ctx->error(invalidArguments => { description => "no sinceState given" })
+      unless defined $since;
 
-  my $limit = $arg->{maxChanges};
-  if (defined $limit && ( $limit !~ /^[0-9]+\z/ || $limit == 0 )) {
-    return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
-  }
+    my $limit = $arg->{maxChanges};
+    if (defined $limit && ( $limit !~ /^[0-9]+\z/ || $limit == 0 )) {
+      return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
+    }
 
-  my $type_key = $rclass->ix_type_key;
-  my $schema   = $self->result_source->schema;
-  my $res_type = $rclass->ix_type_key_singular . "Updates";
+    my $type_key = $rclass->ix_type_key;
+    my $schema   = $self->result_source->schema;
+    my $res_type = $rclass->ix_type_key_singular . "Updates";
 
-  my $statecmp = $rclass->ix_compare_state($since, $ctx->state);
+    my $statecmp = $rclass->ix_compare_state($since, $ctx->state);
 
-  die "wtf happened" unless $statecmp->$_isa('Ix::StateComparison');
+    die "wtf happened" unless $statecmp->$_isa('Ix::StateComparison');
 
-  if ($statecmp->is_in_sync) {
-    return $ctx->result($res_type => {
+    if ($statecmp->is_in_sync) {
+      return $ctx->result($res_type => {
+        oldState => "$since",
+        newState => "$since",
+        hasMoreUpdates => JSON::MaybeXS::JSON->false(), # Gross. -- rjbs, 2017-02-13
+        changed => [],
+        removed => [],
+      });
+    }
+
+    if ($statecmp->is_bogus) {
+      $ctx->error(invalidArguments => { description => "invalid sinceState" })->throw;
+    }
+
+    if ($statecmp->is_resync) {
+      $ctx->error(cannotCalculateChanges => {
+        description => "client cache must be reconstructed"
+      })->throw
+    }
+
+    my ($x_update_cond, $x_update_attr) = $rclass->ix_update_extra_search($ctx, {
+      since => $since,
+    });
+
+    my $state_string_field = $rclass->ix_update_state_string_field;
+
+    my $search = $self->search(
+      {
+        'me.accountId'     => $accountId,
+        %$x_update_cond,
+      },
+      {
+        select => [
+          'id',
+          qw(me.dateDestroyed me.modSeqChanged),
+          $rclass->ix_update_extra_select->@*,
+        ],
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+        order_by => 'me.modSeqChanged',
+        %$x_update_attr,
+      },
+    );
+
+    my @rows = $search->search(
+      {},
+      {
+        ($limit ? (rows => $limit + 1) : ()),
+      },
+    )->all;
+
+    my $hasMoreUpdates = 0;
+
+    if ($limit && @rows > $limit) {
+      # So, the user asked for (say) 100 rows.  We'll drop the whole set of
+      # records from the highest-seen state, and let the user know that more
+      # changes await.  We ask for one more row than is needed so that if we were
+      # at a state boundary, we can get the limit-count worth of rows by dropping
+      # only the superfluous one. -- rjbs, 2016-05-04
+      $hasMoreUpdates = 1;
+
+      my $maxState = $rows[$limit]{$state_string_field};
+      my @trimmed_rows = grep { $_->{$state_string_field} ne $maxState } @rows;
+
+      if (@trimmed_rows == 0) {
+        # ... well, it turns out that the entire batch was in one state.  We
+        # can't possibly provide a consistent update within the bounds that the
+        # user requested.  When this happens, we're permitted to provide more
+        # records than requested, so let's just fetch one state worth of
+        # records. -- rjbs, 2016-02-22
+        @rows = $search->search(
+          $rclass->ix_update_single_state_conds($rows[0])
+        )->all;
+      } else {
+        @rows = @trimmed_rows;
+      }
+    }
+
+    my @changed;
+    my @removed;
+    for my $item (@rows) {
+      if ($item->{dateDestroyed}) {
+        push @removed, lc "$item->{id}";
+      } else {
+        push @changed, lc "$item->{id}";
+      }
+    }
+
+    my @return = $ctx->result($res_type => {
       oldState => "$since",
-      newState => "$since",
-      hasMoreUpdates => JSON::MaybeXS::JSON->false(), # Gross. -- rjbs, 2017-02-13
-      changed => [],
-      removed => [],
+      newState => ($hasMoreUpdates
+                ? $rclass->ix_highest_state($since, \@rows)
+                : $rclass->ix_state_string($ctx->state)),
+      hasMoreUpdates => $hasMoreUpdates
+                      ? JSON::MaybeXS::JSON->true()
+                      : JSON::MaybeXS::JSON->false(),
+      changed => \@changed,
+      removed => \@removed,
     });
-  }
 
-  if ($statecmp->is_bogus) {
-    $ctx->error(invalidArguments => { description => "invalid sinceState" })->throw;
-  }
-
-  if ($statecmp->is_resync) {
-    $ctx->error(cannotCalculateChanges => {
-      description => "client cache must be reconstructed"
-    })->throw
-  }
-
-  my ($x_update_cond, $x_update_attr) = $rclass->ix_update_extra_search($ctx, {
-    since => $since,
-  });
-
-  my $state_string_field = $rclass->ix_update_state_string_field;
-
-  my $search = $self->search(
-    {
-      'me.accountId'     => $accountId,
-      %$x_update_cond,
-    },
-    {
-      select => [
-        'id',
-        qw(me.dateDestroyed me.modSeqChanged),
-        $rclass->ix_update_extra_select->@*,
-      ],
-      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-      order_by => 'me.modSeqChanged',
-      %$x_update_attr,
-    },
-  );
-
-  my @rows = $search->search(
-    {},
-    {
-      ($limit ? (rows => $limit + 1) : ()),
-    },
-  )->all;
-
-  my $hasMoreUpdates = 0;
-
-  if ($limit && @rows > $limit) {
-    # So, the user asked for (say) 100 rows.  We'll drop the whole set of
-    # records from the highest-seen state, and let the user know that more
-    # changes await.  We ask for one more row than is needed so that if we were
-    # at a state boundary, we can get the limit-count worth of rows by dropping
-    # only the superfluous one. -- rjbs, 2016-05-04
-    $hasMoreUpdates = 1;
-
-    my $maxState = $rows[$limit]{$state_string_field};
-    my @trimmed_rows = grep { $_->{$state_string_field} ne $maxState } @rows;
-
-    if (@trimmed_rows == 0) {
-      # ... well, it turns out that the entire batch was in one state.  We
-      # can't possibly provide a consistent update within the bounds that the
-      # user requested.  When this happens, we're permitted to provide more
-      # records than requested, so let's just fetch one state worth of
-      # records. -- rjbs, 2016-02-22
-      @rows = $search->search(
-        $rclass->ix_update_single_state_conds($rows[0])
-      )->all;
-    } else {
-      @rows = @trimmed_rows;
+    if ($arg->{fetchRecords}) {
+      # XXX This is pretty sub-optimal, because we might be passing a @changed of
+      # size 500+, which becomes 500 placeholder variables.  Stupid.  If it comes
+      # to it, we could maybe run-encode them with BETWEEN queries.
+      #
+      # We used to do a *single* select, which was a nice optimization, but it
+      # bypassed permissions imposed by "get" query extras.  We need to *not* use
+      # those in getting updates, but to use them in getting records.
+      #
+      # Next attempt was to use a ResultSetColumn->as_query on the above query's
+      # id column.  That's no good because we're manually trimming the results
+      # based on id boundaries.  We may be able to improve the above query, then
+      # use this strategy.  For now, just gonna let it go until we hit problems!
+      # -- rjbs, 2016-06-08
+      push @return, $self->ix_get($ctx, {
+        ids => \@changed,
+        properties => $arg->{fetchRecordProperties},
+      });
     }
-  }
 
-  my @changed;
-  my @removed;
-  for my $item (@rows) {
-    if ($item->{dateDestroyed}) {
-      push @removed, lc "$item->{id}";
-    } else {
-      push @changed, lc "$item->{id}";
-    }
-  }
-
-  my @return = $ctx->result($res_type => {
-    oldState => "$since",
-    newState => ($hasMoreUpdates
-              ? $rclass->ix_highest_state($since, \@rows)
-              : $rclass->ix_state_string($ctx->state)),
-    hasMoreUpdates => $hasMoreUpdates
-                    ? JSON::MaybeXS::JSON->true()
-                    : JSON::MaybeXS::JSON->false(),
-    changed => \@changed,
-    removed => \@removed,
+    return @return;
   });
-
-  if ($arg->{fetchRecords}) {
-    # XXX This is pretty sub-optimal, because we might be passing a @changed of
-    # size 500+, which becomes 500 placeholder variables.  Stupid.  If it comes
-    # to it, we could maybe run-encode them with BETWEEN queries.
-    #
-    # We used to do a *single* select, which was a nice optimization, but it
-    # bypassed permissions imposed by "get" query extras.  We need to *not* use
-    # those in getting updates, but to use them in getting records.
-    #
-    # Next attempt was to use a ResultSetColumn->as_query on the above query's
-    # id column.  That's no good because we're manually trimming the results
-    # based on id boundaries.  We may be able to improve the above query, then
-    # use this strategy.  For now, just gonna let it go until we hit problems!
-    # -- rjbs, 2016-06-08
-    push @return, $self->ix_get($ctx, {
-      ids => \@changed,
-      properties => $arg->{fetchRecordProperties},
-    });
-  }
-
-  return @return;
 }
 
 sub ix_purge ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $accountId = $ctx->accountId;
+  return $ctx->txn_do(sub {
+    my $accountId = $ctx->accountId;
 
-  my $type_key = $rclass->ix_type_key;
+    my $type_key = $rclass->ix_type_key;
 
-  my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
+    my $since = Ix::DateTime->from_epoch(epoch => time - 86400 * 7);
 
-  my $rs = $self->search({
-    accountId   => $accountId,
-    dateDestroyed => { '<', $since->as_string },
+    my $rs = $self->search({
+      accountId   => $accountId,
+      dateDestroyed => { '<', $since->as_string },
+    });
+
+    my $maxDeletedModSeq = $self->get_column('modSeqChanged')->max;
+
+    $rs->delete;
+
+    # XXX: violating encapsulation
+    my $state_row = $ctx->state->_state_rows->{$type_key};
+
+    $state_row->lowestModSeq( $maxDeletedModSeq )
+      if $maxDeletedModSeq > $state_row->lowestModSeq;
+
+    return;
   });
-
-  my $maxDeletedModSeq = $self->get_column('modSeqChanged')->max;
-
-  $rs->delete;
-
-  # XXX: violating encapsulation
-  my $state_row = $ctx->state->_state_rows->{$type_key};
-
-  $state_row->lowestModSeq( $maxDeletedModSeq )
-    if $maxDeletedModSeq > $state_row->lowestModSeq;
-
-  return;
 }
 
 my sub _eqv ($x, $y) {
@@ -392,7 +398,7 @@ sub ix_create ($self, $ctx, $to_create) {
     }
 
     my ($row, $error) = try {
-      $ctx->schema->txn_do(sub {
+      $ctx->txn_do(sub {
         my $created = $self->create(\%rec);
 
         # Fire a hook inside this transaction if necessary
@@ -728,7 +734,7 @@ sub ix_update ($self, $ctx, $to_update) {
     }
 
     my ($ok, $error) = try {
-      $ctx->schema->txn_do(sub {
+      $ctx->txn_do(sub {
         my %old = $row->get_inflated_columns;
 
         $row->set_inflated_columns({ %$user_prop });
@@ -837,7 +843,7 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
     }
 
     my $ok = eval {
-      $ctx->schema->txn_do(sub {
+      $ctx->txn_do(sub {
         $row->update({
           modSeqChanged => $next_state,
           dateDestroyed   => Ix::DateTime->now,
@@ -875,326 +881,353 @@ sub ix_set ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
 
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+
   my $accountId = $ctx->accountId;
 
   my $type_key = $rclass->ix_type_key;
   my $schema   = $self->result_source->schema;
 
-  my $state = $ctx->state;
-  my $curr_state = $rclass->ix_state_string($state);
+  return $ctx->txn_do(sub {
+    # Lock other ix_sets against updates to this collection type for this
+    # account ID.
 
-  my %expected_arg  = map {; $_ => 1 }
+    # XXX - Set a timeout -- alh, 2017-01-27
+    # XXX - Ask rclass what else we should lock at this point
+    my $locked = $schema->resultset('State')->search(
+      {
+        accountId => $accountId,
+        type      => $type_key,
+      }, {
+        for => 'update',
+      }
+    )->single;
+
+    # We don't check if the above lock succeeded becuase, if it didn't, it
+    # means no state row exists yet for this collection type. This can happen
+    # if we deploy new rclasses and don't backfill state rows for them for
+    # each account that exists. If this ever happens and something else comes
+    # along attempting to change the same collection type, the last one to
+    # finish will fail the state row insert, aborting the entire transaciton,
+    #  and so our data integrity is maintained.
+
+    my $state = $ctx->state;
+    my $curr_state = $rclass->ix_state_string($state);
+
+    my %expected_arg  = map {; $_ => 1 }
                       qw(accountId ifInState create update destroy);
-  if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
-    return $ctx->error('invalidArguments' => {
-      description => "unknown arguments passed",
-      unknownArguments => \@unknown,
-    });
-  }
+    if (my @unknown = grep {; ! $expected_arg{$_} } keys %$arg) {
+      return $ctx->error('invalidArguments' => {
+        description => "unknown arguments passed",
+        unknownArguments => \@unknown,
+      });
+    }
 
-  # TODO validate everything
+    # TODO validate everything
 
-  if (($arg->{ifInState} // $curr_state) ne $curr_state) {
-    return $ctx->error('stateMismatch');
-  }
+    if (($arg->{ifInState} // $curr_state) ne $curr_state) {
+      return $ctx->error('stateMismatch');
+    }
 
-  # Let consumers decide if they allow create/update/destroy or not
-  if (my $err = $rclass->ix_set_check($ctx, $arg)) {
-    return $err;
-  }
+    # Let consumers decide if they allow create/update/destroy or not
+    if (my $err = $rclass->ix_set_check($ctx, $arg)) {
+      return $err;
+    }
 
-  my %result;
+    my %result;
 
-  if ($arg->{create}) {
-    my $create_result = $self->ix_create($ctx, $arg->{create});
+    if ($arg->{create}) {
+      my $create_result = $self->ix_create($ctx, $arg->{create});
 
-    $result{created}     = $create_result->{created};
-    $result{not_created} = $create_result->{not_created};
+      $result{created}     = $create_result->{created};
+      $result{not_created} = $create_result->{not_created};
 
-    $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
-  }
+      $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
+    }
 
-  if ($arg->{update}) {
-    my $update_result = $self->ix_update($ctx, $arg->{update});
+    if ($arg->{update}) {
+      my $update_result = $self->ix_update($ctx, $arg->{update});
 
-    $result{updated} = $update_result->{updated};
-    $result{not_updated} = $update_result->{not_updated};
-    $state->ensure_state_bumped($type_key)
-      if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
-  }
+      $result{updated} = $update_result->{updated};
+      $result{not_updated} = $update_result->{not_updated};
+      $state->ensure_state_bumped($type_key)
+        if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
+    }
 
-  if ($arg->{destroy}) {
-    my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
+    if ($arg->{destroy}) {
+      my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
 
-    $result{destroyed} = $destroy_result->{destroyed};
-    $result{not_destroyed} = $destroy_result->{not_destroyed};
-    $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
-  }
+      $result{destroyed} = $destroy_result->{destroyed};
+      $result{not_destroyed} = $destroy_result->{not_destroyed};
+      $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
+    }
 
-  $ctx->state->_save_states;
+    my $ret = [ Ix::Result::FoosSet->new({
+      result_type => "${type_key}Set",
+      old_state => $curr_state,
+      new_state => $rclass->ix_state_string($state),
+      %result,
+    }) ];
 
-  my $ret = [ Ix::Result::FoosSet->new({
-    result_type => "${type_key}Set",
-    old_state => $curr_state,
-    new_state => $rclass->ix_state_string($state),
-    %result,
-  }) ];
+    # This hook lets rclasses inject more responses into the result if they
+    # need to
+    $rclass->ix_postprocess_set($ctx, $ret)
+      if $rclass->can('ix_postprocess_set');
 
-  # This hook lets rclasses inject more responses into the result if they
-  # need to
-  $rclass->ix_postprocess_set($ctx, $ret)
-    if $rclass->can('ix_postprocess_set');
-
-  return @$ret;
+    return @$ret;
+  });
 }
 
 sub ix_get_list ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $key = $rclass->ix_type_key;
-  my $key1 = $rclass->ix_type_key_singular;
-  my $fetch_arg = "fetch\u$key";
-  my $fetch_properties_arg = "fetch\u${key1}Properties";
-  my $orig_filter = $arg->{filter};
-  my $orig_sort   = $arg->{sort};
+  return $ctx->txn_do(sub {
+    my $key = $rclass->ix_type_key;
+    my $key1 = $rclass->ix_type_key_singular;
+    my $fetch_arg = "fetch\u$key";
+    my $fetch_properties_arg = "fetch\u${key1}Properties";
+    my $orig_filter = $arg->{filter};
+    my $orig_sort   = $arg->{sort};
 
-  my $schema = $ctx->schema;
+    my $schema = $ctx->schema;
 
-  my $limit = $arg->{limit} // 500;
-  $limit = 500 if $limit > 500 && $arg->{$fetch_arg};
+    my $limit = $arg->{limit} // 500;
+    $limit = 500 if $limit > 500 && $arg->{$fetch_arg};
 
-  my $search = $self->_get_list_search_args($ctx, $arg);
-  $search->{filter}{'me.isActive'} = 1;
+    my $search = $self->_get_list_search_args($ctx, $arg);
+    $search->{filter}{'me.isActive'} = 1;
 
-  if (my $error = $rclass->ix_get_list_check($ctx, $arg, $search)) {
-    return $error;
-  }
+    if (my $error = $rclass->ix_get_list_check($ctx, $arg, $search)) {
+      return $error;
+    }
 
-  # XXX - make sure isActive is true on all joined tables?
-  #       -- alh, 2017-02-17
-  my $total = $search->{rs}->search(
-    $search->{filter},
-    {
-      $search->{sort}->%*,
-      $search->{join}->%*,
-      distinct => 1,
-    },
-  )->count;
+    # XXX - make sure isActive is true on all joined tables?
+    #       -- alh, 2017-02-17
+    my $total = $search->{rs}->search(
+      $search->{filter},
+      {
+        $search->{sort}->%*,
+        $search->{join}->%*,
+        distinct => 1,
+      },
+    )->count;
 
-  my $search_page = $search->{rs}->search(
-    $search->{filter},
-    {
-      $search->{sort}->%*,
-      $search->{join}->%*,
-      rows      => $limit,
-      offset    => $arg->{position} // 0,
-      result_class => 'DBIx::Class::ResultClass::HashRefInflator',
-      distinct => 1,
-    },
-  );
+    my $search_page = $search->{rs}->search(
+      $search->{filter},
+      {
+        $search->{sort}->%*,
+        $search->{join}->%*,
+        rows      => $limit,
+        offset    => $arg->{position} // 0,
+        result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+        distinct => 1,
+      },
+    );
 
-  my @items = $search_page->all;
+    my @items = $search_page->all;
 
-  my $hms = "" . $ctx->state->highest_modseq_for($key);
+    my $hms = "" . $ctx->state->highest_modseq_for($key);
 
-  my @res = $ctx->result("${key1}List" => {
-    filter       => $orig_filter,
-    sort         => $orig_sort,
-    state        => $hms,
-    total        => $total,
-    position     => $arg->{position} // 0,
-    "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
+    my @res = $ctx->result("${key1}List" => {
+      filter       => $orig_filter,
+      sort         => $orig_sort,
+      state        => $hms,
+      total        => $total,
+      position     => $arg->{position} // 0,
+      "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
 
-    canCalculateUpdates => \1,
-  });
-
-  # fetchFoos
-  if ($arg->{$fetch_arg}) {
-    push @res, $self->ix_get($ctx, {
-      ids => [ map {; "" . $_->{id} } @items ],
-
-      # fetchFooProperties => [ '...' ]
-      ( $arg->{$fetch_properties_arg}
-        ? ( properties => $arg->{$fetch_properties_arg } )
-        : ()
-      ),
+      canCalculateUpdates => \1,
     });
-  }
 
-  # Any other fetch* args?
-  for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
-    if ($arg->{$field}) {
-      my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
-      my $result_set = $schema->resultset($fetchable->{result_set});
-      my $properties_arg = $fetchable->{properties_arg};
+    # fetchFoos
+    if ($arg->{$fetch_arg}) {
+      push @res, $self->ix_get($ctx, {
+        ids => [ map {; "" . $_->{id} } @items ],
 
-      unless (defined $properties_arg) {
-        my $singular = $field =~ s/s\z//r;
-        $properties_arg = "${singular}Properties";
-      }
-
-      push @res, $result_set->ix_get($ctx, {
-        ids => [ map {; "" . $_->{$fetchable->{field}} } @items ],
-
-        # fetchOtherFooProperties
-        ( $arg->{$properties_arg}
-          ? ( properties => $arg->{$properties_arg} )
+        # fetchFooProperties => [ '...' ]
+        ( $arg->{$fetch_properties_arg}
+          ? ( properties => $arg->{$fetch_properties_arg } )
           : ()
         ),
       });
     }
-  }
 
-  return @res;
+    # Any other fetch* args?
+    for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
+      if ($arg->{$field}) {
+        my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
+        my $result_set = $schema->resultset($fetchable->{result_set});
+        my $properties_arg = $fetchable->{properties_arg};
+
+        unless (defined $properties_arg) {
+          my $singular = $field =~ s/s\z//r;
+          $properties_arg = "${singular}Properties";
+        }
+
+        push @res, $result_set->ix_get($ctx, {
+          ids => [ map {; "" . $_->{$fetchable->{field}} } @items ],
+
+          # fetchOtherFooProperties
+          ( $arg->{$properties_arg}
+            ? ( properties => $arg->{$properties_arg} )
+            : ()
+          ),
+        });
+      }
+    }
+
+    return @res;
+  });
 }
 
 sub ix_get_list_updates ($self, $ctx, $arg = {}) {
   my $rclass = $self->_ix_rclass;
   $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
 
-  my $key = $rclass->ix_type_key;
-  my $key1 = $rclass->ix_type_key_singular;
+  return $ctx->txn_do(sub {
+    my $key = $rclass->ix_type_key;
+    my $key1 = $rclass->ix_type_key_singular;
 
-  my $schema = $ctx->schema;
+    my $schema = $ctx->schema;
 
-  my $since_state = $arg->{sinceState};
+    my $since_state = $arg->{sinceState};
 
-  return $ctx->error(invalidArguments => { description => "no sinceState given" })
-    unless defined $since_state;
+    return $ctx->error(invalidArguments => { description => "no sinceState given" })
+      unless defined $since_state;
 
-  my $hms = $ctx->state->highest_modseq_for($key);
-  my $lms = $ctx->state->lowest_modseq_for($key);
+    my $hms = $ctx->state->highest_modseq_for($key);
+    my $lms = $ctx->state->lowest_modseq_for($key);
 
-  if (
-    $since_state > $hms
-    or
-    $since_state < $lms
-  ) {
-    return $ctx->error(cannotCalculateChanges => {});
-  }
+    if (
+      $since_state > $hms
+      or
+      $since_state < $lms
+    ) {
+      return $ctx->error(cannotCalculateChanges => {});
+    }
 
-  my $search = $self->_get_list_search_args($ctx, $arg);
+    my $search = $self->_get_list_search_args($ctx, $arg);
 
-  if (my $error = $rclass->ix_get_list_updates_check($ctx, $arg, $search)) {
-    return $error;
-  }
+    if (my $error = $rclass->ix_get_list_updates_check($ctx, $arg, $search)) {
+      return $error;
+    }
 
-  my $total = $search->{rs}->search(
-    $search->{filter},
-    {
-      $search->{sort}->%*,
-      $search->{join}->%*,
-      distinct => 1,
-    },
-  )->search({ 'me.isActive' => 1 })->count;
+    my $total = $search->{rs}->search(
+      $search->{filter},
+      {
+        $search->{sort}->%*,
+        $search->{join}->%*,
+        distinct => 1,
+      },
+    )->search({ 'me.isActive' => 1 })->count;
 
-  if ($arg->{sinceState} == $hms) {
-    # Nothing changed!  But we still promise to return the total,
-    # unfortunately, so we get it. -- rjbs, 2016-04-13
+    if ($arg->{sinceState} == $hms) {
+      # Nothing changed!  But we still promise to return the total,
+      # unfortunately, so we get it. -- rjbs, 2016-04-13
+      return $ctx->result("${key1}ListUpdates" => {
+        filter => $arg->{filter},
+        sort   => $arg->{sort},
+        oldState => "$since_state",
+        newState => "$since_state",
+        total    => $total,
+        removed  => [ ],
+        added    => [ ],
+      });
+    }
+
+    # Query on all immutable fields that were passed in to the filter to
+    # condense our list of possible changes; otherwise we may end up querying
+    # the entire table.
+    my $filter_map = $rclass->ix_get_list_filter_map;
+    my $prop_info = $rclass->ix_property_info;
+    my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
+
+    my %immutable = map {;
+      my $prop = $_ =~ /\./ ? $_ : "me.$_"; # me.<...>
+
+      $prop => defined $arg->{filter}{$_} ? "" . $arg->{filter}{$_} : undef;
+    } grep {;
+         exists $arg->{filter}{$_}
+      && $prop_info->{$_}
+      && (
+           ! $is_user_prop{$_}         # Mutable? Skip
+        || $prop_info->{$_}->{xref_to} # xref_tos aren't really mutable
+      )
+    } keys %$filter_map;
+
+    # XXX: stupid, gross, blah -- rjbs, 2016-04-13
+    # We must grab all rows that *could* match the filters, but
+    # we still must filter on required filters; hopefully, these
+    # are immutable. Below we will sort all returned rows into
+    # their expected places.
+    my @entities = $search->{rs}->search(
+      \%immutable,
+      {
+        $search->{sort}->%*,
+        $search->{join}->%*,
+        distinct => 1,
+      },
+    )->all;
+
+    my $i = 0;
+    my @added;
+    my @removed;
+
+    for my $entity (@entities) {
+      my $is_new     = $entity->modSeqCreated > $since_state;
+      my $is_changed = $entity->modSeqChanged > $since_state;
+      my $is_removed = $entity->dateDestroyed;
+
+      unless ($is_removed) {
+        FILTER: for my $filter (keys $arg->{filter}->%*) {
+          my $diff;
+
+          if (my $differ = $filter_map->{$filter}->{differ}) {
+            $diff = $differ->($entity, $arg->{filter}{$filter});
+          } else {
+            # Filters can look across tables, like 'recipe.is_delicious'.
+            # In these cases we need to walk the method tree to get the
+            # info.
+            my @methods = split('\.', $filter);
+
+            my $val = $entity;
+            while (my $meth = shift @methods) {
+              $val = $val->$meth;
+            }
+
+            $diff = differ($val, $arg->{filter}{$filter});
+          }
+
+          if ($diff) {
+            $is_removed = 1;
+            last FILTER;
+          }
+        }
+      }
+     
+      my $was_removed = $entity->dateDestroyed && ! $is_changed;
+
+      if ($is_removed && ! $is_new && ! $was_removed) {
+        push @removed, "" . $entity->id;
+      } elsif (! $is_removed && $is_new) {
+        push @added, { index => $i, "${key1}Id" => "" . $entity->id };
+      } elsif (! $is_removed && $is_changed) {
+        push @removed, "" . $entity->id;
+        push @added, { index => $i, "${key1}Id" => "" . $entity->id };
+      }
+
+      $i++ unless $is_removed;
+    }
+
     return $ctx->result("${key1}ListUpdates" => {
       filter => $arg->{filter},
       sort   => $arg->{sort},
-      oldState => "$since_state",
-      newState => "$since_state",
+      oldState => "" . $since_state,
+      newState => "" . $hms,
       total    => $total,
-      removed  => [ ],
-      added    => [ ],
+      removed  => \@removed,
+      added    => \@added,
     });
-  }
-
-  # Query on all immutable fields that were passed in to the filter to
-  # condense our list of possible changes; otherwise we may end up querying
-  # the entire table.
-  my $filter_map = $rclass->ix_get_list_filter_map;
-  my $prop_info = $rclass->ix_property_info;
-  my %is_user_prop = map {; $_ => 1 } $rclass->ix_mutable_properties($ctx);
-
-  my %immutable = map {;
-    my $prop = $_ =~ /\./ ? $_ : "me.$_"; # me.<...>
-
-    $prop => defined $arg->{filter}{$_} ? "" . $arg->{filter}{$_} : undef;
-  } grep {;
-       exists $arg->{filter}{$_}
-    && $prop_info->{$_}
-    && (
-         ! $is_user_prop{$_}         # Mutable? Skip
-      || $prop_info->{$_}->{xref_to} # xref_tos aren't really mutable
-    )
-  } keys %$filter_map;
-
-  # XXX: stupid, gross, blah -- rjbs, 2016-04-13
-  # We must grab all rows that *could* match the filters, but
-  # we still must filter on required filters; hopefully, these
-  # are immutable. Below we will sort all returned rows into
-  # their expected places.
-  my @entities = $search->{rs}->search(
-    \%immutable,
-    {
-      $search->{sort}->%*,
-      $search->{join}->%*,
-      distinct => 1,
-    },
-  )->all;
-
-  my $i = 0;
-  my @added;
-  my @removed;
-
-  for my $entity (@entities) {
-    my $is_new     = $entity->modSeqCreated > $since_state;
-    my $is_changed = $entity->modSeqChanged > $since_state;
-    my $is_removed = $entity->dateDestroyed;
-
-    unless ($is_removed) {
-      FILTER: for my $filter (keys $arg->{filter}->%*) {
-        my $diff;
-
-        if (my $differ = $filter_map->{$filter}->{differ}) {
-          $diff = $differ->($entity, $arg->{filter}{$filter});
-        } else {
-          # Filters can look across tables, like 'recipe.is_delicious'.
-          # In these cases we need to walk the method tree to get the
-          # info.
-          my @methods = split('\.', $filter);
-
-          my $val = $entity;
-          while (my $meth = shift @methods) {
-            $val = $val->$meth;
-          }
-
-          $diff = differ($val, $arg->{filter}{$filter});
-        }
-
-        if ($diff) {
-          $is_removed = 1;
-          last FILTER;
-        }
-      }
-    }
-
-    my $was_removed = $entity->dateDestroyed && ! $is_changed;
-
-    if ($is_removed && ! $is_new && ! $was_removed) {
-      push @removed, "" . $entity->id;
-    } elsif (! $is_removed && $is_new) {
-      push @added, { index => $i, "${key1}Id" => "" . $entity->id };
-    } elsif (! $is_removed && $is_changed) {
-      push @removed, "" . $entity->id;
-      push @added, { index => $i, "${key1}Id" => "" . $entity->id };
-    }
-
-    $i++ unless $is_removed;
-  }
-
-  return $ctx->result("${key1}ListUpdates" => {
-    filter => $arg->{filter},
-    sort   => $arg->{sort},
-    oldState => "" . $since_state,
-    newState => "" . $hms,
-    total    => $total,
-    removed  => \@removed,
-    added    => \@added,
   });
 }
 
@@ -1242,7 +1275,6 @@ sub _get_list_search_args ($self, $ctx, $arg) {
       $bad_filter{$field} = 'required filter missing';
     }
   }
-
   my @sort;
   my %bad_sort;
 

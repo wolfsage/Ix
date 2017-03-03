@@ -34,6 +34,8 @@ sub ix_account_type { 'generic' }
 
 sub ix_type_key { 'users' }
 
+sub ix_is_account_base { 1 }
+
 sub ix_default_properties ($self, $ctx) {
   return {
     status => 'active',
