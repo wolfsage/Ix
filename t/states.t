@@ -100,6 +100,7 @@ cmp_deeply(
         expires_at => ignore(),
         delicious => ignore(),
         external_id => ignore(),
+        batch => ignore(),
       },
     },
   }),
