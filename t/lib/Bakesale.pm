@@ -29,7 +29,11 @@ package Bakesale::Test {
 
   sub test_schema_connect_info {
     require Test::PgMonger;
-    my $db = Test::PgMonger->new->create_database;
+    my $db = Test::PgMonger->new->create_database({
+      extra_sql_statements => [
+        "CREATE EXTENSION IF NOT EXISTS citext;",
+      ],
+    });
     push $TEST_DBS{$$}->@*, $db;
 
     my $schema = Bakesale->new({
