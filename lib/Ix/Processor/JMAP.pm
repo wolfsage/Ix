@@ -86,6 +86,12 @@ sub process_request ($self, $ctx, $calls) {
     }
 
     my @rv = try {
+      unless ($ctx->may_call($method, $arg)) {
+        return $ctx->error(invalidPermissions => {
+          description => "You are not authorized to make this call",
+        });
+      }
+
       $self->$handler($ctx, $arg);
     } catch {
       if ($_->$_DOES('Ix::Error')) {

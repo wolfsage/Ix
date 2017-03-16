@@ -127,4 +127,6 @@ sub result ($ctx, $type, $prop = {}) {
   });
 }
 
+sub may_call { 1 }
+
 1;

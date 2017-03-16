@@ -1963,5 +1963,19 @@ subtest "ix_custom_deployment_statements" => sub {
   );
 };
 
+subtest "space cookies (are totally canceled)" => sub {
+  my $res = $jmap_tester->request([[
+    setCookies => {
+      outofthisworld => 1,
+
+      create => { raw => { type => 'stardust', baked_at => undef } },
+    },
+  ]]);
+  jcmp_deeply(
+    $res->single_sentence->arguments->{type},
+    'invalidPermissions',
+    'You are not authorized to make this call'
+  );
+};
 
 done_testing;
