@@ -1974,7 +1974,7 @@ subtest "space cookies (are totally canceled)" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments->{type},
     'invalidPermissions',
-    'You are not authorized to make this call'
+    'you are not authorized to make this call'
   );
 };
 

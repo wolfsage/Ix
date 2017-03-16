@@ -88,7 +88,7 @@ sub process_request ($self, $ctx, $calls) {
     my @rv = try {
       unless ($ctx->may_call($method, $arg)) {
         return $ctx->error(invalidPermissions => {
-          description => "You are not authorized to make this call",
+          description => "you are not authorized to make this call",
         });
       }
 
