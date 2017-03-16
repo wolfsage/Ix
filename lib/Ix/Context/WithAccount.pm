@@ -33,6 +33,8 @@ has root_context => (
     error
     internal_error
     result
+
+    may_call
   ) ],
 );
 
