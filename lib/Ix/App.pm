@@ -152,7 +152,7 @@ sub to_app ($self) {
       for my $k (keys %HEADER) {
         $res->header($k => $HEADER{$k});
       }
-    } else {
+    } elsif (ref($res) ne 'CODE') {
       # Danger here is we set multiple values for these headers...
       push $res->[1]->@*, %HEADER;
     }
