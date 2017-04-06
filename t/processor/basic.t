@@ -609,4 +609,53 @@ subtest "invalid sinceState" => sub {
   ) or diag explain($cake_res);
 }
 
+{
+  # Ensure we actually create transactions in txn_do
+
+  # It turns out that '$ctx->txn_do()' wasn't ever actually
+  # creating transactions/save points! ALHSDLFJS:KFJDS:LJFS:LKJ
+  # This test starts a transaction, then forces a duplicate
+  # key error which would prevent any other statements in our
+  # transaction from succeeding if txn_do() wasn't doing its
+  # job.
+  my $ctx = $Bakesale->get_system_context;
+
+  $ctx = $ctx->with_account('generic' => $account{accounts}{rjbs});
+
+  my $res = $ctx->schema->txn_do(sub {
+    $ctx->process_request([
+      [ setUsers => {
+        create => {
+          first  => { username => 'kaboom', },
+          kaboom => { username => 'kaboom', },
+        },
+      }, 'a', ],
+      [ setUsers => {
+        create => {
+          second => { username => 'second', },
+          third =>  { username => 'third',  },
+        },
+      }, 'b', ],
+    ]),
+  });
+
+  is(
+    keys $res->[0][1]{created}->%*,
+    1,
+    'created a single user'
+  );
+  is(
+    keys $res->[1][1]{created}->%*,
+    2,
+    'created 2 users'
+  );
+
+  my ($err) = values $res->[0][1]{notCreated}->%*;
+  like(
+    $err->{description},
+    qr/create conflicts/,
+    'got duplicate error'
+  );
+}
+
 done_testing;

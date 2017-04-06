@@ -101,7 +101,7 @@ sub txn_do ($self, $code) {
     local $self->{_txn_level} = $self->_txn_level + 1;
     local $state->{_pending_states} = $inner;
 
-    @rv = $code->();
+    @rv = $self->schema->txn_do($code);
   }
 
   # Copy any actually bumped states up
