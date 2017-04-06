@@ -1978,4 +1978,32 @@ subtest "space cookies (are totally canceled)" => sub {
   );
 };
 
+subtest "lock timeout" => sub {
+  # Lock our collection and trigger our timeout
+  my $schema = $app->processor->schema_connection;
+
+  my $res = $schema->txn_do(sub {
+    my $lock = $schema->resultset('State')->search(
+      {
+        accountId => $account{accounts}{rjbs},
+        type      => 'cookies',
+      }, {
+        for => 'update',
+      }
+    )->single;
+
+    return $jmap_tester->request([[
+      setCookies => {
+        create => { new => { type => 'ginger', baked_at => undef } },
+      }
+    ]]);
+  });
+
+  jcmp_deeply(
+    $res->single_sentence->arguments->{type},
+    'tryAgain',
+    'got error because our lock timeout was hit'
+  );
+};
+
 done_testing;

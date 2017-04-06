@@ -119,7 +119,7 @@ my $lock = with_child {
   my $schema = $app->processor->schema_connection;
 
   $schema->txn_do(sub {
-    $schema->storage->dbh->do("LOCK TABLE users IN ACCESS EXCLUSIVE MODE");
+    $schema->storage->dbh->do("LOCK TABLE states IN ACCESS EXCLUSIVE MODE");
 
     # Let parent know we have the lock
     kill 'USR1' => $parent_pid;

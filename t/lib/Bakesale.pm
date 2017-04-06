@@ -182,6 +182,12 @@ package Bakesale {
     },
   );
 
+  sub database_defaults {
+    return (
+      "SET LOCK_TIMEOUT TO '2s'",
+    );
+  }
+
   sub get_context ($self, $arg) {
     Bakesale::Context->new({
       userId    => $arg->{userId},

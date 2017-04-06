@@ -143,7 +143,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
     }
 
     my $type_key = $rclass->ix_type_key;
-    my $schema   = $self->result_source->schema;
+    my $schema   = $ctx->schema;
     my $res_type = $rclass->ix_type_key_singular . "Updates";
 
     my $statecmp = $rclass->ix_compare_state($since, $ctx->state);
@@ -877,21 +877,15 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
   return \%result;
 }
 
-sub ix_set ($self, $ctx, $arg = {}) {
-  my $rclass = $self->_ix_rclass;
-
-  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
-
+sub get_collection_lock ($self, $ctx) {
+  my $schema = $ctx->schema;
   my $accountId = $ctx->accountId;
+  my $type_key = $self->_ix_rclass->ix_type_key;
 
-  my $type_key = $rclass->ix_type_key;
-  my $schema   = $self->result_source->schema;
-
-  return $ctx->txn_do(sub {
+  return try {
     # Lock other ix_sets against updates to this collection type for this
     # account ID.
 
-    # XXX - Set a timeout -- alh, 2017-01-27
     # XXX - Ask rclass what else we should lock at this point
     my $locked = $schema->resultset('State')->search(
       {
@@ -902,13 +896,38 @@ sub ix_set ($self, $ctx, $arg = {}) {
       }
     )->single;
 
-    # We don't check if the above lock succeeded becuase, if it didn't, it
+    # We don't check if we actually obtained a lock. If we didn't, it
     # means no state row exists yet for this collection type. This can happen
     # if we deploy new rclasses and don't backfill state rows for them for
     # each account that exists. If this ever happens and something else comes
     # along attempting to change the same collection type, the last one to
     # finish will fail the state row insert, aborting the entire transaciton,
     #  and so our data integrity is maintained.
+
+    return;
+  } catch {
+    # If the above failed, it was most likely due to a lock timeout
+    # (if one was configured).
+    return $ctx->error('tryAgain' => {
+      description => "blocked by another client",
+    });
+  };
+}
+
+sub ix_set ($self, $ctx, $arg = {}) {
+  my $rclass = $self->_ix_rclass;
+
+  $ctx = $ctx->with_account($rclass->ix_account_type, $arg->{accountId});
+
+  my $accountId = $ctx->accountId;
+
+  my $type_key = $rclass->ix_type_key;
+  my $schema = $ctx->schema;
+
+  return $ctx->txn_do(sub {
+    if (my $error = $self->get_collection_lock($ctx)) {
+      return $error;
+    }
 
     my $state = $ctx->state;
     my $curr_state = $rclass->ix_state_string($state);

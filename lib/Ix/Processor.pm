@@ -24,11 +24,21 @@ has behind_proxy => (
   default => 0,
 );
 
+sub get_database_defaults ($self) {
+  my @defaults = ( "SET TIMEZONE TO 'UTC'" );
+
+  if ($self->can('database_defaults')) {
+    push @defaults, $self->database_defaults;
+  }
+
+  return \@defaults;
+}
+
 sub schema_connection ($self) {
   $self->schema_class->connect(
     $self->connect_info,
     {
-      on_connect_do  => "SET TIMEZONE TO 'UTC'",
+      on_connect_do  => $self->get_database_defaults,
       auto_savepoint => 1,
       quote_names    => 1,
     },
