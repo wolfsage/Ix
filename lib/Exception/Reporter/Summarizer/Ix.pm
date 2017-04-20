@@ -44,16 +44,25 @@ sub summarize {
 sub summarize_error {
   my ($self, $err) = @_;
 
-  my %to_dump = (
-    ident => $err->ident,
-    payload => $err->payload,
-  );
+  my @summaries;
 
-  return {
-    filename => 'error_string.txt',
-    %{ $self->dump(\%to_dump, { basename =>'error' }) },
+  push @summaries, {
+    filename => 'wrapper.txt',
+    mimetype => 'text/plain',
+    body  => $err->ident,
     ident => $err->ident,
   };
+
+  for my $item (
+    @{ $self->reporter->collect_summaries([
+      [ payload => $err->payload ]
+    ]) }
+  ) {
+    my $sumz = $item->[1];
+    push @summaries, @$sumz;
+  }
+
+  return @summaries;
 }
 
 sub summarize_stack_trace {
