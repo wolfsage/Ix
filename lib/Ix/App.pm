@@ -130,32 +130,51 @@ sub to_app ($self) {
       ];
     };
 
-    $req->env->{'ix.transaction'}{end_htime} = [ gettimeofday ];
-    $req->env->{'ix.transaction'}{elapsed_seconds} = tv_interval(
-      $req->env->{'ix.transaction'}{htime},
-      $req->env->{'ix.transaction'}{end_htime}
-    );
+    # If any of this throws an exception, we still need to respond with
+    # our results because the database changes have been committed by now.
+    try {
+      $req->env->{'ix.transaction'}{end_htime} = [ gettimeofday ];
+      $req->env->{'ix.transaction'}{elapsed_seconds} = tv_interval(
+        $req->env->{'ix.transaction'}{htime},
+        $req->env->{'ix.transaction'}{end_htime}
+      );
 
-    $self->log_access($req, $res, $ctx) if $self->access_log_enabled;
-
-    my @error_guids = $ctx ? $ctx->logged_exception_guids : ();
-
-    if ($self->transaction_log_enabled || @error_guids) {
-      $self->log_transaction($req, $res, $ctx);
-    }
-
-    for (@error_guids) {
-      $env->{'psgi.errors'}->print("exception was reported: $_\n")
-    }
-
-    if (blessed($res)) { 
-      for my $k (keys %HEADER) {
-        $res->header($k => $HEADER{$k});
+      if (blessed($res)) {
+        for my $k (keys %HEADER) {
+          $res->header($k => $HEADER{$k});
+        }
+      } elsif (ref($res) ne 'CODE') {
+        # Danger here is we set multiple values for these headers...
+        push $res->[1]->@*, %HEADER;
       }
-    } elsif (ref($res) ne 'CODE') {
-      # Danger here is we set multiple values for these headers...
-      push $res->[1]->@*, %HEADER;
-    }
+
+      my @error_guids = $ctx ? $ctx->logged_exception_guids : ();
+
+      for (@error_guids) {
+        $env->{'psgi.errors'}->print("exception was reported: $_\n")
+      }
+
+      $self->log_access($req, $res, $ctx) if $self->access_log_enabled;
+
+      if ($self->transaction_log_enabled || @error_guids) {
+        $self->log_transaction($req, $res, $ctx);
+      }
+
+    } catch {
+      my $error = $_;
+
+      # Try to report the exception, if we can't, we still must return
+      # a good response.
+      # XXX - attach error guids to response? -- alh, 2017-04-21
+      try {
+        my $guid = $ctx ? $ctx->report_exception($error) : undef;
+        unless ($guid) {
+          warn "could not report exception: $error";
+        }
+      } catch {
+        warn "error reporting an exception ($error)?! $_";
+      };
+    };
 
     return $res;
   };
