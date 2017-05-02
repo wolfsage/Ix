@@ -123,6 +123,17 @@ sub ix_create_check ($self, $ctx, $arg) {
   return;
 }
 
+sub ix_get_updates_check ($self, $ctx, $arg) {
+  # Not allowed to get more than 5 updates
+  if ($arg->{limit} && $arg->{limit} > 5) {
+    return $ctx->error(overLimit => {
+      description => "Requested too many updates"
+    });
+  }
+
+  return;
+}
+
 sub ix_get_extra_search ($self, $ctx, $arg = {}) {
   my ($cond, $attr) = $self->SUPER::ix_get_extra_search($ctx);
 
