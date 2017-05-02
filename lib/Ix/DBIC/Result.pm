@@ -219,6 +219,7 @@ sub ix_get_check              { } # ($self, $ctx, \%arg)
 sub ix_create_check           { } # ($self, $ctx, \%rec)
 sub ix_update_check           { } # ($self, $ctx, $row, \%rec)
 sub ix_destroy_check          { } # ($self, $ctx, $row)
+sub ix_get_updates_check      { } # ($self, $ctx, \%arg)
 
 sub ix_create_error  { return; } # ($self, $ctx, \%error)
 sub ix_update_error  { return; } # ($self, $ctx, \%error)

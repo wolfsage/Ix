@@ -509,4 +509,33 @@ subtest "updated null and updated Object" => sub {
   }
 };
 
+subtest "getFooUpdates - ix_get_updates_check" => sub {
+  {
+    my $res = $jmap_tester->request([
+      [
+        getUserUpdates => {
+          sinceState => "0",
+          limit      => 5,
+        }
+      ]
+    ]);
+
+    ok($res->single_sentence('userUpdates'), 'got updates');
+  }
+
+  {
+    my $res = $jmap_tester->request([
+      [
+        getUserUpdates => {
+          sinceState => "0",
+          limit      => 6,
+        }
+      ]
+    ]);
+
+    ok(my $err = $res->single_sentence('error'), 'got error');
+    is($err->{arguments}{type}, 'overLimit', 'got correct error');
+  }
+};
+
 done_testing;

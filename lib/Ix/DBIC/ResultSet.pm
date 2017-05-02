@@ -142,6 +142,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
     }
 
+    if (my $error = $rclass->ix_get_updates_check($ctx, $arg)) {
+      return $error;
+    }
+
     my $type_key = $rclass->ix_type_key;
     my $schema   = $ctx->schema;
     my $res_type = $rclass->ix_type_key_singular . "Updates";
