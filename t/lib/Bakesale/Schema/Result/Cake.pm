@@ -216,6 +216,19 @@ sub ix_get_list_filter_map {
         return $is_layered ? { layer_count => { '>'  => 1 } }
                            : { layer_count => { '<=' => 1 } };
       },
+      differ => sub ($entity, $filter) {
+        # It differs if it's layered when isLayered is false,
+        # or if it's not layered when isLayered is true
+        my $diff;
+
+        if ($filter) {
+          $diff = 1 if $entity->layer_count <= 1;
+        } else {
+          $diff = 1 if $entity->layer_count > 1;
+        }
+
+        return $diff;
+      },
     },
     'recipe.is_delicious' => { },
   };
