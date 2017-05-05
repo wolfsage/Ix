@@ -182,6 +182,8 @@ sub ix_finalize ($class) {
     Carp::confess("Class $class must define an 'ix_type_key' method");
   }
 
+  my $prop_info = $class->ix_property_info;
+
   if ($class->ix_get_list_enabled) {
     my @missing;
 
@@ -202,9 +204,47 @@ sub ix_finalize ($class) {
         . join(', ', @missing)
       );
     }
-  }
 
-  my $prop_info = $class->ix_property_info;
+    # Ensure filters are diffable. If they aren't we'll crash in
+    # ix_get_list_updates when trying to figure out if something has changed.
+    # For now, we require that either:
+    #
+    #  - The filter is a property of the class (it's in by ix_property_info)
+    #  - The filter specifies its own custom differ
+    #  - The filter contains a relationship ('this.that') and the relationship
+    #    is listed as joinable in ix_get_list_joins. (Note that we do
+    #    not verify the columns on the related tables... yet...)
+    my @broken;
+
+    my $fmap = $class->ix_get_list_filter_map;
+
+    my %joins = map { $_ => 1 } $class->ix_get_list_joins;
+
+    for my $k (keys %$fmap) {
+      my $rel_ok;
+
+      if ($k =~ /\./) {
+        my ($rel) = $k =~ /^([^.]+?)\./;
+
+        $rel_ok = $joins{$rel};
+      }
+
+      unless (
+           $prop_info->{$k}
+        || $fmap->{$k}->{differ}
+        || $rel_ok
+      ) {
+        push @broken, $k;
+      }
+    }
+
+    if (@broken) {
+      Carp::confess(
+          "$class - ix_get_list_filter_map has filters that don't match columns or have custom differs: "
+        . join(', ', @broken)
+      );
+    }
+  }
 
   for my $name (keys %$prop_info) {
     my $info = $prop_info->{$name};

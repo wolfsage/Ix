@@ -1360,7 +1360,7 @@ subtest "distinct rows only" => sub {
 
   # This causes our generated SQL to allow for duplicate rows which
   # can happen in downstream consumers
-  $ENV{RECIPEID_NOT_REQUIRED} = 1;
+  local $ENV{RECIPEID_NOT_REQUIRED} = 1;
 
   delete $cake_id{chocolate1};
 
@@ -1411,6 +1411,7 @@ subtest "tooManyChanges" => sub {
   subtest "Plenty of space for more changes" => sub {
     my $res = $jmap_tester->request([[
       getCakeListUpdates => {
+        filter => { recipeId => $secret1_recipe_id, },
         sinceState => 1,
         maxChanges => 100,
       },
@@ -1429,6 +1430,7 @@ subtest "tooManyChanges" => sub {
   subtest "Exact amount of changes" => sub {
     my $res = $jmap_tester->request([[
       getCakeListUpdates => {
+        filter => { recipeId => $secret1_recipe_id, },
         sinceState => 1,
         maxChanges => 3,
       },
@@ -1447,6 +1449,7 @@ subtest "tooManyChanges" => sub {
   subtest "Not enough room for all the changes" => sub {
     my $res = $jmap_tester->request([[
       getCakeListUpdates => {
+        filter => { recipeId => $secret1_recipe_id, },
         sinceState => 1,
         maxChanges => 2,
       },
@@ -1458,6 +1461,19 @@ subtest "tooManyChanges" => sub {
       'got correct error'
     ) or diag explain $res->as_stripped_struct;
   };
+};
+
+subtest "custom cake differ" => sub {
+  # Make sure we can get updates with this filter/custom differ
+  my $res = $jmap_tester->request([
+    [ getCakeListUpdates => { filter => {
+        recipeId => $secret1_recipe_id,
+        isLayered             => jtrue,
+        'recipe.is_delicious' => jtrue,
+      }, sinceState => 0 }
+    ],
+  ]);
+  ok($res->http_response->is_success, 'call succeeded');
 };
 
 done_testing;
