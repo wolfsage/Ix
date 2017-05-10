@@ -9,8 +9,19 @@ use Ix::Util qw($ix_id_re);
 use experimental qw(lexical_subs postderef signatures);
 
 use Sub::Exporter -setup => [ qw(
+  array_of
   boolean email enum domain idstr integer nonemptystr simplestr freetext state
 ) ];
+
+sub array_of ($validator) {
+  return sub ($x, @) {
+    my @errors = grep {; defined } map {; $validator->($_) } @$x;
+    return unless @errors;
+
+    # Sort of pathetic. -- rjbs, 2017-05-10
+    return "invalid values in array";
+  };
+}
 
 sub boolean {
   return sub ($x, @) {
