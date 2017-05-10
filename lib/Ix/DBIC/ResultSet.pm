@@ -384,6 +384,7 @@ sub ix_create ($self, $ctx, $to_create) {
       %$properties,
 
       accountId => $accountId,
+      isActive  => 1,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
