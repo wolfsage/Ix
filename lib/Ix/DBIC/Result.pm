@@ -104,6 +104,8 @@ my %IX_TYPE = (
   istring      => { data_type => 'citext' },
   timestamptz  => { data_type => 'timestamptz' },
 
+  'string[]'   => { data_type => 'text[]' },
+
   boolean      => { data_type => 'boolean' },
   integer      => { data_type => 'integer', is_numeric => 1 },
   idstr        => { data_type => 'uuid', },
