@@ -308,24 +308,6 @@ sub ix_purge ($self, $ctx, $arg = {}) {
   });
 }
 
-my sub _eqv ($x, $y) {
-  return 1 if ! defined $x and ! defined $y;
-  return   if   defined $x xor   defined $y;
-  return 1 if ! blessed $x and ! blessed $y and $x eq $y;
-  return not($x xor $y) if JSON::MaybeXS::is_bool($x)
-                       and JSON::MaybeXS::is_bool($y);
-
-  if (_ARRAY0($x) and _ARRAY0($y)) {
-    return unless @$x == @$y;
-    for (0 .. $#$x) {
-      return unless __SUB__->($x->[$_], $y->[$_]);
-    }
-    return 1;
-  }
-
-  return $x eq $y;
-}
-
 sub ix_create ($self, $ctx, $to_create) {
   my $accountId = $ctx->accountId;
 
@@ -469,7 +451,7 @@ sub ix_create ($self, $ctx, $to_create) {
       # we've added or changed
       my @changed = grep {;
            ! exists $this->{$_}
-        || ! _eqv($this->{$_}, $created{$_})
+        || differ($this->{$_}, $created{$_})
       } keys %created;
 
       $result{created}{$id} = {
@@ -811,7 +793,7 @@ sub ix_update ($self, $ctx, $to_update) {
     if ($ok) {
       my @altered_props = grep {;
         ! $user_gave_prop{$_}
-        || !  _eqv($user_prop->{$_}, $to_update->{$id}{$_})
+        || differ($user_prop->{$_}, $to_update->{$id}{$_})
       } keys %$user_prop;
       $updated{$id} = @altered_props ? { $user_prop->%{ @altered_props } }
                                      : undef;

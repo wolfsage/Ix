@@ -5,9 +5,11 @@ use experimental qw(signatures postderef);
 
 use DateTime::Format::Pg;
 use DateTime::Format::RFC3339;
-use Scalar::Util qw(reftype);
+use Safe::Isa;
+use Scalar::Util qw(blessed);
 use Data::GUID qw(guid_string);
 use Package::Stash;
+use Params::Util qw(_ARRAY0);
 use JSON::MaybeXS qw(is_bool);
 
 use Sub::Exporter -setup => {
@@ -53,19 +55,42 @@ sub parsedate ($str) {
   bless $dt, 'Ix::DateTime';
 }
 
-# Return true if two scalars differ in defined-ness or string value
-# only for non-references
+# Return true if two scalars differ as potential Ix property values.  This
+# means:
+# * definedness differs
+# * not the same datetime
+# * not the same is-ref (except for date; you can compare date obj + str)
+# * string inequality for non-refs
+# * boolean inequality for bools
+# * not equivalent arrays
+# * otherwise, throw exception
+
 sub differ ($x, $y) {
   return 1 if defined $x xor defined $y;
   return unless defined $x;
 
-  return 1 if Scalar::Util::reftype($x) xor Scalar::Util::reftype($y);
+  if ($x->$_isa('Ix::DateTime') || $y->$_isa('Ix::DateTime')) {
+    return $x ne $y;
+  }
 
+  return 1 if ref $x xor ref $y;
   return $x ne $y if ! ref $x;
 
   return ($x xor $y) if is_bool($x) && is_bool($y);
 
-  Carp::croak "can't compare two references with Ix::Util::differ";
+  if (blessed $x || blessed $y) {
+    Carp::croak("can't compare non-Boolean, non-DateTime objects with differ");
+  }
+
+  if (_ARRAY0($x) && _ARRAY0($y)) {
+    return 1 if @$x != @$y;
+    for (0 .. $#$x) {
+      return 1 if differ($x->[$_], $y->[$_]);
+    }
+    return;
+  }
+
+  Carp::croak "can't compare two references with differ";
 }
 
 sub splitquoted ($str) {
