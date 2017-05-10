@@ -575,6 +575,10 @@ sub _ix_check_user_properties (
       }
     }
 
+    if (my $canonicalizer = $info->{canonicalizer}) {
+      $value = $canonicalizer->($value) if defined $value;
+    }
+
     # These checks should probably always be last
     if (my $validator = $info->{validator}) {
       # Must validate it if there is a value or if it is non-optional
@@ -792,9 +796,12 @@ sub ix_update ($self, $ctx, $to_update) {
     };
 
     if ($ok) {
-      my @unrequested = grep {; ! $user_gave_prop{$_} } keys %$user_prop;
-      $updated{$id} = @unrequested ? { $user_prop->%{ @unrequested } }
-                                   : undef;
+      my @altered_props = grep {;
+        ! $user_gave_prop{$_}
+        || !  _eqv($user_prop->{$_}, $to_update->{$id}{$_})
+      } keys %$user_prop;
+      $updated{$id} = @altered_props ? { $user_prop->%{ @altered_props } }
+                                     : undef;
       $result{actual_updates}++ if $ok == $UPDATED;
     } else {
       $result{not_updated}{$id} = $error;

@@ -1978,6 +1978,56 @@ subtest "space cookies (are totally canceled)" => sub {
   );
 };
 
+subtest "property canonicalization" => sub {
+  my $create_res = $jmap_tester->request([[
+    setCookies => {
+      create => {
+        x => { type => 'chocolate-chip cookie' },
+        y => { type => 'chocolate-chip' },
+      },
+    },
+  ]]);
+
+  my $create_set = $create_res->single_sentence('cookiesSet')->as_set;
+
+  jcmp_deeply(
+    $create_set->created->{x},
+    superhashof({ type => 'chocolate-chip' }),
+    "all cookies are cookies",
+  );
+
+  ok(
+    ! exists $create_set->{created}->{y}->{type},
+    "we do not echo back type when unchanged",
+  );
+
+  my $update_res = $jmap_tester->request([[
+    setCookies => {
+      update => {
+        $create_set->created_id('x') => { type => 'chocolate-chip' },
+        $create_set->created_id('y') => { type => 'chocolate-chip cookie' },
+      },
+    },
+  ]]);
+
+  my $update_set = $update_res->single_sentence('cookiesSet')->as_set;
+
+  is(
+    $update_set->old_state,
+    $update_set->new_state,
+    "nothing changed, so state is the same",
+  );
+
+  jcmp_deeply(
+    $update_set->updated,
+    {
+      $create_set->created_id('x') => undef,
+      $create_set->created_id('y') => { type => 'chocolate-chip' },
+    },
+    "we need to communicate which field was canonicalized",
+  );
+};
+
 subtest "lock timeout" => sub {
   # Lock our collection and trigger our timeout
   my $schema = $app->processor->schema_connection;
