@@ -104,8 +104,9 @@ my %IX_TYPE = (
   istring      => { data_type => 'citext' },
   timestamptz  => { data_type => 'timestamptz' },
 
+  # We don't provide istring[] because DBD::Pg doesn't work nicely with it yet:
+  # https://rt.cpan.org/Public/Bug/Display.html?id=54224
   'string[]'   => { data_type => 'text[]' },
-  'istring[]'  => { data_type => 'citext[]' },
 
   boolean      => { data_type => 'boolean' },
   integer      => { data_type => 'integer', is_numeric => 1 },
