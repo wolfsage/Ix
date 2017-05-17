@@ -7,13 +7,14 @@ use parent 'DBIx::Class::ResultSet';
 use experimental qw(lexical_subs postderef signatures);
 
 use Ix::Util qw(parsedate parsepgdate differ);
+use Ix::Validators qw(idstr);
 use JSON::MaybeXS (); # XXX temporary?  for false() -- rjbs, 2016-02-22
 use List::MoreUtils qw(uniq);
+use Params::Util qw(_ARRAY0);
 use Safe::Isa;
-use Ix::Validators qw(idstr);
-use Unicode::Normalize qw(NFC);
 use Scalar::Util qw(blessed);
 use Try::Tiny;
+use Unicode::Normalize qw(NFC);
 
 use namespace::clean;
 
@@ -307,15 +308,6 @@ sub ix_purge ($self, $ctx, $arg = {}) {
   });
 }
 
-my sub _eqv ($x, $y) {
-  return 1 if ! defined $x and ! defined $y;
-  return   if   defined $x xor   defined $y;
-  return 1 if ! blessed $x and ! blessed $y and $x eq $y;
-  return not($x xor $y) if JSON::MaybeXS::is_bool($x)
-                       and JSON::MaybeXS::is_bool($y);
-  return $x eq $y;
-}
-
 sub ix_create ($self, $ctx, $to_create) {
   my $accountId = $ctx->accountId;
 
@@ -392,6 +384,7 @@ sub ix_create ($self, $ctx, $to_create) {
       %$properties,
 
       accountId => $accountId,
+      isActive  => 1,
       modSeqCreated => $next_state,
       modSeqChanged => $next_state,
     );
@@ -459,7 +452,7 @@ sub ix_create ($self, $ctx, $to_create) {
       # we've added or changed
       my @changed = grep {;
            ! exists $this->{$_}
-        || ! _eqv($this->{$_}, $created{$_})
+        || differ($this->{$_}, $created{$_})
       } keys %created;
 
       $result{created}{$id} = {
@@ -529,6 +522,9 @@ sub _ix_check_user_properties (
       $ok ||= 1 if ($prop_info->{$prop}{data_type} // '') eq 'boolean'
                 && JSON::MaybeXS::is_bool($value);
 
+      $ok ||= 1 if $prop_info->{$prop}{data_type} =~ /\[\]\z/
+                && ref $value eq 'ARRAY';
+
       unless ($ok) {
         $property_error{$prop} = "invalid property value";
         next PROP;
@@ -573,6 +569,10 @@ sub _ix_check_user_properties (
           );
         }
       }
+    }
+
+    if (my $canonicalizer = $info->{canonicalizer}) {
+      $value = $canonicalizer->($value) if defined $value;
     }
 
     # These checks should probably always be last
@@ -792,9 +792,12 @@ sub ix_update ($self, $ctx, $to_update) {
     };
 
     if ($ok) {
-      my @unrequested = grep {; ! $user_gave_prop{$_} } keys %$user_prop;
-      $updated{$id} = @unrequested ? { $user_prop->%{ @unrequested } }
-                                   : undef;
+      my @altered_props = grep {;
+        ! $user_gave_prop{$_}
+        || differ($user_prop->{$_}, $to_update->{$id}{$_})
+      } keys %$user_prop;
+      $updated{$id} = @altered_props ? { $user_prop->%{ @altered_props } }
+                                     : undef;
       $result{actual_updates}++ if $ok == $UPDATED;
     } else {
       $result{not_updated}{$id} = $error;

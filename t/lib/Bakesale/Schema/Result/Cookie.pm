@@ -15,7 +15,10 @@ __PACKAGE__->table('cookies');
 __PACKAGE__->ix_add_columns;
 
 __PACKAGE__->ix_add_properties(
-  type       => { data_type => 'string', },
+  type       => {
+    data_type     => 'string',
+    canonicalizer => sub ($value) { $value =~ s/ cookie\z//r; },
+  },
   batch      => { data_type => 'integer', is_immutable => 1 },
   baked_at   => { data_type => 'timestamptz', is_optional => 1 },
   expires_at => { data_type => 'timestamptz', is_optional => 0 },
