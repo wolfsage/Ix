@@ -2056,4 +2056,45 @@ subtest "lock timeout" => sub {
   );
 };
 
+subtest "string normalization" => sub {
+  my $nfc_1 = "\N{LATIN SMALL LETTER U WITH DIAERESIS}ser";
+  my $nfd_1 = "u\N{COMBINING DIAERESIS}ser";
+
+  my $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        u_nfc   => { username => $nfc_1 },
+      },
+    } ],
+  ]);
+
+  my $created  = $res->paragraph(0)->single('usersSet')->as_set;
+  my $first_id = $created->created_id('u_nfc');
+
+  # Now try to create user with other normalization of name.
+  $res = $jmap_tester->request([
+    [ setUsers => {
+      create => {
+        u_nfd => { username => $nfd_1, },
+      },
+    } ],
+  ]);
+
+  my $err = $res->paragraph(0)
+                ->single('usersSet')
+                ->as_set
+                ->create_errors;
+
+  cmp_deeply(
+    $jmap_tester->strip_json_types($err),
+    {
+      u_nfd => {
+        'type' => 'alreadyExists',
+        'description' => 'that username already exists during create',
+      },
+    },
+    "duplicate usernames not possible",
+  ) or diag explain $res->as_stripped_struct;
+};
+
 done_testing;
