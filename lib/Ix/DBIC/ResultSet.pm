@@ -1240,7 +1240,12 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
 
       my $was_removed = ! $entity->isActive && ! $is_changed;
 
-      if ($is_removed && ! $is_new && ! $was_removed) {
+      if ($entity->modSeqChanged <= $since_state) {
+        # Don't include the row. It hasn't been modified since our
+        # requested state, so there's no reason to show it. But we
+        # might still need to inc $i below so we properly track
+        # the location of elements
+      } elsif ($is_removed && ! $is_new && ! $was_removed) {
         push @removed, "" . $entity->id;
         $count++;
       } elsif (! $is_removed && $is_new) {

@@ -1332,11 +1332,7 @@ subtest "differ boolean comparison when db row is false" => sub {
         },
         'newState' => $state,
         'oldState' => $state - 2,
-        'removed' => set(
-          $cake_id{marble1},
-          $cake_id{marble2},
-          $cake_id{lemon1},
-        ),
+        'removed' => [],
         'sort' => [
           'type asc'
         ],
