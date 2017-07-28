@@ -961,13 +961,17 @@ sub ix_set ($self, $ctx, $arg = {}) {
 
     my %result;
 
-    if ($arg->{create}) {
-      my $create_result = $self->ix_create($ctx, $arg->{create});
+    # Destroy first, then update, then create. This seems the most sensible.
+    # This way, rows are removed that might block other rows from being updated
+    # or created, and updated rows may leave new rows coming in more room.
+    # This does mean new data has the least importance. I think that's okay.
+    # -- alh, 2017-07-28
+    if ($arg->{destroy}) {
+      my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
 
-      $result{created}     = $create_result->{created};
-      $result{not_created} = $create_result->{not_created};
-
-      $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
+      $result{destroyed} = $destroy_result->{destroyed};
+      $result{not_destroyed} = $destroy_result->{not_destroyed};
+      $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
     }
 
     if ($arg->{update}) {
@@ -979,12 +983,13 @@ sub ix_set ($self, $ctx, $arg = {}) {
         if $result{updated} && $result{updated}->%* && $update_result->{actual_updates};
     }
 
-    if ($arg->{destroy}) {
-      my $destroy_result = $self->ix_destroy($ctx, $arg->{destroy});
+    if ($arg->{create}) {
+      my $create_result = $self->ix_create($ctx, $arg->{create});
 
-      $result{destroyed} = $destroy_result->{destroyed};
-      $result{not_destroyed} = $destroy_result->{not_destroyed};
-      $state->ensure_state_bumped($type_key) if $result{destroyed} && $result{destroyed}->@*;
+      $result{created}     = $create_result->{created};
+      $result{not_created} = $create_result->{not_created};
+
+      $state->ensure_state_bumped($type_key) if keys $result{created}->%*;
     }
 
     my $ret = [ Ix::Result::FoosSet->new({
