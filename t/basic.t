@@ -2097,4 +2097,71 @@ subtest "string normalization" => sub {
   ) or diag explain $res->as_stripped_struct;
 };
 
+subtest "client may init and/or update" => sub {
+
+  # Attempt creating two objects, where:
+  #   type => { client_may_init => 1, client_may_update => 0 }
+  #   qty  => { client_may_init => 0, client_may_update => 1 }
+  my $res = $jmap_tester->request([
+    [ setBiscuits => {
+        create => {
+           foo => { type => 'anzac' },
+           bar => { type => 'anzac', qty => jnum(1) },
+        },
+    } ],
+  ]);
+
+  my $set = $res->single_sentence('biscuitsSet')->as_set;
+
+  # 'foo' created
+  my $created_id =  $set->created_id('foo');
+  ok($created_id, "created with client_may_init => 1");
+
+  # 'bar' notCreated
+  jcmp_deeply(
+    $set->create_errors->{bar},
+    superhashof({
+      'description' => 'invalid property values',
+      'propertyErrors' => {
+        'qty' => 'property cannot be set by client'
+      },
+      'type' => 'invalidProperties'
+    }),
+    "can't create with client_may_init => 0"
+  );
+
+  # 'qty' updated
+  my $update_res = $jmap_tester->request([[
+    setBiscuits => { update => { $created_id => { qty => jnum(1) } } }
+    ]]);
+
+  my $update_set = $update_res->single_sentence('biscuitsSet')->as_set;
+
+  jcmp_deeply(
+    $update_set->updated,
+    superhashof({ $created_id => ignore() }),
+    "update with client_may_update => 1"
+  ) or diag explain $update_res->as_stripped_struct;
+
+  # 'type' notUpdated
+  $update_res = $jmap_tester->request([[
+    setBiscuits => { update => { $created_id => { type => 'shortbread' } } }
+    ]]);
+
+  $update_set = $update_res->single_sentence('biscuitsSet')->as_set;
+
+  jcmp_deeply(
+    $update_set->update_errors->{$created_id},
+    superhashof({
+      'description' => 'invalid property values',
+      'propertyErrors' => {
+        'type' => 'property cannot be set by client'
+      },
+      'type' => 'invalidProperties'
+    }),
+    "cannot update where client_may_update => 0"
+  ) or diag explain $update_res->as_stripped_struct;
+
+};
+
 done_testing;
