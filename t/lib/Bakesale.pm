@@ -225,6 +225,7 @@ package Bakesale {
     return 'count_chars'   if $method eq 'countChars';
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
+    return 'validate_args' if $method eq 'validateArguments';
     return;
   }
 
@@ -248,6 +249,22 @@ package Bakesale {
     push @flavors, qw(cherry eel) unless $only_tasty;
 
     return Bakesale::PieTypes->new({ flavors => \@flavors });
+  }
+
+  sub validate_args ($self, $ctx, $arg = {}) {
+    state $argchk = Ix::Util::make_arglist_validator({
+      required => [ qw(needful)  ],
+      optional => [ qw(whatever) ],
+    });
+
+    if (my $invalid = $argchk->($arg)) {
+      return $ctx->error(invalidArguments => { invalidArguments => $invalid });
+    }
+
+    return Ix::Result::Generic->new({
+      result_type       => 'argumentsValidated',
+      result_arguments  => {},
+    });
   }
 
   sub bake_pies ($self, $ctx, $arg = {}) {

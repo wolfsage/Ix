@@ -113,6 +113,24 @@ sub splitquoted ($str) {
   return @found;
 }
 
+sub make_arglist_validator ($arg) {
+  # { required => ..., optional => ... }
+  my %required = map {; $_ => 1 } ($arg->{required} || [])->@*;
+  my %allowed  = (%required, map {; $_ => 1 } ($arg->{optional} || [])->@*);
+
+  return sub ($got) {
+    my @missing = grep {; ! exists $got->{$_} } keys %required;
+    my @unknown = grep {; ! $allowed{$_}      } keys %$got;
+
+    return unless @missing or @unknown;
+
+    return {
+      (map {; $_ => "unknown argument" } @unknown),
+      (map {; $_ => "no value given for required argument" } @missing),
+    };
+  }
+}
+
 package Ix::DateTime {
 
   use parent 'DateTime'; # should use DateTime::Moonpig

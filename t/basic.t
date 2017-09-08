@@ -2164,4 +2164,52 @@ subtest "client may init and/or update" => sub {
 
 };
 
+subtest "argument validation" => sub {
+  my $res = $jmap_tester->request([
+    [ validateArguments => { needful => 1 } ],
+    [ validateArguments => { needful => 1, whatever => 1 } ],
+    [ validateArguments => { bogus => 1 } ],
+    [ validateArguments => { bogus => 1, needful => 1 } ],
+  ]);
+
+  jcmp_deeply(
+    $res->sentence(0)->as_pair,
+    [ argumentsValidated => { } ],
+    "first call response: okay",
+  ) or diag(explain($res->as_stripped_struct));
+
+  jcmp_deeply(
+    $res->sentence(1)->as_pair,
+    [ argumentsValidated => { } ],
+    "second call response: okay",
+  );
+
+  jcmp_deeply(
+    $res->sentence(2)->as_pair,
+    [
+      error => {
+        type => 'invalidArguments',
+        invalidArguments => {
+          bogus   => "unknown argument",
+          needful => "no value given for required argument",
+        },
+      },
+    ],
+    "third call response: expected errors",
+  );
+
+  jcmp_deeply(
+    $res->sentence(3)->as_pair,
+    [
+      error => {
+        type => 'invalidArguments',
+        invalidArguments => {
+          bogus   => "unknown argument",
+        },
+      },
+    ],
+    "fourth call response: expected errors",
+  );
+};
+
 done_testing;
