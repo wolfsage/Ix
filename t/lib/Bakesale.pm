@@ -255,11 +255,10 @@ package Bakesale {
     state $argchk = Ix::Util::make_arglist_validator({
       required => [ qw(needful)  ],
       optional => [ qw(whatever) ],
+      throw    => 1,
     });
 
-    if (my $invalid = $argchk->($arg)) {
-      return $ctx->error(invalidArguments => { invalidArguments => $invalid });
-    }
+    $argchk->($arg);
 
     return Ix::Result::Generic->new({
       result_type       => 'argumentsValidated',

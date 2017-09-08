@@ -114,9 +114,10 @@ sub splitquoted ($str) {
 }
 
 sub make_arglist_validator ($arg) {
-  # { required => ..., optional => ... }
+  # { required => [...], optional => [...], throw => bool }
   my %required = map {; $_ => 1 } ($arg->{required} || [])->@*;
   my %allowed  = (%required, map {; $_ => 1 } ($arg->{optional} || [])->@*);
+  my $throw    = $arg->{throw};
 
   return sub ($got) {
     my @missing = grep {; ! exists $got->{$_} } keys %required;
@@ -124,10 +125,18 @@ sub make_arglist_validator ($arg) {
 
     return unless @missing or @unknown;
 
-    return {
+    my $invalid = {
       (map {; $_ => "unknown argument" } @unknown),
       (map {; $_ => "no value given for required argument" } @missing),
     };
+
+    return $invalid unless $throw;
+
+    require Ix::Result;
+    Ix::Error::Generic->new({
+      error_type => 'invalidArguments',
+      properties => { invalidArguments => $invalid },
+    })->throw;
   }
 }
 
