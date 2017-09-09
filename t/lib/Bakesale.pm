@@ -163,6 +163,7 @@ package Bakesale {
 
   use Bakesale::Context;
   use Data::GUID qw(guid_string);
+  use Ix::Validators qw( enum integer record );
 
   use experimental qw(signatures postderef);
   use namespace::autoclean;
@@ -252,9 +253,15 @@ package Bakesale {
   }
 
   sub validate_args ($self, $ctx, $arg = {}) {
-    state $argchk = Ix::Util::make_arglist_validator({
+    state $argchk = record({
       required => [ qw(needful)  ],
-      optional => [ qw(whatever) ],
+      optional => {
+        whatever => integer(-1, 1),
+        subrec   => record({
+          required => { color => enum([ qw(red green blue) ]) },
+          optional => [ 'saturation' ],
+        }),
+      },
       throw    => 1,
     });
 

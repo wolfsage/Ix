@@ -2165,27 +2165,28 @@ subtest "client may init and/or update" => sub {
 };
 
 subtest "argument validation" => sub {
-  my $res = $jmap_tester->request([
-    [ validateArguments => { needful => 1 } ],
-    [ validateArguments => { needful => 1, whatever => 1 } ],
-    [ validateArguments => { bogus => 1 } ],
-    [ validateArguments => { bogus => 1, needful => 1 } ],
-  ]);
+  my sub validate ($args) {
+    $jmap_tester->request([[ validateArguments => $args ]])
+                ->single_sentence
+                ->as_pair;
+  }
 
   jcmp_deeply(
-    $res->sentence(0)->as_pair,
+    validate({ needful => 1 }),
     [ argumentsValidated => { } ],
     "first call response: okay",
-  ) or diag(explain($res->as_stripped_struct));
+  ) or diag explain(
+    validate({ needful => 1 }),
+  );
 
   jcmp_deeply(
-    $res->sentence(1)->as_pair,
+    validate({ needful => 1, whatever => 1 }),
     [ argumentsValidated => { } ],
     "second call response: okay",
   );
 
   jcmp_deeply(
-    $res->sentence(2)->as_pair,
+    validate({ bogus => 1 }),
     [
       error => {
         type => 'invalidArguments',
@@ -2199,7 +2200,7 @@ subtest "argument validation" => sub {
   );
 
   jcmp_deeply(
-    $res->sentence(3)->as_pair,
+    validate({ bogus => 1, needful => 1 }),
     [
       error => {
         type => 'invalidArguments',
@@ -2209,6 +2210,56 @@ subtest "argument validation" => sub {
       },
     ],
     "fourth call response: expected errors",
+  );
+
+  jcmp_deeply(
+    validate({ needful => 1, whatever => 10 }),
+    [
+      error => {
+        type => 'invalidArguments',
+        invalidArguments => {
+          whatever  => "value above maximum of 1",
+        },
+      },
+    ],
+    "fourth call response: expected errors",
+  );
+
+  jcmp_deeply(
+    validate({ needful => 1, subrec => { color => 'orange' } }),
+    [
+      error => {
+        type => 'invalidArguments',
+        invalidArguments => {
+          subrec => {
+            color => "not a valid value"
+          }
+        },
+      }
+    ],
+    "invalid subrecord: bad enum value",
+  );
+
+  jcmp_deeply(
+    validate({ needful => 1, subrec => { awful => 1 } }),
+    [
+      error => {
+        type => 'invalidArguments',
+        invalidArguments => {
+          subrec => {
+            color => "no value given for required argument",
+            awful => "unknown argument",
+          }
+        },
+      }
+    ],
+    "invalid subrecord: missing and unknown",
+  );
+
+  jcmp_deeply(
+    validate({ needful => 1, subrec => { color => 'red' } }),
+    [ argumentsValidated => { } ],
+    "valid subrecord",
   );
 };
 

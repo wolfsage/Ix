@@ -3,6 +3,7 @@ use warnings;
 package Ix::Validators;
 
 use JSON::MaybeXS ();
+use Params::Util qw(_ARRAY0);
 use Safe::Isa;
 use Ix::Util qw($ix_id_re);
 
@@ -10,6 +11,7 @@ use experimental qw(lexical_subs postderef signatures);
 
 use Sub::Exporter -setup => [ qw(
   array_of
+  record
   boolean email enum domain idstr integer nonemptystr simplestr freetext state
 ) ];
 
@@ -22,6 +24,58 @@ sub array_of ($validator) {
     return "invalid values in array";
   };
 }
+
+sub record ($arg) {
+  # { required => [...], optional => [...], throw => bool }
+  my %check
+    = ! $arg->{required}        ? ()
+    : _ARRAY0($arg->{required}) ? (map {; $_ => undef } $arg->{required}->@*)
+    :                             $arg->{required}->%*;
+
+  my %is_required = map {; $_ => 1 } keys %check;
+
+  my %opt
+    = ! $arg->{optional}        ? ()
+    : _ARRAY0($arg->{optional}) ? (map {; $_ => undef } $arg->{optional}->@*)
+    :                             $arg->{optional}->%*;
+
+  my @duplicates  = grep {; exists $check{$_} } keys %opt;
+
+  Carp::confess("keys listed as both optional and required: @duplicates")
+    if @duplicates;
+
+  %check = (%check, %opt);
+
+  my %is_allowed  = map {; $_ => 1 } keys %check;
+  my $throw       = $arg->{throw};
+
+  return sub ($got) {
+    my %error = map  {; $_ => "no value given for required argument" }
+                grep {; ! exists $got->{$_} } keys %is_required;
+
+    KEY: for my $key (keys %$got) {
+      unless ($is_allowed{$key}) {
+        $error{$key} = "unknown argument";
+        next KEY;
+      }
+
+      next unless $check{$key};
+      next unless my $error = $check{$key}->($got->{$key});
+      $error{$key} = $error;
+    }
+
+    return unless %error;
+
+    return \%error unless $throw;
+
+    require Ix::Result;
+    Ix::Error::Generic->new({
+      error_type => 'invalidArguments',
+      properties => { invalidArguments => \%error },
+    })->throw;
+  }
+}
+
 
 sub boolean {
   return sub ($x, @) {
