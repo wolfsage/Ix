@@ -17,6 +17,8 @@ use Sub::Exporter -setup => [ qw(
 
 sub array_of ($validator) {
   return sub ($x, @) {
+    return "value is not an array" unless _ARRAY0($x);
+
     my @errors = grep {; defined } map {; $validator->($_) } @$x;
     return unless @errors;
 
