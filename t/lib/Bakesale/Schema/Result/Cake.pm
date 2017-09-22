@@ -291,4 +291,17 @@ sub ix_get_list_updates_check ($self, $ctx, $arg, $search) {
 
 sub ix_get_list_enabled { 1 }
 
+sub ix_published_method_map {
+  return {
+    areCakesDelicious => 'are_cakes_delicious',
+  };
+}
+
+sub are_cakes_delicious ($self, $ctx, $arg) {
+  return Ix::Result::Generic->new({
+    result_type       => 'cakesAreDelicious',
+    result_arguments  => { howDelicious => 'very' },
+  });
+}
+
 1;

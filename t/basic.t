@@ -28,6 +28,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
   my $res = $jmap_tester->request([
     [ pieTypes => { tasty => 1 } ],
     [ pieTypes => { tasty => 0 } ],
+    [ areCakesDelicious => {}    ],
   ]);
 
   jcmp_deeply(
@@ -40,6 +41,12 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
     $res->paragraph(1)->single->as_pair,
     [ pieTypes => { flavors => [ qw(pumpkin apple pecan cherry eel) ] } ],
     "second call response group: one item, as expected",
+  );
+
+  jcmp_deeply(
+    $res->paragraph(2)->single->as_pair,
+    [ cakesAreDelicious => { howDelicious => 'very' } ],
+    "third call response group: one item, as expected",
   );
 
   my @xacts = $app->drain_transaction_log;

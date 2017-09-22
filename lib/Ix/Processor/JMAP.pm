@@ -37,6 +37,20 @@ has _dbic_handlers => (
     for my $moniker (keys %$source_reg) {
       my $rclass = $source_reg->{$moniker}->result_class;
       next unless $rclass->isa('Ix::DBIC::Result');
+
+      if (
+        $rclass->can('ix_published_method_map')
+        &&
+        (my $method_map = $rclass->ix_published_method_map)
+      ) {
+        for (keys %$method_map) {
+          my $method = $method_map->{$_};
+          $handler{$_} = sub ($self, $ctx, $arg = {}) {
+            $rclass->$method($ctx, $arg);
+          };
+        }
+      }
+
       my $key  = $rclass->ix_type_key;
       my $key1 = $rclass->ix_type_key_singular;
 
