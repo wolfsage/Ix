@@ -2270,4 +2270,6 @@ subtest "argument validation" => sub {
   );
 };
 
+$app->_shutdown;
+
 done_testing;

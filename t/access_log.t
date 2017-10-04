@@ -171,4 +171,6 @@ for my $line (@lines) {
   );
 }
 
+$app->_shutdown;
+
 done_testing;

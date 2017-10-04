@@ -192,19 +192,19 @@ package Bakesale {
   sub get_context ($self, $arg) {
     Bakesale::Context->new({
       userId    => $arg->{userId},
-      schema    => $self->schema_connection,
+      schema    => $arg->{schema} // $self->schema_connection,
       processor => $self,
     });
   }
 
-  sub get_system_context ($self) {
+  sub get_system_context ($self, $arg = {}) {
     Bakesale::Context::System->new({
-      schema    => $self->schema_connection,
+      schema    => $arg->{schema} // $self->schema_connection,
       processor => $self,
     });
   }
 
-  sub context_from_plack_request ($self, $req) {
+  sub context_from_plack_request ($self, $req, $arg = {}) {
     if (my $user_id = $req->cookies->{bakesaleUserId}) {
       $user_id =~ s/"(.*)"/$1/;
 
@@ -214,7 +214,10 @@ package Bakesale {
         });
       }
 
-      return $self->get_context({ userId => $user_id });
+      return $self->get_context({
+        schema => $arg->{schema},
+        userId => $user_id,
+      });
     }
 
     http_throw('Gone');

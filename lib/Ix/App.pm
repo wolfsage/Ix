@@ -62,7 +62,16 @@ has transaction_log_enabled => (
   default => 0,
 );
 
+has _caches => (
+  is => 'ro',
+  init_arg => undef,
+  default  => sub {  []  },
+);
+
 sub to_app ($self) {
+  my %schema_cache;
+  push $self->_caches->@*, \%schema_cache;
+
   my $app = sub ($env) {
     my $req = Plack::Request->new($env);
 
@@ -104,7 +113,13 @@ sub to_app ($self) {
 
     my $ctx;
     my $res = try {
-      $ctx = $self->processor->context_from_plack_request($req);
+      unless ($schema_cache{$$}) {
+        %schema_cache = ($$ => $self->processor->schema_connection);
+      }
+
+      $ctx = $self->processor->context_from_plack_request($req, {
+        schema => $schema_cache{$$},
+      });
       Carp::confess("could not establish context")
         unless $ctx && $ctx->does('Ix::Context');
       $self->_core_request($ctx, $req);
@@ -253,5 +268,13 @@ sub build_transaction_log_entry ($self, $req, $res, $ctx = undef) {
 }
 
 sub emit_transaction_log ($self, $entry) {}
+
+sub _shutdown ($self) {
+  %$_ = () for $self->_caches->@*;
+}
+
+before DEMOLISHALL => sub ($self, @) {
+  $self->_shutdown;
+};
 
 1;
