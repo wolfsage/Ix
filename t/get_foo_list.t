@@ -1472,5 +1472,30 @@ subtest "custom cake differ" => sub {
   ok($res->http_response->is_success, 'call succeeded');
 };
 
+subtest "we do not promote undef sort or filter" => sub {
+  for my $pair (
+    [ '{}'    => {} ],
+    [ 'null'  => undef ],
+  ) {
+    my ($desc, $value) = @$pair;
+    subtest "filter non-promotion, filter = $desc" => sub {
+      my $list_res = $jmap_tester->request([ [ getCookieList => { filter => $value } ] ]);
+      my $list = $list_res->single_sentence('cookieList');
+
+      jcmp_deeply($list->arguments->{filter}, $value, "getFooList filter");
+
+      my $state = $list->arguments->{state};
+
+      my $listup_res = $jmap_tester->request([
+        [ getCookieListUpdates => { sinceState => $state, filter => $value } ]
+      ]);
+
+      my $listup = $listup_res->single_sentence('cookieListUpdates');
+
+      jcmp_deeply($listup->arguments->{filter}, $value, "getFooListUpdates filter");
+    };
+  }
+};
+
 done_testing;
 

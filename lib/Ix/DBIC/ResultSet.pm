@@ -1142,6 +1142,9 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
       return $ctx->error(cannotCalculateChanges => {});
     }
 
+    my $orig_filter = $arg->{filter};
+    my $orig_sort   = $arg->{sort};
+
     my $search = $self->_get_list_search_args($ctx, $arg);
 
     if (my $error = $rclass->ix_get_list_updates_check($ctx, $arg, $search)) {
@@ -1161,8 +1164,8 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
       # Nothing changed!  But we still promise to return the total,
       # unfortunately, so we get it. -- rjbs, 2016-04-13
       return $ctx->result("${key1}ListUpdates" => {
-        filter => $arg->{filter},
-        sort   => $arg->{sort},
+        filter => $orig_filter,
+        sort   => $orig_sort,
         oldState => "$since_state",
         newState => "$since_state",
         total    => $total,
@@ -1276,8 +1279,8 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
     }
 
     return $ctx->result("${key1}ListUpdates" => {
-      filter => $arg->{filter},
-      sort   => $arg->{sort},
+      filter => $orig_filter,
+      sort   => $orig_sort,
       oldState => "" . $since_state,
       newState => "" . $hms,
       total    => $total,
