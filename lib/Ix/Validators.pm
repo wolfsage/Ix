@@ -100,7 +100,6 @@ sub boolean {
 
   my sub is_domain {
     my $value = shift;
-    $value =~ s/\.$//;
     return unless defined $value and $value =~ /\A$domain_re\z/;
     return unless length($value) <= 253;
 
