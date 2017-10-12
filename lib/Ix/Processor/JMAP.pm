@@ -10,6 +10,8 @@ use Time::HiRes qw(gettimeofday tv_interval);
 
 use namespace::autoclean;
 
+use Ix::JMAP::SentenceCollection;
+
 with 'Ix::Processor';
 
 requires 'handler_for';
@@ -80,7 +82,7 @@ has _dbic_handlers => (
   }
 );
 
-sub process_request ($self, $ctx, $calls) {
+sub handle_calls ($self, $ctx, $calls) {
   my @results;
 
   my $call_start;
@@ -95,7 +97,11 @@ sub process_request ($self, $ctx, $calls) {
     my $handler = $self->handler_for( $method );
 
     unless ($handler) {
-      push @results, [ error => { type => 'unknownMethod' }, $cid ];
+      push @results, [
+        Ix::Error::Generic->new({ error_type  => 'unknownMethod' }),
+        $cid,
+      ];
+
       next CALL;
     }
 
@@ -118,11 +124,16 @@ sub process_request ($self, $ctx, $calls) {
 
     RV: for my $i (0 .. $#rv) {
       local $_ = $rv[$i];
-      push @results, $_->$_DOES('Ix::Result')
-                   ? [ $_->result_type, $_->result_arguments, $cid ]
-                   : [ error => { type => 'garbledResponse' }, $cid ];
+      push @results,  $_->$_DOES('Ix::Result')
+                   ?  [ $_, $cid ]
+                   :  [
+                         Ix::Error::Generic->new({
+                           error_type  => 'garbledResponse'
+                         }),
+                         $cid,
+                      ];
 
-      if ($results[-1][0] eq 'error' && $i < $#rv) {
+      if ($results[-1][0]->does('Ix::Error') && $i < $#rv) {
         # In this branch, we have a potential return value like:
         # (
         #   [ valid => ... ],
@@ -147,7 +158,18 @@ sub process_request ($self, $ctx, $calls) {
     });
   }
 
-  return \@results;
+  return Ix::JMAP::SentenceCollection->new({
+    result_client_id_pairs => \@results
+  });
+}
+
+sub process_request ($self, $ctx, $calls) {
+  my $rset = $self->handle_calls($ctx, $calls);
+
+  return [
+    map {; [ $_->[0]->result_type, $_->[0]->result_arguments, $_->[1] ] }
+    $rset->_result_client_id_pairs->@*
+  ];
 }
 
 1;
