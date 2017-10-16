@@ -1741,17 +1741,7 @@ subtest "good call gets headers" => sub {
 
   my $http_res = $res->http_response;
 
-  for my $hdr (
-    [ 'Vary', 'Origin' ],
-    [ 'Access-Control-Allow-Origin', 'example.net' ],
-    [ 'Access-Control-Allow-Credentials', 'true' ],
-  ) {
-    is(
-      $http_res->header($hdr->[0]),
-      $hdr->[1],
-      "$hdr->[0] is correct"
-    );
-  }
+  is($http_res->header('Vary'), 'Origin', 'Vary is correct');
 
   ok($http_res->header('Ix-Transaction-ID'), 'we have a request guid!');
 };

@@ -34,18 +34,7 @@ my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
   is($res->code, 410, 'got 410 with bad cookie');
   is($res->decoded_content, '{"error":"bad auth"}', 'got error in body');
 
-  for my $hdr (
-    [ 'Vary', 'Origin' ],
-    [ 'Access-Control-Allow-Origin', 'example.net' ],
-    [ 'Access-Control-Allow-Credentials', 'true' ],
-  ) {
-    is(
-      $res->header($hdr->[0]),
-      $hdr->[1],
-      "$hdr->[0] is correct"
-    );
-  }
-
+  is($res->header('Vary'), 'Origin', 'Vary header is correct');
   ok($res->header('Ix-Transaction-ID'), 'we have a request guid!');
 }
 

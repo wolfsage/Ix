@@ -82,26 +82,6 @@ sub to_app ($self) {
       'Ix-Transaction-ID' => $guid,
     );
 
-    if (my $origin = $req->header('Origin')) {
-      %HEADER = (%HEADER,
-        'Access-Control-Allow-Origin'      => $origin,
-        'Access-Control-Allow-Credentials' => 'true',
-      );
-    }
-
-    if ($req->method eq 'OPTIONS') {
-      return [
-        200,
-        [
-          %HEADER,
-          'Access-Control-Allow-Methods' => 'POST,GET,DELETE,OPTIONS',
-          'Access-Control-Allow-Headers' => 'Accept,Authorization,Content-Type,X-ME-ClientVersion,X-ME-LastActivity',
-          'Access-Control-Max-Age' => 86400,
-        ],
-        [ '' ],
-      ];
-    }
-
     state $transaction_number;
     $transaction_number++;
     $req->env->{'ix.transaction'} = {
