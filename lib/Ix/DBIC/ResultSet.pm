@@ -509,7 +509,7 @@ sub _ix_check_user_properties (
 
     # User input cannot set internal fields
     if (! $is_default && ! $is_user_prop->{$prop}) {
-      $property_error{$prop} = "property cannot be set by client";
+      $property_error{$prop} = "property cannot be set";
       next PROP;
     }
 

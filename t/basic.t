@@ -2120,7 +2120,7 @@ subtest "client may init and/or update" => sub {
     superhashof({
       'description' => 'invalid property values',
       'propertyErrors' => {
-        'qty' => 'property cannot be set by client'
+        qty => re(qr/cannot be set/),
       },
       'type' => 'invalidProperties'
     }),
@@ -2150,15 +2150,97 @@ subtest "client may init and/or update" => sub {
   jcmp_deeply(
     $update_set->update_errors->{$created_id},
     superhashof({
-      'description' => 'invalid property values',
-      'propertyErrors' => {
-        'type' => 'property cannot be set by client'
+      type => 'invalidProperties',
+      description => 'invalid property values',
+      propertyErrors => {
+        type => re(qr/cannot be set/),
       },
-      'type' => 'invalidProperties'
     }),
     "cannot update where client_may_update => 0"
   ) or diag explain $update_res->as_stripped_struct;
 
+};
+
+subtest "is_immutable" => sub {
+  my $set_res = $jmap_tester->request([
+    [
+      setBiscuits => {
+        create => {
+           foo => { type => 'chicken', size => 'jumbo' },
+        },
+      },
+    ],
+  ]);
+
+  my $set = $set_res->single_sentence('biscuitsSet')->as_set;
+
+  my $obj = $set->created->{foo};
+  ok($obj, "we create an object for foo");
+
+  my $get_res = $jmap_tester->request([
+    [ getBiscuits => { ids => [ $obj->{id} ] } ]
+  ]);
+
+  is(
+    $get_res->single_sentence('biscuits')->arguments->{list}[0]{size},
+    'jumbo',
+    "the size was set properly",
+  );
+
+  {
+    my $update_res = $jmap_tester->request([
+      [ setBiscuits => { update => { $obj->{id} => { size => 'x-large' } } } ]
+    ]);
+
+    jcmp_deeply(
+      $update_res->single_sentence('biscuitsSet')->arguments->{notUpdated},
+      superhashof({
+        $obj->{id} => {
+          type => 'invalidProperties',
+          description => 'invalid property values',
+          propertyErrors => {
+            size => re(qr/cannot be set/),
+          }
+        },
+      }),
+      "client can't update immutable field",
+    );
+  }
+
+  {
+    my $ctx = $app->processor->get_system_context;
+
+    my $sys_res = $ctx->process_request([
+      [
+        setBiscuits => {
+          accountId => $account{accounts}{rjbs},
+          update    => { $obj->{id} => { size => 'x-large' } }
+        },
+        'x',
+      ]
+    ]);
+
+    jcmp_deeply(
+      $sys_res,
+      [
+        [
+          biscuitsSet => superhashof({
+            notUpdated => {
+              $obj->{id} => {
+                type => 'invalidProperties',
+                description => 'invalid property values',
+                propertyErrors => {
+                  size => re(qr/cannot be set/),
+                }
+              },
+            }
+          }),
+          'x',
+        ],
+      ],
+      "system can't update immutable field",
+    );
+  }
 };
 
 subtest "argument validation" => sub {
