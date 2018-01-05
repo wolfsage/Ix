@@ -164,12 +164,9 @@ sub handle_calls ($self, $ctx, $calls) {
 }
 
 sub process_request ($self, $ctx, $calls) {
-  my $rset = $self->handle_calls($ctx, $calls);
+  my $sc = $self->handle_calls($ctx, $calls);
 
-  return [
-    map {; [ $_->[0]->result_type, $_->[0]->result_arguments, $_->[1] ] }
-    $rset->_result_client_id_pairs->@*
-  ];
+  return $sc->as_struct;
 }
 
 1;
