@@ -109,13 +109,14 @@ sub _sanity_check_calls ($self, $calls, $arg) {
 }
 
 sub handle_calls ($self, $ctx, $calls, $arg = {}) {
-  my @results;
-
   $self->_sanity_check_calls($calls, {
     add_missing_client_ids => ! $arg->{no_implicit_client_ids}
   });
 
   my $call_start;
+
+  my $sc = Ix::JMAP::SentenceCollection->new;
+  local $ctx->root_context->{result_accumulator} = $sc;
 
   CALL: for my $call (@$calls) {
     $call_start = [ gettimeofday ];
@@ -127,10 +128,12 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
     my $handler = $self->handler_for( $method );
 
     unless ($handler) {
-      push @results, [
-        Ix::Error::Generic->new({ error_type  => 'unknownMethod' }),
-        $cid,
-      ];
+      $sc->add_items([
+        [
+          Ix::Error::Generic->new({ error_type  => 'unknownMethod' }),
+          $cid,
+        ],
+      ]);
 
       next CALL;
     }
@@ -154,16 +157,17 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
 
     RV: for my $i (0 .. $#rv) {
       local $_ = $rv[$i];
-      push @results,  $_->$_DOES('Ix::Result')
-                   ?  [ $_, $cid ]
-                   :  [
-                         Ix::Error::Generic->new({
-                           error_type  => 'garbledResponse'
-                         }),
-                         $cid,
-                      ];
+      my $item
+        = $_->$_DOES('Ix::Result')
+        ? [ $_, $cid ]
+        : [
+            Ix::Error::Generic->new({ error_type  => 'garbledResponse' }),
+            $cid,
+          ];
 
-      if ($results[-1][0]->does('Ix::Error') && $i < $#rv) {
+      $sc->add_items([ $item ]);
+
+      if ($item->[0]->does('Ix::Error') && $i < $#rv) {
         # In this branch, we have a potential return value like:
         # (
         #   [ valid => ... ],
@@ -188,9 +192,7 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
     });
   }
 
-  return Ix::JMAP::SentenceCollection->new({
-    result_client_id_pairs => \@results
-  });
+  return $sc;
 }
 
 sub process_request ($self, $ctx, $calls) {

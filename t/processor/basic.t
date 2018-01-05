@@ -695,4 +695,15 @@ subtest "invalid sinceState" => sub {
   );
 }
 
+subtest "results outside of request" => sub {
+  eval { local $ENV{QUIET_BAKESALE} = 1; $ctx->results_so_far };
+
+  my $error = $@;
+  like(
+    $error,
+    qr{tried to inspect},
+    "can't call ->results_so_far outside req",
+  );
+};
+
 done_testing;

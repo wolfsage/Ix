@@ -14,7 +14,8 @@ sub sentence_broker {
 
 # [ [ $result, $cid ], ... ]
 has result_client_id_pairs => (
-  reader => '_result_client_id_pairs',
+  reader  => '_result_client_id_pairs',
+  default => sub {  []  },
 );
 
 sub results ($self) {
@@ -33,6 +34,11 @@ sub result ($self, $n) {
 }
 
 sub items ($self) { $self->_result_client_id_pairs->@* }
+
+sub add_items ($self, $items) {
+  push $self->_result_client_id_pairs->@*, @$items;
+  return;
+}
 
 no Moose;
 

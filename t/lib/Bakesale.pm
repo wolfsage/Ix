@@ -226,11 +226,24 @@ package Bakesale {
   sub schema_class { 'Bakesale::Schema' }
 
   sub handler_for ($self, $method) {
+    return 'result_count'  if $method eq 'countResults';
     return 'count_chars'   if $method eq 'countChars';
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
     return 'validate_args' if $method eq 'validateArguments';
     return;
+  }
+
+  sub result_count ($self, $ctx, $arg) {
+    my $sc = $ctx->results_so_far;
+
+    my $s_count = $sc->sentences;
+    my $p_count = $sc->paragraphs;
+
+    return Ix::Result::Generic->new({
+      result_type       => 'resultCount',
+      result_arguments  => { sentences => $s_count, paragraphs => $p_count },
+    });
   }
 
   sub count_chars ($self, $ctx, $arg) {
