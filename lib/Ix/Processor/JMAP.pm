@@ -82,16 +82,46 @@ has _dbic_handlers => (
   }
 );
 
-sub handle_calls ($self, $ctx, $calls) {
+sub _sanity_check_calls ($self, $calls, $arg) {
+  # We should, in the future, add a bunch of error checking up front and reject
+  # badly-formed requests.  For now, this is a placeholder, except for its
+  # client id fixups. -- rjbs, 2018-01-05
+
+  my %saw_cid;
+
+  # Won't happen.  Won't happen.  Won't happen... -- rjbs, 2018-01-05
+  Carp::confess("too many method calls") if @$calls > 5_000;
+
+  for my $call (@$calls) {
+    if (not defined $call->[2]) {
+      if ($arg->{add_missing_client_ids}) {
+        my $next;
+        do { $next = "x" . int rand 10_000 } while exists $saw_cid{$next};
+        $call->[2] = $next;
+      } else {
+        Carp::confess("missing client id");
+      }
+    }
+    $saw_cid{$call->[2]} = 1;
+  }
+
+  return;
+}
+
+sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   my @results;
+
+  $self->_sanity_check_calls($calls, {
+    add_missing_client_ids => ! $arg->{no_implicit_client_ids}
+  });
 
   my $call_start;
 
   CALL: for my $call (@$calls) {
-    # On one hand, I am tempted to disallow ambiguous cids here.  On the other
-    # hand, the spec does not. -- rjbs, 2016-02-11
     $call_start = [ gettimeofday ];
 
+    # On one hand, I am tempted to disallow ambiguous cids here.  On the other
+    # hand, the spec does not. -- rjbs, 2016-02-11
     my ($method, $arg, $cid) = @$call;
 
     my $handler = $self->handler_for( $method );

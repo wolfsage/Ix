@@ -67,6 +67,10 @@ sub get_created_id ($self, $type, $creation_id) {
   return $id;
 }
 
+sub handle_calls ($self, $calls, $arg = {}) {
+  $self->processor->handle_calls($self, $calls, $arg);
+}
+
 sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
 }

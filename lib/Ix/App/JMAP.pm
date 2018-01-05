@@ -23,8 +23,8 @@ sub _core_request ($self, $ctx, $req) {
   }
 
   $req->env->{'ix.transaction'}{jmap}{calls} = $calls;
-  my $result  = $ctx->process_request( $calls );
-  my $json    = $self->encode_json($result);
+  my $result  = $ctx->handle_calls($calls, { no_implicit_client_ids => 1 });
+  my $json    = $self->encode_json($result->as_struct);
 
   return [
     200,
