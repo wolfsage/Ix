@@ -2381,6 +2381,28 @@ subtest "argument validation" => sub {
   );
 }
 
+{
+  my $res = $jmap_tester->request([
+    [ echo => {   echo  => [ 1, 2, 3 ] }, 'a' ],
+    [ echo => { '#echo' => [ 1, 2, 3 ] }, 'b' ],
+    [ echo => { '#echo' => {
+      resultOf => 'a',
+      name     => 'echoEcho',
+      path     => '/args/1',
+    } }, 'c' ],
+  ]);
+
+  jcmp_deeply(
+    $res->as_struct,
+    [
+      [ echoEcho => { args => [ 1, 2, 3 ] }, 'a' ],
+      [ error => superhashof({ type => 'resultReference' }), 'b' ],
+      [ echoEcho => { args => 2           }, 'c' ],
+    ],
+    "simple echo response",
+  );
+}
+
 $app->_shutdown;
 
 done_testing;

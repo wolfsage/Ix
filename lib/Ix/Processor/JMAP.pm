@@ -2,8 +2,9 @@ use 5.20.0;
 package Ix::Processor::JMAP;
 
 use Moose::Role;
-use experimental qw(signatures postderef);
+use experimental qw(lexical_subs signatures postderef);
 
+use Params::Util qw(_HASH0);
 use Safe::Isa;
 use Try::Tiny;
 use Time::HiRes qw(gettimeofday tv_interval);
@@ -108,6 +109,64 @@ sub _sanity_check_calls ($self, $calls, $arg) {
   return;
 }
 
+sub expand_backrefs ($self, $ctx, $arg) {
+  my @backref_keys = map {; s/^#// ? $_ : () } keys %$arg;
+
+  my sub ref_error ($desc) {
+    Ix::Error::Generic->new({
+      error_type  => 'resultReference',
+      properties  => {
+        description => $desc,
+      },
+    });
+  }
+
+  return unless @backref_keys;
+
+  if (my @duplicated = grep {; exists $arg->{$_} } @backref_keys) {
+    return ref_error( "arguments present as both ResultReference and not: "
+                    .  join(q{, }, @duplicated));
+  }
+
+  my @sentences = $ctx->results_so_far->sentences;
+
+  for my $key (@backref_keys) {
+    my $ref  = delete $arg->{"#$key"};
+
+    unless ( _HASH0($ref)
+          && 3 == grep {; defined $ref->{$_} } qw(resultOf name path)
+    ) {
+      return ref_error("malformed ResultReference");
+    }
+
+    my ($sentence) = grep {; $_->client_id eq $ref->{resultOf} } @sentences;
+
+    unless ($sentence) {
+      return ref_error("no result for client id $ref->{resultOf}");
+    }
+
+    unless ($sentence->name eq $ref->{name}) {
+      return ref_error(
+        "first result for client id $ref->{resultOf} is not $ref->{name}",
+      );
+    }
+
+    my ($result, $error) = Ix::Util::resolve_modified_jpointer(
+      $ref->{path},
+      $sentence->arguments,
+    );
+
+    if ($error) {
+      return ref_error("error with path: $error");
+    }
+
+    # XXX: Is it safe to not clone $result? -- rjbs, 2018-01-10
+    $arg->{$key} = $result;
+  }
+
+  return;
+}
+
 sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   $self->_sanity_check_calls($calls, {
     add_missing_client_ids => ! $arg->{no_implicit_client_ids}
@@ -138,22 +197,26 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
       next CALL;
     }
 
-    my @rv = try {
-      unless ($ctx->may_call($method, $arg)) {
-        return $ctx->error(invalidPermissions => {
-          description => "you are not authorized to make this call",
-        });
-      }
+    my @rv = $self->expand_backrefs($ctx, $arg);
 
-      $self->$handler($ctx, $arg);
-    } catch {
-      if ($_->$_DOES('Ix::Error')) {
-        return $_;
-      } else {
-        warn $_;
-        die $_;
-      }
-    };
+    unless (@rv) {
+      @rv = try {
+        unless ($ctx->may_call($method, $arg)) {
+          return $ctx->error(invalidPermissions => {
+            description => "you are not authorized to make this call",
+          });
+        }
+
+        $self->$handler($ctx, $arg);
+      } catch {
+        if ($_->$_DOES('Ix::Error')) {
+          return $_;
+        } else {
+          warn $_;
+          die $_;
+        }
+      };
+    }
 
     RV: for my $i (0 .. $#rv) {
       local $_ = $rv[$i];
