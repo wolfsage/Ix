@@ -147,7 +147,8 @@ sub expand_backrefs ($self, $ctx, $arg) {
 
     unless ($sentence->name eq $ref->{name}) {
       return ref_error(
-        "first result for client id $ref->{resultOf} is not $ref->{name}",
+        "first result for client id $ref->{resultOf} is not $ref->{name} but "
+        . $sentence->name,
       );
     }
 

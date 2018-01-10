@@ -2419,7 +2419,7 @@ subtest "result references" => sub {
       ref_error('arguments present as both ResultReference and not: echo', 'e'),
       ref_error('no result for client id f', 'f'),
       ref_error('error with path: index out of bounds at /args/8', 'g'),
-      ref_error('first result for client id a is not reverb', 'h'),
+      ref_error('first result for client id a is not reverb but echoEcho', 'h'),
       [ echoEcho => { args => [ {a=>10}, {a=>[20 .. 29]}, {a=>30} ] }, 'i' ],
       [ echoEcho => { args => [ 10, 20 .. 29, 30 ] }, 'j' ],
     ],
