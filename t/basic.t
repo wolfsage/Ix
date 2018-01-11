@@ -2342,6 +2342,45 @@ subtest "argument validation" => sub {
   );
 };
 
+{
+  my $res = $jmap_tester->request([
+    [ countResults => { }, 'a' ],
+    [ bakePies => { tasty => 1, pieTypes => [ qw(apple eel pecan) ] }, 'b' ],
+    [ countResults => { }, 'c' ],
+    [ countResults => { }, 'c' ],
+    [ countResults => { }, 'c' ],
+  ]);
+
+  my ($p1, $p2, $p3) = $res->assert_n_paragraphs(3);
+
+  jcmp_deeply(
+    $p1->as_struct,
+    [
+      [ resultCount => { sentences => 0, paragraphs => 0 }, 'a' ],
+    ],
+    "countResults before anything is done",
+  );
+
+  jcmp_deeply(
+    $p2->as_struct,
+    [
+      [ pie   => { flavor => 'apple', bakeOrder => jnum() }, 'b' ],
+      [ error => { type => 'noRecipe', requestedPie => jstr('eel') }, 'b' ],
+    ],
+    "bakePies call reply: as expected",
+  );
+
+  jcmp_deeply(
+    $p3->as_struct,
+    [
+      [ resultCount => { sentences => 3, paragraphs => 2 }, 'c' ],
+      [ resultCount => { sentences => 4, paragraphs => 3 }, 'c' ],
+      [ resultCount => { sentences => 5, paragraphs => 3 }, 'c' ],
+    ],
+    "resultCount called 3x with one cid",
+  );
+}
+
 $app->_shutdown;
 
 done_testing;

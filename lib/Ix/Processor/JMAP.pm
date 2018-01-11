@@ -10,6 +10,8 @@ use Time::HiRes qw(gettimeofday tv_interval);
 
 use namespace::autoclean;
 
+use Ix::JMAP::SentenceCollection;
+
 with 'Ix::Processor';
 
 requires 'handler_for';
@@ -80,22 +82,59 @@ has _dbic_handlers => (
   }
 );
 
-sub process_request ($self, $ctx, $calls) {
-  my @results;
+sub _sanity_check_calls ($self, $calls, $arg) {
+  # We should, in the future, add a bunch of error checking up front and reject
+  # badly-formed requests.  For now, this is a placeholder, except for its
+  # client id fixups. -- rjbs, 2018-01-05
+
+  my %saw_cid;
+
+  # Won't happen.  Won't happen.  Won't happen... -- rjbs, 2018-01-05
+  Carp::confess("too many method calls") if @$calls > 5_000;
+
+  for my $call (@$calls) {
+    if (not defined $call->[2]) {
+      if ($arg->{add_missing_client_ids}) {
+        my $next;
+        do { $next = "x" . int rand 10_000 } while exists $saw_cid{$next};
+        $call->[2] = $next;
+      } else {
+        Carp::confess("missing client id");
+      }
+    }
+    $saw_cid{$call->[2]} = 1;
+  }
+
+  return;
+}
+
+sub handle_calls ($self, $ctx, $calls, $arg = {}) {
+  $self->_sanity_check_calls($calls, {
+    add_missing_client_ids => ! $arg->{no_implicit_client_ids}
+  });
 
   my $call_start;
 
+  my $sc = Ix::JMAP::SentenceCollection->new;
+  local $ctx->root_context->{result_accumulator} = $sc;
+
   CALL: for my $call (@$calls) {
-    # On one hand, I am tempted to disallow ambiguous cids here.  On the other
-    # hand, the spec does not. -- rjbs, 2016-02-11
     $call_start = [ gettimeofday ];
 
+    # On one hand, I am tempted to disallow ambiguous cids here.  On the other
+    # hand, the spec does not. -- rjbs, 2016-02-11
     my ($method, $arg, $cid) = @$call;
 
     my $handler = $self->handler_for( $method );
 
     unless ($handler) {
-      push @results, [ error => { type => 'unknownMethod' }, $cid ];
+      $sc->add_items([
+        [
+          Ix::Error::Generic->new({ error_type  => 'unknownMethod' }),
+          $cid,
+        ],
+      ]);
+
       next CALL;
     }
 
@@ -118,11 +157,17 @@ sub process_request ($self, $ctx, $calls) {
 
     RV: for my $i (0 .. $#rv) {
       local $_ = $rv[$i];
-      push @results, $_->$_DOES('Ix::Result')
-                   ? [ $_->result_type, $_->result_arguments, $cid ]
-                   : [ error => { type => 'garbledResponse' }, $cid ];
+      my $item
+        = $_->$_DOES('Ix::Result')
+        ? [ $_, $cid ]
+        : [
+            Ix::Error::Generic->new({ error_type  => 'garbledResponse' }),
+            $cid,
+          ];
 
-      if ($results[-1][0] eq 'error' && $i < $#rv) {
+      $sc->add_items([ $item ]);
+
+      if ($item->[0]->does('Ix::Error') && $i < $#rv) {
         # In this branch, we have a potential return value like:
         # (
         #   [ valid => ... ],
@@ -147,7 +192,13 @@ sub process_request ($self, $ctx, $calls) {
     });
   }
 
-  return \@results;
+  return $sc;
+}
+
+sub process_request ($self, $ctx, $calls) {
+  my $sc = $self->handle_calls($ctx, $calls);
+
+  return $sc->as_struct;
 }
 
 1;

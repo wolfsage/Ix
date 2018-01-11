@@ -67,6 +67,23 @@ sub get_created_id ($self, $type, $creation_id) {
   return $id;
 }
 
+has result_accumulator => (
+  init_arg  => undef,
+  predicate => 'is_handling_calls',
+  reader    => '_result_accumulator',
+);
+
+sub results_so_far ($self) {
+  $self->internal_error("tried to inspect results outside of request")->throw
+    unless $self->is_handling_calls;
+
+  return $self->_result_accumulator;
+}
+
+sub handle_calls ($self, $calls, $arg = {}) {
+  $self->processor->handle_calls($self, $calls, $arg);
+}
+
 sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
 }

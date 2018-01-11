@@ -34,6 +34,8 @@ has root_context => (
     internal_error
     result
 
+    results_so_far
+
     may_call
   ) ],
 );
