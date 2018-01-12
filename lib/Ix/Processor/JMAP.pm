@@ -111,7 +111,7 @@ sub _sanity_check_calls ($self, $calls, $arg) {
 }
 
 sub expand_backrefs ($self, $ctx, $arg) {
-  my @backref_keys = map {; s/^#// ? $_ : () } keys %$arg;
+  return unless my @backref_keys = map {; s/^#// ? $_ : () } keys %$arg;
 
   my sub ref_error ($desc) {
     Ix::Error::Generic->new({
@@ -121,8 +121,6 @@ sub expand_backrefs ($self, $ctx, $arg) {
       },
     });
   }
-
-  return unless @backref_keys;
 
   if (my @duplicated = grep {; exists $arg->{$_} } @backref_keys) {
     return ref_error( "arguments present as both ResultReference and not: "
