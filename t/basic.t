@@ -2381,6 +2381,52 @@ subtest "argument validation" => sub {
   );
 }
 
+subtest "result references" => sub {
+  my sub ref_error ($desc = undef, $cid = undef) {
+    return [
+      error => superhashof({
+        type => 'resultReference',
+        ($desc ? (description => $desc) : ()),
+      }),
+      $cid // ignore(),
+    ]
+  }
+
+  my sub mkref ($result_of, $name, $path) {
+    return { resultOf => $result_of, name => $name, path => $path }
+  }
+
+  my $res = $jmap_tester->request([
+    [ echo => {   echo  => [ 1, 2, 3 ] }, 'a' ],
+    [ echo => { '#echo' => [ 1, 2, 3 ] }, 'b' ],
+    [ echo => { '#echo' => mkref(qw( a echoEcho /args/1 )) }, 'c' ],
+    [ echo => { echo => 1, '#E' => mkref(qw(a echoEcho /args/1)) }, 'd' ],
+    [ echo => { echo => 1, '#echo' => mkref(qw(a echoEcho /args/1)) }, 'e' ],
+    [ echo => { '#echo' => mkref(qw(f echoEcho /args/1)) }, 'f' ],
+    [ echo => { '#echo' => mkref(qw(a echoEcho /args/8/1)) }, 'g' ],
+    [ echo => { '#echo' => mkref(qw( a reverb /args/1 )) }, 'h' ],
+    [ echo => {   echo  => [ {a=>10}, {a=>[20 .. 29]}, {a=>30} ] }, 'i' ],
+    [ echo => { '#echo' => mkref(qw(i echoEcho /args/*/a)) }, 'j' ],
+  ]);
+
+  jcmp_deeply(
+    $res->as_struct,
+    [
+      [ echoEcho => { args => [ 1, 2, 3 ] }, 'a' ],
+      ref_error('malformed ResultReference', 'b'),
+      [ echoEcho => { args => 2           }, 'c' ],
+      [ echoEcho => { args => 1           }, 'd' ],
+      ref_error('arguments present as both ResultReference and not: echo', 'e'),
+      ref_error('no result for client id f', 'f'),
+      ref_error('error with path: index out of bounds at /args/8', 'g'),
+      ref_error('first result for client id a is not reverb but echoEcho', 'h'),
+      [ echoEcho => { args => [ {a=>10}, {a=>[20 .. 29]}, {a=>30} ] }, 'i' ],
+      [ echoEcho => { args => [ 10, 20 .. 29, 30 ] }, 'j' ],
+    ],
+    "simple echo response",
+  ) or diag explain($res->as_stripped_struct);
+};
+
 $app->_shutdown;
 
 done_testing;

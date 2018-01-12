@@ -9,7 +9,7 @@ use Safe::Isa;
 use Scalar::Util qw(blessed);
 use Data::GUID qw(guid_string);
 use Package::Stash;
-use Params::Util qw(_ARRAY0);
+use Params::Util qw(_ARRAY0 _HASH0 );
 use JSON::MaybeXS qw(is_bool);
 
 use Sub::Exporter -setup => {
@@ -112,6 +112,91 @@ sub splitquoted ($str) {
 
   return @found;
 }
+
+# my ($result, $error) = resolve_modified_jpointer($p, $v);
+#   only one of $result or $error will be defined
+sub resolve_modified_jpointer ($pointer, $value) {
+  return (undef, "no pointer given") unless defined $pointer;
+  return (undef, "pointer begins with non-slash") if $pointer =~ m{\A[^/]};
+
+  # Drop the leading empty bit.  Don't drop trailing empty bits.
+  my (undef, @tokens) = split m{/}, $pointer, -1;
+
+  s{~1}{/}g, s{~0}{~}g for @tokens;
+
+  my ($result, $error) = _descend_modified_jpointer(\@tokens, $value);
+  return $result unless wantarray;
+  return ($result, $error);
+}
+
+sub _descend_modified_jpointer {
+  my ($token_queue, $value, $pos) = @_;
+  $pos //= '';
+
+  my $error;
+
+  TOKEN: while (defined(my $token = shift @$token_queue)) {
+    $pos .= "/$token";
+
+    if (_ARRAY0($value)) {
+      if ($token eq '*') {
+        my @map;
+        for my $i (0 .. $#$value) {
+          my ($i_result, $i_error) = _descend_modified_jpointer(
+            [@$token_queue],
+            $value->[$i],
+            $pos,
+          );
+
+          if ($i_error) {
+            $error = "$i_error with asterisk indexing $i";
+            last TOKEN;
+          }
+
+          push @map, _ARRAY0($i_result) ? @$i_result : $i_result;
+        }
+
+        $value = \@map;
+        last TOKEN;
+      }
+
+      if ($token eq '-') {
+        # Special notice that this will never work in JMAP, even though it's
+        # valid JSON Pointer. -- rjbs, 2018-01-10
+        $error = qq{"-" not allowed as array index in JMAP at $pos};
+        last TOKEN;
+      }
+
+      if ($token eq '0' or $token =~ /\A[1-9][0-9]*\z/) {
+        if ($token > $#$value) {
+          $error = qq{index out of bounds at $pos};
+          last TOKEN;
+        }
+
+        $value = $value->[$token];
+        next TOKEN;
+      }
+    }
+
+    if (_HASH0($value)) {
+      unless (exists $value->{$token}) {
+        $error = qq{property does not exist at $pos};
+        last TOKEN;
+      }
+
+      $value = $value->{$token};
+      next TOKEN;
+    }
+
+    $error = qq{can't descend into non-Array, non-Object at $pos};
+    last TOKEN;
+  }
+
+  return (undef, $error) if $error;
+  return ($value, undef);
+}
+
+1;
 
 package Ix::DateTime {
 

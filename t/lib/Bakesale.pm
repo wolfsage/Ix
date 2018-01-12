@@ -231,6 +231,7 @@ package Bakesale {
     return 'pie_type_list' if $method eq 'pieTypes';
     return 'bake_pies'     if $method eq 'bakePies';
     return 'validate_args' if $method eq 'validateArguments';
+    return 'echo'          if $method eq 'echo';
     return;
   }
 
@@ -286,6 +287,13 @@ package Bakesale {
     return Ix::Result::Generic->new({
       result_type       => 'argumentsValidated',
       result_arguments  => {},
+    });
+  }
+
+  sub echo ($self, $ctx, $arg) {
+    return Ix::Result::Generic->new({
+      result_type       => 'echoEcho',
+      result_arguments  => { args => $arg->{echo} },
     });
   }
 
