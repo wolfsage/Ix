@@ -6,6 +6,7 @@ use experimental qw(lexical_subs signatures postderef);
 
 use Params::Util qw(_HASH0);
 use Safe::Isa;
+use Storable ();
 use Try::Tiny;
 use Time::HiRes qw(gettimeofday tv_interval);
 
@@ -161,8 +162,7 @@ sub expand_backrefs ($self, $ctx, $arg) {
       return ref_error("error with path: $error");
     }
 
-    # XXX: Is it safe to not clone $result? -- rjbs, 2018-01-10
-    $arg->{$key} = $result;
+    $arg->{$key} = ref $result ? Storable::dclone($result) : $result;
   }
 
   return;
