@@ -98,6 +98,10 @@ subtest "simple errors and complex success" => sub {
     allarr  => [ [ 2, 4 ], [ 6, 8 ] ],
     somearr => [ 2, [ 4, 6 ], { we => [ 8 ] } ],
     boolean => true,
+    twodeep => [
+      { a => [ { b => 1, c => 9 }, { b => 2, c => 8 } ] },
+      { a => [ { b => 4,        }, { b => 0, c => 7 } ] },
+    ],
   };
 
   resolve_ok("/allarr/*/0", [ 2, 6 ]);
@@ -132,6 +136,17 @@ subtest "simple errors and complex success" => sub {
   error_ok(
     "/xy/*/x",
     "property does not exist at /xy/*/x with asterisk indexing 1",
+  );
+
+  resolve_ok(
+    "/twodeep/*/a/*/b",
+    [ 1, 2, 4, 0 ],
+  );
+
+  # We can improve this error. -- rjbs, 2018-01-15
+  error_ok(
+    "/twodeep/*/a/*/c",
+    "property does not exist at /twodeep/*/a/*/c with asterisks indexing 1,0",
   );
 };
 

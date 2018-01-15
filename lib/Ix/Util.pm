@@ -125,7 +125,17 @@ sub resolve_modified_jpointer ($pointer, $value) {
   s{~1}{/}g, s{~0}{~}g for @tokens;
 
   my ($result, $error) = _descend_modified_jpointer(\@tokens, $value);
+
   return $result unless wantarray;
+
+  if (ref $error) {
+    my ($e, @i) = @$error;
+    $error = sprintf "%s with %s indexing %s",
+      $e,
+      (@i > 1 ? "asterisks" : "asterisk"),
+      join q{,}, reverse @i;
+  }
+
   return ($result, $error);
 }
 
@@ -149,7 +159,7 @@ sub _descend_modified_jpointer {
           );
 
           if ($i_error) {
-            $error = "$i_error with asterisk indexing $i";
+            $error = [ (ref $i_error ? @$i_error : $i_error), $i ];
             last TOKEN;
           }
 
