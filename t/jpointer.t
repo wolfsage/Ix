@@ -143,7 +143,6 @@ subtest "simple errors and complex success" => sub {
     [ 1, 2, 4, 0 ],
   );
 
-  # We can improve this error. -- rjbs, 2018-01-15
   error_ok(
     "/twodeep/*/a/*/c",
     "property does not exist at /twodeep/*/a/*/c with asterisks indexing 1,0",
