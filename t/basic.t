@@ -2433,6 +2433,26 @@ subtest "result references" => sub {
   ) or diag explain($res->as_stripped_triples);
 };
 
+subtest "exeptions are not thrown twice" => sub {
+  my $uri = $jmap_tester->api_uri;
+  $uri =~ s/jmap$/exception/;
+
+  local $ENV{QUIET_BAKESALE} = 1;
+
+  $app->processor->clear_exceptions;
+
+  print STDERR "Ignore the next exception report for now..\n";
+  my $res = $jmap_tester->ua->get($uri);
+  like(
+    $res->content,
+    qr/"error":"internal"/,
+    "got an exception",
+  );
+
+  is($app->processor->exceptions, 1, 'got 1 exception');
+  is(($app->processor->exceptions)[0]->ident, 'I except!', 'expected');
+};
+
 $app->_shutdown;
 
 done_testing;

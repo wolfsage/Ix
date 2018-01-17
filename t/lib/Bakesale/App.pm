@@ -39,6 +39,10 @@ around _core_request => sub ($orig, $self, $ctx, $req) {
     ];
   }
 
+  if ($req->path_info eq '/exception') {
+    $ctx->internal_error("I except!")->throw;
+  }
+
   return $self->$orig($ctx, $req);
 };
 

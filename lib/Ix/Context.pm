@@ -6,6 +6,7 @@ use experimental qw(signatures postderef);
 
 use Ix::Error;
 use Ix::Result;
+use Safe::Isa;
 
 use namespace::autoclean;
 
@@ -100,6 +101,10 @@ has logged_exception_guids => (
 );
 
 sub report_exception ($ctx, $exception) {
+  # Ix::Error::Internals are created after we've already reported an
+  # exception, so don't throw them again
+  return $exception->report_guid if $exception->$_isa('Ix::Error::Internal');
+
   my $guid = $ctx->processor->file_exception_report($ctx, $exception);
   $ctx->log_exception_guid($guid);
   return $guid;

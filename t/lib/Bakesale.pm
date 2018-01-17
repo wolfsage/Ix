@@ -168,8 +168,21 @@ package Bakesale {
   use experimental qw(signatures postderef);
   use namespace::autoclean;
 
+  sub exceptions;
+  has exceptions => (
+    lazy => 1,
+    traits => [ 'Array' ],
+    handles => {
+      'exceptions'       => 'elements',
+      'clear_exceptions' => 'clear',
+      'add_exception'    => 'push',
+     },
+    default => sub { [] },
+  );
+
   sub file_exception_report ($self, $ctx, $exception) {
     Carp::cluck( "EXCEPTION!! $exception" ) unless $ENV{QUIET_BAKESALE};
+    $self->add_exception($exception);
     return guid_string();
   }
 
