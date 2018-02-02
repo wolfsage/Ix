@@ -20,6 +20,20 @@ has schema => (
   required => 1,
 );
 
+sub global_rs ($self, $rs_name) {
+  my $rs = $self->schema->resultset($rs_name);
+
+  if ($rs->result_class->isa('Ix::DBIC::Result')) {
+    $rs = $rs->search({ 'me.isActive' => 1 });
+  }
+
+  return $rs;
+}
+
+sub global_rs_including_inactive ($self, $rs_name) {
+  $self->schema->resultset($rs_name);
+}
+
 has processor => (
   is   => 'ro',
   does => 'Ix::Processor',

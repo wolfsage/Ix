@@ -11,6 +11,8 @@ use Ix::Validators;
 use Ix::Util qw(ix_new_id);
 use JSON::MaybeXS;
 
+__PACKAGE__->load_components(qw/+Ix::DBIC::AccountResult/);
+
 sub ix_account_type { Carp::confess("ix_account_type not implemented") }
 
 # Checked for in ix_finalize

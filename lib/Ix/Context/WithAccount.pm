@@ -21,6 +21,8 @@ has root_context => (
   handles  => [ qw(
     schema
     processor
+    global_rs
+    global_rs_including_inactive
 
     get_created_id log_created_id
 
@@ -117,10 +119,28 @@ sub txn_do ($self, $code) {
   }
 
   return @rv;
-};
+}
 
 sub process_request ($self, $calls) {
   $self->processor->process_request($self, $calls);
+}
+
+sub account_rs ($self, $rs_name) {
+  my $rs = $self->schema->resultset($rs_name)->search({
+    'me.accountId' => $self->accountId,
+  });
+
+  if ($rs->result_class->isa('Ix::DBIC::Result')) {
+    $rs = $rs->search({ 'me.isActive' => 1 });
+  }
+
+  return $rs;
+}
+
+sub account_rs_including_inactive ($self, $rs_name) {
+  $self->schema->resultset($rs_name)->search({
+    'me.accountId' => $self->accountId,
+  });
 }
 
 sub with_account ($self, $account_type, $accountId) {

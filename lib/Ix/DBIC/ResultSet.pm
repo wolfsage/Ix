@@ -886,7 +886,6 @@ sub ix_destroy ($self, $ctx, $to_destroy) {
 
 sub get_collection_lock ($self, $ctx) {
   my $schema = $ctx->schema;
-  my $accountId = $ctx->accountId;
   my $type_key = $self->_ix_rclass->ix_type_key;
 
   return try {
@@ -894,12 +893,11 @@ sub get_collection_lock ($self, $ctx) {
     # account ID.
 
     # XXX - Ask rclass what else we should lock at this point
-    my $locked = $schema->resultset('State')->search(
+    my $locked = $ctx->account_rs('State')->search(
       {
-        accountId => $accountId,
-        type      => $type_key,
+        type  => $type_key,
       }, {
-        for => 'update',
+        for   => 'update',
       }
     )->single;
 
