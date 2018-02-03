@@ -18,21 +18,8 @@ sub root_context ($self) { $self }
 has schema => (
   is   => 'ro',
   required => 1,
+  handles  => [ qw( global_rs global_rs_including_inactive ) ],
 );
-
-sub global_rs ($self, $rs_name) {
-  my $rs = $self->schema->resultset($rs_name);
-
-  if ($rs->result_class->isa('Ix::DBIC::Result')) {
-    $rs = $rs->search({ 'me.isActive' => 1 });
-  }
-
-  return $rs;
-}
-
-sub global_rs_including_inactive ($self, $rs_name) {
-  $self->schema->resultset($rs_name);
-}
 
 has processor => (
   is   => 'ro',

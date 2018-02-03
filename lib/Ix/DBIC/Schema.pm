@@ -42,4 +42,18 @@ sub deploy {
   $self->DBIx::Class::Schema::deploy(@_)
 }
 
+sub global_rs ($self, $rs_name) {
+  my $rs = $self->resultset($rs_name);
+
+  if ($rs->result_class->isa('Ix::DBIC::Result')) {
+    $rs = $rs->search({ 'me.isActive' => 1 });
+  }
+
+  return $rs;
+}
+
+sub global_rs_including_inactive ($self, $rs_name) {
+  $self->resultset($rs_name);
+}
+
 1;
