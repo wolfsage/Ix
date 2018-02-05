@@ -82,6 +82,7 @@ sub next_state_for ($self, $type) {
 sub _save_states ($self) {
   my $rows = $self->_state_rows;
   my $pend = $self->_pending_states;
+  my $did_states = {};
 
   for my $type (keys %$pend) {
     if (my $row = $rows->{$type}) {
@@ -97,10 +98,10 @@ sub _save_states ($self) {
       $rows->{$type} = $row;
     }
 
-    delete $pend->{$type};
+    $did_states->{$type} = delete $pend->{$type};
   }
 
-  return;
+  return $did_states;
 }
 
 1;
