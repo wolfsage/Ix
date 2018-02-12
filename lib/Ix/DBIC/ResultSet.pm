@@ -242,6 +242,12 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       }
     }
 
+    # This is, admittedly, dumb. But, rclasses might do some extra munging
+    # with ix_update_extra_*, such that it will return multiple rows for a
+    # single id. -- michael, 2018-02-12
+    @removed = uniq @removed;
+    @changed = uniq @changed;
+
     my @return = $ctx->result($res_type => {
       oldState => "$since",
       newState => ($hasMoreUpdates
