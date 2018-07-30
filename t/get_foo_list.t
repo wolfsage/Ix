@@ -15,6 +15,10 @@ use Test::More;
 use Test::Abortable 'subtest';
 use Unicode::Normalize;
 
+sub mkref ($result_of, $name, $path) {
+  return { resultOf => $result_of, name => $name, path => $path }
+}
+
 my ($app, $jmap_tester) = Bakesale::Test->new_test_app_and_tester;
 \my %account = Bakesale::Test->load_trivial_account($app->processor->schema_connection);
 
@@ -23,7 +27,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $account{users}{rjbs});
 # Create some recipes
 my $res = $jmap_tester->request([
   [
-    setCakeRecipes => {
+    'CakeRecipe/set' => {
       create => {
         secret1 => {
           type          => 'secret1',
@@ -47,14 +51,14 @@ ok($secret1_recipe_id, 'created a chocolate recipe');
 ok($secret2_recipe_id, 'created a marble recipe');
 
 {
-  # Try to getCakeList / getCakeListUpdates - should work but return nothing
+  # Try to Cake/query & Cake/queryChanges - should work but return nothing
   my $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'created asc' ],
+        sort => [{ property => 'created', isAscending => jtrue }],
       },
     ],
   ]);
@@ -62,21 +66,21 @@ ok($secret2_recipe_id, 'created a marble recipe');
   jcmp_deeply(
     $res->single_sentence->arguments,
     superhashof({
-      cakeIds => [],
-      state   => 0,
-      total   => 0,
+      ids        => [],
+      queryState => 0,
+      total      => 0,
     }),
     "ix_get_list works with no state rows"
   );
 
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'created asc' ],
-        sinceState => 0,
+        sort => [{ property => 'created', isAscending => jtrue }],
+        sinceQueryState => 0,
       },
     ],
   ]);
@@ -87,8 +91,8 @@ ok($secret2_recipe_id, 'created a marble recipe');
       added    => [],
       removed  => [],
       total    => 0,
-      newState => 0,
-      oldState => 0,
+      newQueryState => 0,
+      oldQueryState => 0,
     }),
     "ix_get_list_update works with no state rows"
   );
@@ -97,7 +101,7 @@ ok($secret2_recipe_id, 'created a marble recipe');
 # Now create a few cakes under each one
 $res = $jmap_tester->request([
   [
-    setCakes => {
+    'Cake/set' => {
       create => {
         'chocolate1' => {
           type => 'chocolate', layer_count => 1, recipeId => $secret1_recipe_id,
@@ -137,11 +141,11 @@ $state =~ s/-\d+//;
   # after
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
+        sort => [{ property => 'type', isAscending => jtrue }],
       },
     ],
   ]);
@@ -149,7 +153,8 @@ $state =~ s/-\d+//;
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      ids => [
         ( sort { $a cmp $b } @cake_id{qw(chocolate1 chocolate2)} ),
         $cake_id{pb1},
       ],
@@ -159,22 +164,22 @@ $state =~ s/-\d+//;
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
-        'type asc',
+        { property => 'type', isAscending => jtrue },
       ],
-      'state' => $state,
+      'queryState' => $state,
       'total' => 3,
     },
-    "getCakeList with sort+filter looks right"
+    "Cake/query with sort+filter looks right"
   ) or diag explain $res->as_stripped_triples;
 
   # Same but reverse sort
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type desc' ],
+        sort => [{ property => 'type', isAscending => jfalse }],
       },
     ],
   ]);
@@ -182,7 +187,8 @@ $state =~ s/-\d+//;
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      ids => [
         $cake_id{pb1},
         # These will still be in .id asc order since we always sort on id
         # last to ensure consistency between results when all other sorts
@@ -195,12 +201,12 @@ $state =~ s/-\d+//;
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
-        'type desc'
+        { property => 'type', isAscending => jfalse }
       ],
-      'state' => $state,
+      'queryState' => $state,
       'total' => 3,
     },
-    "getCakeList with sort+filter looks right (reverse sort)"
+    "Cake/query with sort+filter looks right (reverse sort)"
   );
 }
 
@@ -209,37 +215,37 @@ subtest "custom condition builder" => sub {
   # is single-layer.
   for my $recipe_id ($secret1_recipe_id, $secret2_recipe_id) {
     my $total_res = $jmap_tester->request([
-      [ getCakeList => { filter => { recipeId => $recipe_id } } ],
+      [ 'Cake/query' => { filter => { recipeId => $recipe_id } } ],
     ]);
 
     jcmp_deeply(
-      $total_res->single_sentence('cakeList')->arguments,
+      $total_res->single_sentence('Cake/query')->arguments,
       superhashof({ total => jnum(3) }),
       "there! are! THREE! cakes!",
     );
 
     my $short_res = $jmap_tester->request([
-      [ getCakeList => { filter => {
+      [ 'Cake/query' => { filter => {
           recipeId => $recipe_id, isLayered => jfalse
         } }
       ],
     ]);
 
     jcmp_deeply(
-      $short_res->single_sentence('cakeList')->arguments,
+      $short_res->single_sentence('Cake/query')->arguments,
       superhashof({ total => jnum(1) }),
       "...one cake is single-layered",
     );
 
     my $tall_res = $jmap_tester->request([
-      [ getCakeList => { filter => {
+      [ 'Cake/query' => { filter => {
           recipeId => $recipe_id, isLayered => jtrue
         } }
       ],
     ]);
 
     jcmp_deeply(
-      $tall_res->single_sentence('cakeList')->arguments,
+      $tall_res->single_sentence('Cake/query')->arguments,
       superhashof({ total => jnum(2) }),
       "...two cakes are multi-layered",
     );
@@ -251,11 +257,14 @@ subtest "custom condition builder" => sub {
   # then layer_count desc
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc', 'layer_count asc' ],
+        sort => [
+          { property => 'type',        isAscending => jtrue },
+          { property => 'layer_count', isAscending => jtrue },
+        ],
       },
     ],
   ]);
@@ -263,7 +272,8 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(chocolate1 chocolate2 pb1)},
       ],
       'filter' => {
@@ -272,22 +282,25 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
-        'type asc',
-        'layer_count asc',
+        { property => 'type',        isAscending => jtrue },
+        { property => 'layer_count', isAscending => jtrue },
       ],
-      'state' => $state,
+      'queryState' => $state,
       'total' => 3,
     },
-    "getCakeList with multi-sort + filter looks right"
+    "Cake/query with multi-sort + filter looks right"
   );
 
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc', 'layer_count desc' ],
+        sort => [
+          { property => 'type',        isAscending => jtrue },
+          { property => 'layer_count', isAscending => jfalse },
+        ],
       },
     ],
   ]);
@@ -295,7 +308,8 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(chocolate2 chocolate1 pb1)},
       ],
       'filter' => {
@@ -304,13 +318,13 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
-        'type asc',
-        'layer_count desc',
+        { property => 'type',        isAscending => jtrue },
+        { property => 'layer_count', isAscending => jfalse },
       ],
-      'state' => $state,
+      'queryState' => $state,
       'total' => 3,
     },
-    "getCakeList with multi-sort + filter looks right"
+    "Cake/query with multi-sort + filter looks right"
   );
 }
 
@@ -318,7 +332,7 @@ subtest "custom condition builder" => sub {
   # 2nd filter, no sort specified
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
           type     => 'peanut butter',
@@ -330,7 +344,8 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(pb1)},
       ],
       'filter' => {
@@ -340,10 +355,10 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
-      'state' => $state,
+      'queryState' => $state,
       'total' => 1,
     },
-    "getCakeList with no sort, multi-filter"
+    "Cake/query with no sort, multi-filter"
   );
 }
 
@@ -354,7 +369,7 @@ subtest "custom condition builder" => sub {
   for my $cid (sort { $a cmp $b } @cake_id{qw(chocolate1 chocolate2 pb1)}) {
     $res = $jmap_tester->request([
       [
-        getCakeList => {
+        'Cake/query' => {
           filter => {
             recipeId => $secret1_recipe_id,
           },
@@ -368,7 +383,8 @@ subtest "custom condition builder" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
-        'cakeIds' => [
+        accountId => ignore(),
+        'ids' => [
           $cid,
         ],
         'filter' => {
@@ -377,27 +393,29 @@ subtest "custom condition builder" => sub {
         'canCalculateUpdates' => jtrue,
         'position' => $p-1,
         'sort' => [],
-        'state' => $state,
+        'queryState' => $state,
         'total' => 3,
       },
-      "getCakeList with limit 1, position $p looks right (got cake $cid)"
+      "Cake/query with limit 1, position $p looks right (got cake $cid)"
     );
   }
 }
 
-# XXX - Test for limit set at 500 if fetching extras
-#       -- alh, 2016-11-22
-
 {
-  # fetch args
+  # backrefs (on old-style jmap: was fetchCakes)
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchCakes => jtrue,
+      },
+      'a',
+    ],
+    [
+      'Cake/get' => {
+        '#ids' => mkref(qw( a Cake/query /ids)),
       },
     ],
   ]);
@@ -405,7 +423,8 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->sentence(0)->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(pb1)},
       ],
       'filter' => {
@@ -415,10 +434,10 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
-      'state' => $state,
+      'queryState' => $state,
       'total' => 1,
     },
-    "getCakeList with fetchCakes => 1"
+    "'Cake/query' with backrefs"
   ) or diag explain $res->as_stripped_triples;
 
   jcmp_deeply(
@@ -429,70 +448,29 @@ subtest "custom condition builder" => sub {
         type => 'peanut butter',
       }),
     ],
-    "got cake back with fetchCakes => 1"
-  ) or diag explain $res->as_stripped_triples;
-
-  # Fetching just the recipes should work
-  $res = $jmap_tester->request([
-    [
-      getCakeList => {
-        filter => {
-          recipeId   => $secret1_recipe_id,
-          type       => 'peanut butter',
-        },
-        fetchRecipes => jtrue,
-      },
-    ],
-  ]);
-
-  jcmp_deeply(
-    $res->sentence(0)->arguments,
-    {
-      'cakeIds' => [
-        @cake_id{qw(pb1)},
-      ],
-      'filter' => {
-        'recipeId' => $secret1_recipe_id,
-        'type'     => 'peanut butter',
-      },
-      'canCalculateUpdates' => jtrue,
-      'position' => 0,
-      'sort' => undef,
-      'state' => $state,
-      'total' => 1,
-    },
-    "getCakeList with fetchRecipes => 1 but no fetchCakes"
-  ) or diag explain $res->as_stripped_triples;
-
-  jcmp_deeply(
-    $res->sentence(1)->arguments->{list},
-    [
-      superhashof({
-        id => $secret1_recipe_id,
-        type => 'secret1',
-      }),
-    ],
-    "got recipe back with no fetchCakes and fetchRecipes => 1"
+    "got cake back with backrefs"
   ) or diag explain $res->as_stripped_triples;
 
   # Provide both
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchCakes   => jtrue,
-        fetchRecipes => jtrue,
       },
+      'a',
     ],
+    [ 'Cake/get'       => { '#ids' => mkref(qw( a Cake/query /ids )) }, 'b' ],
+    [ 'CakeRecipe/get' => { ids    => [ $secret1_recipe_id ]         }, 'c' ],
   ]);
 
   jcmp_deeply(
     $res->sentence(0)->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(pb1)},
       ],
       'filter' => {
@@ -502,10 +480,10 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => undef,
-      'state' => $state,
+      'queryState' => $state,
       'total' => 1,
     },
-    "getCakeList with fetchCakes => 1"
+    "Cake/query with backrefs"
   ) or diag explain $res->as_stripped_triples;
 
   jcmp_deeply(
@@ -516,7 +494,7 @@ subtest "custom condition builder" => sub {
         type => 'peanut butter',
       }),
     ],
-    "got cake back with fetchCakes => 1"
+    "got cake back with backref"
   ) or diag explain $res->as_stripped_triples;
 
   jcmp_deeply(
@@ -527,7 +505,7 @@ subtest "custom condition builder" => sub {
         type => 'secret1',
       }),
     ],
-    "got recipe back with fetchCakes => 1 and fetchRecipes => 1"
+    "got recipe back with backrefs"
   ) or diag explain $res->as_stripped_triples;
 }
 
@@ -536,13 +514,16 @@ subtest "custom condition builder" => sub {
   # sort direction, bad sort
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           fake => 'not a real field',
         },
-        sort => [ 'type', 'fake asc', 'layer_count asc bad', 'layer_count bad' ],
-        fetchCakes   => jtrue,
-        fetchRecipes => jtrue,
+        sort => [
+          { property => 'type' },   # this is fine; defaults to ascending
+          { property => 'fake', isAscending => jtrue },
+          { property => 'fake', isAscending => jtrue, bad => 'foo' },
+          { property => 'fake', bad => 'foo' },
+        ]
       },
     ],
   ]);
@@ -556,14 +537,13 @@ subtest "custom condition builder" => sub {
         'fake'     => 'unknown filter field',
         'recipeId' => 'required filter missing',
       },
-      'invalidSorts' => {
-        'fake asc'    => 'unknown sort field',
-        'type'        => 'invalid sort format: missing sort order',
-        'layer_count bad' => "invalid sort format: sort order must be 'asc' or 'desc'",
-        'layer_count asc bad' => "invalid sort format: expected exactly two arguments",
-      },
+      'invalidSorts' => [
+        "unknown sort field 'fake'",
+        "invalid sort format: unknown arguments [bad]",
+        "invalid sort format: unknown arguments [bad]",
+      ],
     },
-    "bad getList forms detected",
+    "bad /query forms detected",
   ) or diag explain $res->as_stripped_triples;
 }
 
@@ -571,7 +551,7 @@ subtest "custom condition builder" => sub {
   # Delete a cake, ensure it doesn't come back in list
   $res = $jmap_tester->request([
     [
-      setCakes => {
+      'Cake/set' => {
         destroy => [ $cake_id{chocolate1} ],
       },
     ],
@@ -587,11 +567,11 @@ subtest "custom condition builder" => sub {
 
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
+        sort => [{ property => 'type', isAscending => jtrue }],
       },
     ],
   ]);
@@ -599,7 +579,8 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(chocolate2 pb1)},
       ],
       'filter' => {
@@ -608,12 +589,12 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => jtrue,
       'position' => 0,
       'sort' => [
-        'type asc',
+        { property => 'type', isAscending => jtrue },
       ],
-      'state' => $state,
+      'queryState' => $state,
       'total' => 2,
     },
-    "getCakeList doesn't show destroyed cakes"
+    "Cake/query doesn't show destroyed cakes"
   );
 }
 
@@ -622,12 +603,12 @@ subtest "custom condition builder" => sub {
   # deleted at the end state so why bother showing the addition?
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
-        sinceState => $state - 2,
+        sort => [{ property => 'type', isAscending => jtrue }],
+        sinceQueryState => $state - 2,
       },
     ],
   ]);
@@ -635,39 +616,40 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
+      accountId => ignore(),
       'added' => [
         {
-          'cakeId' => $cake_id{chocolate2},
+          'id' => $cake_id{chocolate2},
           'index' => 0,
         },
         {
-          'cakeId' => $cake_id{pb1},
+          'id' => $cake_id{pb1},
           'index' => 1,
         }
       ],
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => jstr($state),
-      'oldState' => jstr($state-2),
+      'newQueryState' => jstr($state),
+      'oldQueryState' => jstr($state-2),
       'removed' => [],
       'sort' => [
-        'type asc'
+        { property => 'type', isAscending => jtrue },
       ],
       'total' => 2
     },
-    "getCakeListUpdates looks right for added cakes"
+    "Cake/queryChanges looks right for added cakes"
   ) or diag explain $res->as_stripped_triples;
 
   # Now try from state-1, should show removal
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
-        sinceState => $state - 1,
+        sort => [{ property => 'type', isAscending => jtrue }],
+        sinceQueryState => $state - 1,
       },
     ],
   ]);
@@ -675,21 +657,20 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
+      accountId => ignore(),
       'added' => [],
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => jstr($state),
-      'oldState' => jstr($state-1),
+      'newQueryState' => jstr($state),
+      'oldQueryState' => jstr($state-1),
       'removed' => [
         $cake_id{chocolate1},
       ],
-      'sort' => [
-        'type asc'
-      ],
+      sort => [{ property => 'type', isAscending => jtrue }],
       'total' => 2
     },
-    "getCakeListUpdates looks right for removed cake"
+    "Cake/queryChanges looks right for removed cake"
   ) or diag explain $res->as_stripped_triples;
 }
 
@@ -697,11 +678,11 @@ subtest "custom condition builder" => sub {
   # No sinceState
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
+        sort => [{ property => 'type', isAscending => jtrue }],
       },
     ],
   ]);
@@ -710,22 +691,22 @@ subtest "custom condition builder" => sub {
     $res->single_sentence->arguments,
     {
       'type' => 'invalidArguments',
-      'description' => 'no sinceState given',
+      'description' => 'no sinceQueryState given',
     },
-    "No sinceState - correct error",
+    "No sinceQueryState - correct error",
   );
 }
 
 {
-  # sinceState up to date
+  # sinceQueryState up to date
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
-        sinceState => $state,
+        sort => [{ property => 'type', isAscending => jtrue }],
+        sinceQueryState => $state,
       },
     ],
   ]);
@@ -733,19 +714,18 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
+      accountId => ignore(),
       'added' => [],
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => jstr($state),
-      'oldState' => jstr($state),
+      'newQueryState' => jstr($state),
+      'oldQueryState' => jstr($state),
       'removed' => [],
-      'sort' => [
-        'type asc'
-      ],
+      'sort'    => [{ property => 'type', isAscending => jtrue }],
       'total' => 2
     },
-    "getCakeListUpdates looks right for no changes"
+    "Cake/queryChanges looks right for no changes"
   );
 }
 
@@ -753,7 +733,7 @@ subtest "custom condition builder" => sub {
   # Update a cake
   $res = $jmap_tester->request([
     [
-      setCakes => {
+      'Cake/set' => {
         update => {
           $cake_id{pb1} => { layer_count => 9 },
         },
@@ -774,12 +754,12 @@ subtest "custom condition builder" => sub {
 {
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => $secret1_recipe_id,
         },
-        sort => [ 'type asc' ],
-        sinceState => $state-1,
+        sort => [{ property => 'type', isAscending => jtrue }],
+        sinceQueryState => $state-1,
       },
     ],
   ]);
@@ -788,26 +768,25 @@ subtest "custom condition builder" => sub {
   jcmp_deeply(
     $res->single_sentence->arguments,
     {
+      accountId => ignore(),
       'added' => [
         {
-          'cakeId' => $cake_id{pb1},
+          'id' => $cake_id{pb1},
           'index' => 1,
         },
       ],
       'filter' => {
         'recipeId' => $secret1_recipe_id,
       },
-      'newState' => $state,
-      'oldState' => $state-1,
+      'newQueryState' => $state,
+      'oldQueryState' => $state-1,
       'removed' => [
         $cake_id{pb1},
       ],
-      'sort' => [
-        'type asc'
-      ],
+      'sort'  => [{ property => 'type', isAscending => jtrue }],
       'total' => 2
     },
-    "getCakeListUpdates looks right for no changes"
+    "Cake/queryChanges looks right for no changes"
   );
 }
 
@@ -815,18 +794,18 @@ subtest "custom condition builder" => sub {
   # Hooks
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId => 'secret',
         },
       },
     ],
     [
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => {
           recipeId => 'secret',
         },
-        sinceState => $state-1,
+        sinceQueryState => $state-1,
       },
     ],
   ]);
@@ -837,7 +816,7 @@ subtest "custom condition builder" => sub {
       type        => 'invalidArguments',
       description => "That recipe is too secret for you",
     },
-    "getCakeList ix_get_list_check hook works"
+    "Cake/query ix_get_list_check hook works"
   );
 
   jcmp_deeply(
@@ -846,29 +825,36 @@ subtest "custom condition builder" => sub {
       type        => 'invalidArguments',
       description => "That recipe is way too secret for you",
     },
-    "getCakeListUpdates ix_get_list_updates_check hook works"
+    "Cake/queryChanges ix_get_list_updates_check hook works"
   );
 }
 
 {
-  # fetchFooProperties
+  # backref properties
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchCakes => \1,
-        fetchCakeProperties => [ 'type', 'baked_at' ],
       },
+      'a'
     ],
+    [
+      'Cake/get' => {
+        properties => [ 'type', 'baked_at' ],
+        '#ids' => mkref(qw( a Cake/query /ids )),
+      },
+      'b',
+    ]
   ]);
 
   jcmp_deeply(
     $res->sentence(0)->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(pb1)},
       ],
       'filter' => {
@@ -878,10 +864,10 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
-      'state' => $state,
+      'queryState' => $state,
       'total' => 1,
     },
-    "getCakeList with fetchRecipes => 1 but no fetchCakes"
+    "Cake/query with properties in backref"
   ) or diag explain $res->as_stripped_triples;
 
   jcmp_deeply(
@@ -893,27 +879,33 @@ subtest "custom condition builder" => sub {
         baked_at => ignore(),
       },
     ],
-    "got cake back with fetchCakes => 1"
+    "got cake back with backrefs"
   ) or diag explain $res->as_stripped_triples;
 
-  # fetchOtherFooProperties
+  # backrefs (on old-style jmap: was fetchOtherFooProperties)
   $res = $jmap_tester->request([
     [
-      getCakeList => {
+      'Cake/query' => {
         filter => {
           recipeId   => $secret1_recipe_id,
           type       => 'peanut butter',
         },
-        fetchRecipes => \1,
-        fetchRecipeProperties => [ 'is_delicious' ],
       },
     ],
+    [
+      'CakeRecipe/get' => {
+        ids => [ $secret1_recipe_id ],
+        properties => [ 'is_delicious' ],
+      },
+    ],
+
   ]);
 
   jcmp_deeply(
     $res->sentence(0)->arguments,
     {
-      'cakeIds' => [
+      accountId => ignore(),
+      'ids' => [
         @cake_id{qw(pb1)},
       ],
       'filter' => {
@@ -923,10 +915,10 @@ subtest "custom condition builder" => sub {
       'canCalculateUpdates' => JSON::MaybeXS::JSON->true,
       'position' => 0,
       'sort' => undef,
-      'state' => $state,
+      'queryState' => $state,
       'total' => 1,
     },
-    "getCakeList with fetchRecipes => 1 but no fetchCakes"
+    "Cake/query with explicit CakeRecipe/get"
   ) or diag explain $res->as_stripped_triples;
 
   jcmp_deeply(
@@ -937,7 +929,7 @@ subtest "custom condition builder" => sub {
         is_delicious => jtrue,
       },
     ],
-    "got recipe back with no fetchCakes and fetchRecipes => 1"
+    "got recipe back with explicit get"
   ) or diag explain $res->as_stripped_triples;
 }
 
@@ -953,24 +945,24 @@ subtest 'custom differ, and no required filters' => sub {
       types => [ 'oatmeal stout', 'oreo stout' ],
       batch => $Bakesale::Schema::Result::Cookie::next_batch,
     },
-    sort   => [ "type asc" ],
+    sort   => [{ property => 'type', isAscending => jtrue }],
   );
 
   {
     # Get base state
     my $cl_res = $jmap_tester->request([[
-      getCookieList => \%cl_args,
+      'Cookie/query' => \%cl_args,
     ]]);
 
     jcmp_deeply(
       $cl_res->single_sentence->arguments,
       superhashof({
-        cookieIds => [],
+        ids => [],
       }),
       "No cookies match our filter yet"
     ) or diag explain $cl_res->as_stripped_triples;
 
-    my $base_state = $cl_res->single_sentence->arguments->{state};
+    my $base_state = $cl_res->single_sentence->arguments->{queryState};
     ok(defined $base_state, 'got cookie state');
 
     push @states, $base_state;
@@ -981,7 +973,7 @@ subtest 'custom differ, and no required filters' => sub {
   {
     # Create some weird cookies
     my $set_cookies = $jmap_tester->request([
-      [ setCookies => { create => {
+      [ 'Cookie/set' => { create => {
         oatmeal1 => { type => 'oatmeal stout' },
         oreo1    => { type => 'oreo stout'    },
         peanut1  => { type => 'peanut stout'  },
@@ -1002,9 +994,9 @@ subtest 'custom differ, and no required filters' => sub {
 
     # Verify
     my $clu_res = $jmap_tester->request([[
-      getCookieListUpdates => {
+      'Cookie/queryChanges' => {
         %cl_args,
-        sinceState => $states[0],
+        sinceQueryState => $states[0],
       },
     ]]);
 
@@ -1014,10 +1006,10 @@ subtest 'custom differ, and no required filters' => sub {
         added => [
           {
             index => 0,
-            cookieId => $oatmeal,
+            id => $oatmeal,
           }, {
             index => 1,
-            cookieId => $oreo,
+            id => $oreo,
           }
         ],
         removed => [ ],
@@ -1025,7 +1017,7 @@ subtest 'custom differ, and no required filters' => sub {
       "Got two cookies out of three"
     ) or diag explain $clu_res->as_stripped_triples;
 
-    my $state = $clu_res->single_sentence->arguments->{newState};
+    my $state = $clu_res->single_sentence->arguments->{newQueryState};
     ok(defined $state, 'got next cookie state')
       or diag explain $clu_res->as_stripped_triples;
 
@@ -1038,7 +1030,7 @@ subtest 'custom differ, and no required filters' => sub {
     # Change two cookies, one so it no longer matches the filter, another
     # so it now matches the filter
     my $upd_res = $jmap_tester->request([[
-      setCookies => {
+      'Cookie/set' => {
         update => {
           $oatmeal => { type => 'banana' },
           $peanut  => { type => 'oatmeal stout' },
@@ -1054,9 +1046,9 @@ subtest 'custom differ, and no required filters' => sub {
 
     # Verify
     my $clu_res = $jmap_tester->request([[
-      getCookieListUpdates => {
+      'Cookie/queryChanges' => {
         %cl_args,
-        sinceState => $states[-1],
+        sinceQueryState => $states[-1],
       },
     ]]);
 
@@ -1066,7 +1058,7 @@ subtest 'custom differ, and no required filters' => sub {
         added => [
           {
             index => 0,
-            cookieId => $peanut,
+            id => $peanut,
           },
         ],
         removed => [
@@ -1083,12 +1075,12 @@ subtest "filters on joined tables" => sub {
   subtest "filter matches" => sub {
     $res = $jmap_tester->request([
       [
-        getCakeList => {
+        'Cake/query' => {
           filter => {
             'recipeId' => $secret1_recipe_id,
             'recipe.is_delicious' => jtrue,
           },
-          sort => [ 'type asc' ],
+          sort => [{ property => 'type', isAscending => jtrue }],
         },
       ],
     ]);
@@ -1096,7 +1088,8 @@ subtest "filters on joined tables" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
-        'cakeIds' => [
+        accountId => ignore(),
+        'ids' => [
           $cake_id{chocolate2},
           $cake_id{pb1},
         ],
@@ -1107,24 +1100,22 @@ subtest "filters on joined tables" => sub {
         },
         'canCalculateUpdates' => jtrue,
         'position' => 0,
-        'sort' => [
-          'type asc',
-        ],
-        'state' => $state,
+        'sort'  => [{ property => 'type', isAscending => jtrue }],
+        'queryState' => $state,
         'total' => 2,
       },
-      "getCakeList with filter on join with match looks right"
+      "Cake/query with filter on join with match looks right"
     ) or diag explain $res->as_stripped_triples;
 
     $res = $jmap_tester->request([
       [
-        getCakeListUpdates => {
+        'Cake/queryChanges' => {
           filter => {
             recipeId => $secret1_recipe_id,
             'recipe.is_delicious' => jtrue,
           },
-          sort => [ 'type asc' ],
-          sinceState => $state - 3,
+          sort => [{ property => 'type', isAscending => jtrue }],
+          sinceQueryState => $state - 3,
         },
       ],
     ]);
@@ -1132,13 +1123,14 @@ subtest "filters on joined tables" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
+        accountId => ignore(),
         'added' => [
           {
-            'cakeId' => $cake_id{chocolate2},
+            'id' => $cake_id{chocolate2},
             'index' => 0,
           },
           {
-            'cakeId' => $cake_id{pb1},
+            'id' => $cake_id{pb1},
             'index' => 1,
           }
         ],
@@ -1146,27 +1138,25 @@ subtest "filters on joined tables" => sub {
           'recipeId' => $secret1_recipe_id,
           'recipe.is_delicious' => jtrue,
         },
-        'newState' => $state,
-        'oldState' => $state - 3,
+        'newQueryState' => $state,
+        'oldQueryState' => $state - 3,
         'removed' => [],
-        'sort' => [
-          'type asc'
-        ],
+        'sort'  => [{ property => 'type', isAscending => jtrue }],
         'total' => 2
       },
-      "getCakeListUpdates with filter on join with match looks right"
+      "Cake/queryChanges with filter on join with match looks right"
     ) or diag explain $res->as_stripped_triples;
   };
 
   subtest "filter doesn't match" => sub {
     $res = $jmap_tester->request([
       [
-        getCakeList => {
+        'Cake/query' => {
           filter => {
             'recipeId' => $secret1_recipe_id,
             'recipe.is_delicious' => jfalse, # But these are delicious!
           },
-          sort => [ 'type asc' ],
+          sort => [{ property => 'type', isAscending => jtrue }],
         },
       ],
     ]);
@@ -1174,7 +1164,8 @@ subtest "filters on joined tables" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
-        'cakeIds' => [],
+        accountId => ignore(),
+        'ids' => [],
         'filter' => {
           'recipeId' => $secret1_recipe_id,
           'recipe.is_delicious' => jfalse,
@@ -1182,23 +1173,23 @@ subtest "filters on joined tables" => sub {
         'canCalculateUpdates' => jtrue,
         'position' => 0,
         'sort' => [
-          'type asc',
+          { property => 'type', isAscending => jtrue },
         ],
-        'state' => $state,
+        'queryState' => $state,
         'total' => 0,
       },
-      "getCakeList with filter on join no match looks right"
+      "Cake/query with filter on join no match looks right"
     ) or diag explain $res->as_stripped_triples;
 
     $res = $jmap_tester->request([
       [
-        getCakeListUpdates => {
+        'Cake/queryChanges' => {
           filter => {
             recipeId => $secret1_recipe_id,
             'recipe.is_delicious' => jfalse,
           },
-          sort => [ 'type asc' ],
-          sinceState => $state - 3,
+          sort => [{ property => 'type', isAscending => jtrue }],
+          sinceQueryState => $state - 3,
         },
       ],
     ]);
@@ -1209,15 +1200,15 @@ subtest "filters on joined tables" => sub {
         added    => [],
         removed  => [],
         total    => 0,
-        newState => $state,
-        oldState => $state - 3,
+        newQueryState => $state,
+        oldQueryState => $state - 3,
         filter => {
           recipeId => $secret1_recipe_id,
           'recipe.is_delicious' => jfalse,
         },
         total => 0,
       }),
-      "getCakeListUpdates with filter on join no match looks right"
+      "Cake/queryChanges with filter on join no match looks right"
     );
   };
 };
@@ -1230,13 +1221,13 @@ subtest "differ boolean comparison when db row is false" => sub {
   subtest "filter is false" => sub {
     $res = $jmap_tester->request([
       [
-        getCakeListUpdates => {
+        'Cake/queryChanges' => {
           filter => {
             recipeId => $secret2_recipe_id,
             'recipe.is_delicious' => jfalse,
           },
-          sort => [ 'type asc' ],
-          sinceState => $state - 3,
+          sort => [{ property => 'type', isAscending => jtrue }],
+          sinceQueryState => $state - 3,
         },
       ],
     ]);
@@ -1244,16 +1235,17 @@ subtest "differ boolean comparison when db row is false" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
+        accountId => ignore(),
         'added' => set(
           superhashof({
-            'cakeId' => $cake_id{marble1},
+            'id' => $cake_id{marble1},
           }),
           superhashof({
-            'cakeId' => $cake_id{marble2},
+            'id' => $cake_id{marble2},
             'index'  => ignore(),
           }),
           superhashof({
-            'cakeId' => $cake_id{lemon1},
+            'id' => $cake_id{lemon1},
             'index'  => ignore(),
           }),
         ),
@@ -1261,15 +1253,15 @@ subtest "differ boolean comparison when db row is false" => sub {
           'recipeId' => $secret2_recipe_id,
           'recipe.is_delicious' => jfalse,
         },
-        'newState' => $state,
-        'oldState' => $state - 3,
+        'newQueryState' => $state,
+        'oldQueryState' => $state - 3,
         'removed' => [],
         'sort' => [
-          'type asc'
+          { property => 'type', isAscending => jtrue },
         ],
         'total' => 3,
       },
-      "getCakeListUpdates with filter on join with match looks right"
+      "Cake/queryChanges with filter on join with match looks right"
     ) or diag explain $res->as_stripped_triples;
   };
 
@@ -1278,13 +1270,13 @@ subtest "differ boolean comparison when db row is false" => sub {
     # we should see no changes
     $res = $jmap_tester->request([
       [
-        getCakeListUpdates => {
+        'Cake/queryChanges' => {
           filter => {
             recipeId => $secret2_recipe_id,
             'recipe.is_delicious' => jtrue,
           },
-          sort => [ 'type asc' ],
-          sinceState => $state - 3,
+          sort => [{ property => 'type', isAscending => jtrue }],
+          sinceQueryState => $state - 3,
         },
       ],
     ]);
@@ -1292,32 +1284,33 @@ subtest "differ boolean comparison when db row is false" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
+        accountId => ignore(),
         'added' => [],
         'filter' => {
           'recipeId' => $secret2_recipe_id,
           'recipe.is_delicious' => jtrue,
         },
-        'newState' => $state,
-        'oldState' => $state - 3,
+        'newQueryState' => $state,
+        'oldQueryState' => $state - 3,
         'removed' => [],
         'sort' => [
-          'type asc'
+          { property => 'type', isAscending => jtrue },
         ],
         'total' => 0,
       },
-      "getCakeListUpdates with filter on join with no match looks right"
+      "Cake/queryChanges with filter on join with no match looks right"
     ) or diag explain $res->as_stripped_triples;
 
     # Now from the state where they were added, we should see removed
     $res = $jmap_tester->request([
       [
-        getCakeListUpdates => {
+        'Cake/queryChanges' => {
           filter => {
             recipeId => $secret2_recipe_id,
             'recipe.is_delicious' => jtrue,
           },
-          sort => [ 'type asc' ],
-          sinceState => $state - 2,
+          sort => [{ property => 'type', isAscending => jtrue }],
+          sinceQueryState => $state - 2,
         },
       ],
     ]);
@@ -1325,27 +1318,28 @@ subtest "differ boolean comparison when db row is false" => sub {
     jcmp_deeply(
       $res->single_sentence->arguments,
       {
+        accountId => ignore(),
         'added' => [],
         'filter' => {
           'recipeId' => $secret2_recipe_id,
           'recipe.is_delicious' => jtrue,
         },
-        'newState' => $state,
-        'oldState' => $state - 2,
+        'newQueryState' => $state,
+        'oldQueryState' => $state - 2,
         'removed' => [],
         'sort' => [
-          'type asc'
+          { property => 'type', isAscending => jtrue },
         ],
         'total' => 0,
       },
-      "getCakeListUpdates with filter on join with no match looks right"
+      "Cake/queryChanges with filter on join with no match looks right"
     ) or diag explain $res->as_stripped_triples;
   };
 };
 
 subtest "distinct rows only" => sub {
   # If a cake has many toppers it should still only come back once
-  my $res = $jmap_tester->request([[ setCakeToppers => {
+  my $res = $jmap_tester->request([[ 'CakeTopper/set' => {
     create => {
       first  => { cakeId => $cake_id{pb1}, type => 'sprinkles' },
       second => { cakeId => $cake_id{pb1}, type => 'candles'   },
@@ -1362,27 +1356,27 @@ subtest "distinct rows only" => sub {
 
   $res = $jmap_tester->request([
     [
-      getCakeList => {
-        sort => [ 'id asc' ],
+      'Cake/query' => {
+        sort => [{ property => 'id', isAscending => jtrue }],
       },
     ],
   ]);
   jcmp_deeply(
     $res->single_sentence->arguments,
     superhashof({
-      cakeIds => [
+      ids => [
         sort { $a cmp $b } values %cake_id,
       ],
       total => 5,
     }),
-    "no duplicates in getFooList"
+    "no duplicates in Foo/query"
   ) or diag explain $res->as_stripped_triples;
 
   $res = $jmap_tester->request([
     [
-      getCakeListUpdates => {
-        sort => [ 'id asc' ],
-        sinceState => 0,
+      'Cake/queryChanges' => {
+        sort => [{ property => 'id', isAscending => jtrue }],
+        sinceQueryState => 0,
       },
     ],
   ]);
@@ -1393,22 +1387,22 @@ subtest "distinct rows only" => sub {
         map {;
           {
             index  => ignore(),
-            cakeId => $_
+            id => $_
           },
         } sort { $a cmp $b } values %cake_id,
       ],
       total => 5,
     }),
-    "no duplicates in getFooListUpdates"
+    "no duplicates in Foo/queryChanges"
   ) or diag explain $res->as_stripped_triples;
 };
 
 subtest "tooManyChanges" => sub {
   subtest "Plenty of space for more changes" => sub {
     my $res = $jmap_tester->request([[
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => { recipeId => $secret1_recipe_id, },
-        sinceState => 1,
+        sinceQueryState => 1,
         maxChanges => 100,
       },
     ]]);
@@ -1420,14 +1414,14 @@ subtest "tooManyChanges" => sub {
         removed => [ ignore(), ignore() ],
       }),
       'got a good response, with both added/removed elements'
-    );
+    ) or diag explain $res->as_stripped_triples;
   };
 
   subtest "Exact amount of changes" => sub {
     my $res = $jmap_tester->request([[
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => { recipeId => $secret1_recipe_id, },
-        sinceState => 1,
+        sinceQueryState => 1,
         maxChanges => 3,
       },
     ]]);
@@ -1444,9 +1438,9 @@ subtest "tooManyChanges" => sub {
 
   subtest "Not enough room for all the changes" => sub {
     my $res = $jmap_tester->request([[
-      getCakeListUpdates => {
+      'Cake/queryChanges' => {
         filter => { recipeId => $secret1_recipe_id, },
-        sinceState => 1,
+        sinceQueryState => 1,
         maxChanges => 2,
       },
     ]]);
@@ -1462,11 +1456,11 @@ subtest "tooManyChanges" => sub {
 subtest "custom cake differ" => sub {
   # Make sure we can get updates with this filter/custom differ
   my $res = $jmap_tester->request([
-    [ getCakeListUpdates => { filter => {
+    [ 'Cake/queryChanges' => { filter => {
         recipeId => $secret1_recipe_id,
         isLayered             => jtrue,
         'recipe.is_delicious' => jtrue,
-      }, sinceState => 0 }
+      }, sinceQueryState => 0 }
     ],
   ]);
   ok($res->http_response->is_success, 'call succeeded');
@@ -1479,20 +1473,20 @@ subtest "we do not promote undef sort or filter" => sub {
   ) {
     my ($desc, $value) = @$pair;
     subtest "filter non-promotion, filter = $desc" => sub {
-      my $list_res = $jmap_tester->request([ [ getCookieList => { filter => $value } ] ]);
-      my $list = $list_res->single_sentence('cookieList');
+      my $list_res = $jmap_tester->request([ [ 'Cookie/query' => { filter => $value } ] ]);
+      my $list = $list_res->single_sentence('Cookie/query');
 
-      jcmp_deeply($list->arguments->{filter}, $value, "getFooList filter");
+      jcmp_deeply($list->arguments->{filter}, $value, "Foo/query filter");
 
-      my $state = $list->arguments->{state};
+      my $state = $list->arguments->{queryState};
 
       my $listup_res = $jmap_tester->request([
-        [ getCookieListUpdates => { sinceState => $state, filter => $value } ]
+        [ 'Cookie/queryChanges' => { sinceQueryState => $state, filter => $value } ]
       ]);
 
-      my $listup = $listup_res->single_sentence('cookieListUpdates');
+      my $listup = $listup_res->single_sentence('Cookie/queryChanges');
 
-      jcmp_deeply($listup->arguments->{filter}, $value, "getFooListUpdates filter");
+      jcmp_deeply($listup->arguments->{filter}, $value, "Foo/queryChanges filter");
     };
   }
 };

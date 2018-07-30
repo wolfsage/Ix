@@ -116,7 +116,7 @@ sub ix_get ($self, $ctx, $arg = {}) {
       $ctx,
       $arg,
       [
-        $ctx->result($rclass->ix_type_key => {
+        $ctx->result($rclass->ix_type_key . "/get" => {
           state => $rclass->ix_state_string($ctx->state),
           list  => \@rows,
           notFound => (@not_found ? \@not_found : undef),
@@ -149,7 +149,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
     my $type_key = $rclass->ix_type_key;
     my $schema   = $ctx->schema;
-    my $res_type = $rclass->ix_type_key_singular . "Updates";
+    my $res_type = "$type_key/changes";
 
     my $statecmp = $rclass->ix_compare_state($since, $ctx->state);
 
@@ -160,8 +160,9 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
         oldState => "$since",
         newState => "$since",
         hasMoreUpdates => JSON::MaybeXS::JSON->false(), # Gross. -- rjbs, 2017-02-13
-        changed => [],
-        removed => [],
+        created => [],
+        updated => [],
+        destroyed => [],
       });
     }
 
@@ -189,7 +190,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       {
         select => [
           'id',
-          qw(me.isActive me.modSeqChanged),
+          qw(me.isActive me.modSeqChanged me.modSeqCreated),
           $rclass->ix_update_extra_select->@*,
         ],
         result_class => 'DBIx::Class::ResultClass::HashRefInflator',
@@ -232,21 +233,24 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       }
     }
 
-    my @changed;
-    my @removed;
+    my (@created, @updated, @destroyed);
+
     for my $item (@rows) {
       if (! $item->{isActive}) {
-        push @removed, lc "$item->{id}";
+        push @destroyed, lc "$item->{id}";
+      } elsif ($rclass->ix_item_created_since($item, $since)) {
+        push @created, lc "$item->{id}";
       } else {
-        push @changed, lc "$item->{id}";
+        push @updated, lc "$item->{id}";
       }
     }
 
     # This is, admittedly, dumb. But, rclasses might do some extra munging
     # with ix_update_extra_*, such that it will return multiple rows for a
     # single id. -- michael, 2018-02-12
-    @removed = uniq @removed;
-    @changed = uniq @changed;
+    @created   = uniq @created;
+    @destroyed = uniq @destroyed;
+    @updated   = uniq @updated;
 
     my @return = $ctx->result($res_type => {
       oldState => "$since",
@@ -256,29 +260,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       hasMoreUpdates => $hasMoreUpdates
                       ? JSON::MaybeXS::JSON->true()
                       : JSON::MaybeXS::JSON->false(),
-      changed => \@changed,
-      removed => \@removed,
+      created => \@created,
+      updated => \@updated,
+      destroyed => \@destroyed,
     });
-
-    if ($arg->{fetchRecords}) {
-      # XXX This is pretty sub-optimal, because we might be passing a @changed of
-      # size 500+, which becomes 500 placeholder variables.  Stupid.  If it comes
-      # to it, we could maybe run-encode them with BETWEEN queries.
-      #
-      # We used to do a *single* select, which was a nice optimization, but it
-      # bypassed permissions imposed by "get" query extras.  We need to *not* use
-      # those in getting updates, but to use them in getting records.
-      #
-      # Next attempt was to use a ResultSetColumn->as_query on the above query's
-      # id column.  That's no good because we're manually trimming the results
-      # based on id boundaries.  We may be able to improve the above query, then
-      # use this strategy.  For now, just gonna let it go until we hit problems!
-      # -- rjbs, 2016-06-08
-      push @return, $self->ix_get($ctx, {
-        ids => \@changed,
-        properties => $arg->{fetchRecordProperties},
-      });
-    }
 
     return @return;
   });
@@ -997,9 +982,10 @@ sub ix_set ($self, $ctx, $arg = {}) {
     }
 
     my $ret = [ Ix::Result::FoosSet->new({
-      result_type => "${type_key}Set",
+      result_type => "$type_key/set",
       old_state => $curr_state,
       new_state => $rclass->ix_state_string($state),
+      accountId => $ctx->accountId,
       %result,
     }) ];
 
@@ -1018,16 +1004,12 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
 
   return $ctx->txn_do(sub {
     my $key = $rclass->ix_type_key;
-    my $key1 = $rclass->ix_type_key_singular;
-    my $fetch_arg = "fetch\u$key";
-    my $fetch_properties_arg = "fetch\u${key1}Properties";
     my $orig_filter = $arg->{filter};
     my $orig_sort   = $arg->{sort};
 
     my $schema = $ctx->schema;
 
     my $limit = $arg->{limit} // 500;
-    $limit = 500 if $limit > 500 && $arg->{$fetch_arg};
 
     my $search = $self->_get_list_search_args($ctx, $arg);
     $search->{filter}{'me.isActive'} = 1;
@@ -1063,53 +1045,16 @@ sub ix_get_list ($self, $ctx, $arg = {}) {
 
     my $hms = "" . $ctx->state->highest_modseq_for($key);
 
-    my @res = $ctx->result("${key1}List" => {
+    my @res = $ctx->result("$key/query" => {
       filter       => $orig_filter,
       sort         => $orig_sort,
-      state        => $hms,
+      queryState   => $hms,
       total        => $total,
       position     => $arg->{position} // 0,
-      "${key1}Ids" => [ map {; "" . $_->{id} } @items ],
+      ids          => [ map {; "" . $_->{id} } @items ],
 
       canCalculateUpdates => \1,
     });
-
-    # fetchFoos
-    if ($arg->{$fetch_arg}) {
-      push @res, $self->ix_get($ctx, {
-        ids => [ map {; "" . $_->{id} } @items ],
-
-        # fetchFooProperties => [ '...' ]
-        ( $arg->{$fetch_properties_arg}
-          ? ( properties => $arg->{$fetch_properties_arg } )
-          : ()
-        ),
-      });
-    }
-
-    # Any other fetch* args?
-    for my $field (keys $rclass->ix_get_list_fetchable_map->%*) {
-      if ($arg->{$field}) {
-        my $fetchable = $rclass->ix_get_list_fetchable_map->{$field};
-        my $result_set = $schema->resultset($fetchable->{result_set});
-        my $properties_arg = $fetchable->{properties_arg};
-
-        unless (defined $properties_arg) {
-          my $singular = $field =~ s/s\z//r;
-          $properties_arg = "${singular}Properties";
-        }
-
-        push @res, $result_set->ix_get($ctx, {
-          ids => [ map {; "" . $_->{$fetchable->{field}} } @items ],
-
-          # fetchOtherFooProperties
-          ( $arg->{$properties_arg}
-            ? ( properties => $arg->{$properties_arg} )
-            : ()
-          ),
-        });
-      }
-    }
 
     return @res;
   });
@@ -1121,18 +1066,17 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
 
   return $ctx->txn_do(sub {
     my $key = $rclass->ix_type_key;
-    my $key1 = $rclass->ix_type_key_singular;
 
     my $schema = $ctx->schema;
 
-    my $since_state = $arg->{sinceState};
+    my $since_state = $arg->{sinceQueryState};
 
     my $limit = $arg->{maxChanges};
     if (defined $limit && ( $limit !~ /^[0-9]+\z/ || $limit == 0 )) {
       return $ctx->error(invalidArguments => { description => "invalid maxChanges" });
     }
 
-    return $ctx->error(invalidArguments => { description => "no sinceState given" })
+    return $ctx->error(invalidArguments => { description => "no sinceQueryState given" })
       unless defined $since_state;
 
     my $hms = $ctx->state->highest_modseq_for($key);
@@ -1143,6 +1087,7 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
       or
       $since_state < $lms
     ) {
+      warn "since_state is $since_state, hms is $hms";
       return $ctx->error(cannotCalculateChanges => {});
     }
 
@@ -1164,14 +1109,14 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
       },
     )->search({ 'me.isActive' => 1 })->count;
 
-    if ($arg->{sinceState} == $hms) {
+    if ($arg->{sinceQueryState} == $hms) {
       # Nothing changed!  But we still promise to return the total,
       # unfortunately, so we get it. -- rjbs, 2016-04-13
-      return $ctx->result("${key1}ListUpdates" => {
+      return $ctx->result("$key/queryChanges" => {
         filter => $orig_filter,
         sort   => $orig_sort,
-        oldState => "$since_state",
-        newState => "$since_state",
+        oldQueryState => "$since_state",
+        newQueryState => "$since_state",
         total    => $total,
         removed  => [ ],
         added    => [ ],
@@ -1265,11 +1210,11 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
         push @removed, "" . $entity->id;
         $count++;
       } elsif (! $is_removed && $is_new) {
-        push @added, { index => $i, "${key1}Id" => "" . $entity->id };
+        push @added, { index => $i, "id" => "" . $entity->id };
         $count++;
       } elsif (! $is_removed && $is_changed) {
         push @removed, "" . $entity->id;
-        push @added, { index => $i, "${key1}Id" => "" . $entity->id };
+        push @added, { index => $i, "id" => "" . $entity->id };
         $count += 2;
       }
 
@@ -1282,11 +1227,11 @@ sub ix_get_list_updates ($self, $ctx, $arg = {}) {
       $i++ unless $is_removed;
     }
 
-    return $ctx->result("${key1}ListUpdates" => {
+    return $ctx->result("$key/queryChanges" => {
       filter => $orig_filter,
       sort   => $orig_sort,
-      oldState => "" . $since_state,
-      newState => "" . $hms,
+      oldQueryState => "" . $since_state,
+      newQueryState => "" . $hms,
       total    => $total,
       removed  => \@removed,
       added    => \@added,
@@ -1339,29 +1284,28 @@ sub _get_list_search_args ($self, $ctx, $arg) {
     }
   }
   my @sort;
-  my %bad_sort;
+  my @bad_sort;
 
   my $sort_map = $rclass->ix_get_list_sort_map;
 
   SORT: for my $sort ($arg->{sort}->@*) {
-    my ($field, $order, $extra) = split /\s+/, $sort, 3;
+    my @bad = grep {; $_ !~ /\A(?:property|isAscending|collation)\z/ } keys %$sort;
+    if (@bad) {
+      push @bad_sort, "invalid sort format: unknown arguments [@bad]";
+      next SORT;
+    }
+
+    my $field = $sort->{property};
+    my $order = $sort->{isAscending};    # XXX strictly type this?
+    $order = defined $order && ! $order ? 'desc' : 'asc';
+
+    if (! defined $field ) {
+      push @bad_sort, 'invalid sort format: missing property name';
+      next SORT;
+    }
+
     if (! $sort_map->{$field}) {
-      $bad_sort{$sort} = 'unknown sort field';
-      next SORT;
-    }
-
-    if (! $order) {
-      $bad_sort{$sort} = 'invalid sort format: missing sort order';
-      next SORT;
-    }
-
-    if ($extra) {
-      $bad_sort{$sort} = 'invalid sort format: expected exactly two arguments';
-      next SORT;
-    }
-
-    if ($order ne 'asc' && $order ne 'desc') {
-      $bad_sort{$sort} = "invalid sort format: sort order must be 'asc' or 'desc'";
+      push @bad_sort, "unknown sort field '$field'";
       next SORT;
     }
 
@@ -1382,11 +1326,11 @@ sub _get_list_search_args ($self, $ctx, $arg) {
   # ensure that we are. -- rjbs, 2016-05-13
   push @sort, "me.id";
 
-  if (%bad_filter || %bad_sort) {
+  if (%bad_filter || @bad_sort) {
     $ctx->error(invalidArguments => {
       description => "Invalid arguments",
       ( %bad_filter ? ( invalidFilters => \%bad_filter ) : () ),
-      ( %bad_sort   ? ( invalidSorts   => \%bad_sort   ) : () ),
+      ( @bad_sort   ? ( invalidSorts   => \@bad_sort   ) : () ),
     })->throw;
   }
 

@@ -18,10 +18,6 @@ sub ix_account_type { Carp::confess("ix_account_type not implemented") }
 # Checked for in ix_finalize
 # sub ix_type_key { }
 
-sub ix_type_key_singular ($self) {
-  $self->ix_type_key =~ s/s\z//r;
-}
-
 sub ix_get_list_enabled {}
 sub ix_extra_get_args { }
 
@@ -214,7 +210,6 @@ sub ix_finalize ($class) {
     for my $method (qw(
       ix_get_list_check
       ix_get_list_updates_check
-      ix_get_list_fetchable_map
       ix_get_list_filter_map
       ix_get_list_sort_map
       ix_get_list_joins
@@ -341,6 +336,10 @@ sub ix_update_extra_select {
 sub ix_highest_state ($self, $since, $rows) {
   my $state_string_field = $self->ix_update_state_string_field;
   return $rows->[-1]{$state_string_field};
+}
+
+sub ix_item_created_since ($self, $item, $since) {
+  return $item->{modSeqCreated} > $since;
 }
 
 sub ix_update_single_state_conds ($self, $example_row) {

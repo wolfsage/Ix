@@ -20,7 +20,7 @@ $jmap_tester->_set_cookie('bakesaleUserId', $admin_id);
 # pass in a sinceState lower than that (0-1 or 1-0 for example).
 my $updated = $app->processor->schema_connection->resultset('State')->search({
   accountId => $accountId,
-  type      => [ qw(cakes cakeRecipes) ],
+  type      => [ qw(Cake CakeRecipe) ],
 })->update({
   lowestModSeq  => 1,
   highestModSeq => 1,
@@ -34,41 +34,43 @@ subtest "simple state comparisons" => sub {
   for my $type (qw(sugar anzac spritz fudge)) {
     $last_set_res = $jmap_tester->request([
       [
-        setCookies => {
+        'Cookie/set' => {
           create => { map {; $_ => { type => $type } } (1 .. 10) }
         }
       ],
     ]);
   }
 
-  my $state = $last_set_res->single_sentence->as_set->new_state . "";
+  my $set_res = $last_set_res->single_sentence->as_set;
+  my $state = $set_res->new_state . "";
 
   subtest "synchronize to current state: no-op" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "4" } ]
+      [ 'Cookie/changes' => { sinceState => "4" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 4, "old state: 4");
     is($arg->{newState}, 4, "new state: 4");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    ok(! $arg->{changed}->@*, "no items changed");
-    ok(! $arg->{removed}->@*, "no items removed");
+    ok(! $arg->{created}->@*, "no items created");
+    ok(! $arg->{updated}->@*, "no items updated");
+    ok(! $arg->{destroyed}->@*, "no items destroyed");
   };
 
   subtest "synchronize from lowest state on file" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "0" } ]
+      [ 'Cookie/changes' => { sinceState => "0" } ]
     ]);
 
-    ok($res->as_triples->[0][1]{changed}->@*, 'can sync from "0" state');
+    ok($res->as_triples->[0][1]{created}->@*, 'can sync from "0" state');
   };
 
   subtest "synchronize from the future" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "8" } ]
+      [ 'Cookie/changes' => { sinceState => "8" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
@@ -79,77 +81,116 @@ subtest "simple state comparisons" => sub {
 
   subtest "synchronize (2 to 4), no maxChanges" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "2" } ]
+      [ 'Cookie/changes' => { sinceState => "2" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 4, "new state: 4");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    is($arg->{changed}->@*, 20, "20 items changed");
-    ok(! $arg->{removed}->@*,   "no items removed");
+    is($arg->{created}->@*, 20, "20 items created");
+    ok(! $arg->{updated}->@*, "no items updated");
+    ok(! $arg->{destroyed}->@*, "no items destroyed");
   };
 
   subtest "synchronize (2 to 4), maxChanges exceeds changes" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "2", maxChanges => 30 } ]
+      [ 'Cookie/changes' => { sinceState => "2", maxChanges => 30 } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 4, "new state: 4");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    is($arg->{changed}->@*, 20, "20 items changed");
-    ok(! $arg->{removed}->@*,   "no items removed");
+    is($arg->{created}->@*, 20, "20 items created");
+    is($arg->{updated}->@*, 0, "no items updated");
+    ok(! $arg->{destroyed}->@*, "no items destroyed");
   };
 
   subtest "synchronize (2 to 4), maxChanges equals changes" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "2", maxChanges => 20 } ]
+      [ 'Cookie/changes' => { sinceState => "2", maxChanges => 20 } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 4, "new state: 4");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    is($arg->{changed}->@*, 20, "20 items changed");
-    ok(! $arg->{removed}->@*,   "no items removed");
+    is($arg->{created}->@*, 20, "20 items created");
+    ok(! $arg->{updated}->@*,   "no items updated");
+    ok(! $arg->{destroyed}->@*,   "no items destroyed");
   };
 
   subtest "synchronize (2 to 4), maxChanges requires truncation" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "2", maxChanges => 15 } ]
+      [ 'Cookie/changes' => { sinceState => "2", maxChanges => 15 } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 3, "new state: 3");
     ok($arg->{hasMoreUpdates},   "more updates to get");
-    is($arg->{changed}->@*, 10, "10 items changed");
-    ok(! $arg->{removed}->@*,   "no items removed");
+    is($arg->{created}->@*, 10, "10 items created");
+    ok(! $arg->{updated}->@*,   "no items updated");
+    ok(! $arg->{destroyed}->@*,   "no items destroyed");
   };
 
   subtest "synchronize (2 to 4), maxChanges must be exceeded" => sub {
     my $res = $jmap_tester->request([
-      [ getCookieUpdates => { sinceState => "2", maxChanges => 8 } ]
+      [ 'Cookie/changes' => { sinceState => "2", maxChanges => 8 } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cookieUpdates', 'cookie updates!!');
+    is($type, 'Cookie/changes', 'cookie changes!!');
 
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 3, "new state: 3");
     ok($arg->{hasMoreUpdates},   "more updates to get");
-    is($arg->{changed}->@*, 10, "10 items changed");
-    ok(! $arg->{removed}->@*,   "no items removed");
+    is($arg->{created}->@*, 10, "10 items created");
+    ok(! $arg->{updated}->@*,   "no items updated");
+    ok(! $arg->{destroyed}->@*,   "no items destroyed");
+  };
+
+  subtest "make some updates, synchronize (4 to 5)" => sub {
+    # get a random cookie to play with
+    my $creation_id = [ keys $set_res->created->%* ]->[0];
+    my $cookie = $set_res->created->{$creation_id};
+
+    my $update_res = $jmap_tester->request([[
+      'Cookie/set' => {
+        update => {
+          $cookie->{id} => { delicious => 'no' },
+        },
+      },
+    ]])->single_sentence->as_set;
+
+    ok(exists $update_res->updated->{$cookie->{id}}, 'we updated our cookie');
+
+    my $new_state = $update_res->arguments->{newState};
+    is($new_state, 5, "new state is correct");
+
+    my $change_res = $jmap_tester->request([
+      [ 'Cookie/changes' => { sinceState => "4" } ]
+    ]);
+
+    my ($type, $arg) = $change_res->single_sentence->as_triple->@*;
+    is($type, 'Cookie/changes', 'cookie changes!!');
+
+    is($arg->{oldState}, 4, "old state: 4");
+    is($arg->{newState}, 5, "new state: 5");
+    ok(! $arg->{created}->@*, "no items created");
+    ok(! $arg->{destroyed}->@*,  "no items destroyed");
+
+    is($arg->{updated}->@*, 1, "one item updated");
+    is($arg->{updated}->[0], $cookie->{id}, "updated item is our cookie");
   };
 };
 
@@ -165,7 +206,7 @@ subtest "complex state comparisons" => sub {
     for my $n (1..5) {
       my $cr_res = $jmap_tester->request([
         [
-          setCakeRecipes => {
+          'CakeRecipe/set' => {
             create => { $n => { type => "recipe-$n", avg_review => 75 } }
           },
         ],
@@ -188,7 +229,7 @@ subtest "complex state comparisons" => sub {
     for my $layer_count (1 .. 4) {
       $last_set_res = $jmap_tester->request([
         [
-          setCakes => {
+          'Cake/set' => {
             create => { map {; $_ => {
               type     => "test $layer_count/$_",
               recipeId => $recipe_id{$_},
@@ -216,33 +257,34 @@ subtest "complex state comparisons" => sub {
 
   subtest "synchronize to current state: no-op" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "5-6" } ]
+      [ 'Cake/changes' => { sinceState => "5-6" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cakeUpdates', 'cake updates!!');
+    is($type, 'Cake/changes', 'cake changes!!');
 
     is($arg->{oldState}, '5-6', "old state: 5-6");
     is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    ok(! $arg->{changed}->@*, "no items changed");
-    ok(! $arg->{removed}->@*, "no items removed");
+    ok(! $arg->{created}->@*, "no items created");
+    ok(! $arg->{updated}->@*, "no items updated");
+    ok(! $arg->{destroyed}->@*, "no items destroyed");
   };
 
   subtest "synchronize from non-compound state" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "2" } ]
+      [ 'Cake/changes' => { sinceState => "2" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'error', 'can not sync from non-compount state');
+    is($type, 'error', 'can not sync from non-compound state');
 
     is($arg->{type}, "invalidArguments", "error type");
   };
 
   subtest "synchronize from too-low lhs state" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "0-3" } ]
+      [ 'Cake/changes' => { sinceState => "0-3" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
@@ -253,7 +295,7 @@ subtest "complex state comparisons" => sub {
 
   subtest "synchronize from too-low rhs state" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "3-0" } ]
+      [ 'Cake/changes' => { sinceState => "3-0" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
@@ -264,74 +306,83 @@ subtest "complex state comparisons" => sub {
 
   subtest "synchronize (4-6 to 5-6), no maxChanges" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "4-6" } ]
+      [ 'Cake/changes' => { sinceState => "4-6" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cakeUpdates', 'cake updates!!');
+    is($type, 'Cake/changes', 'cake changes!!');
 
     is($arg->{oldState}, '4-6', "old state: 4-6");
     is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    is($arg->{changed}->@*, 5, "5 items changed");
+    is($arg->{created}->@*, 5, "5 items created");
 
     is_deeply(
-      [ sort $arg->{changed}->@* ],
+      [ sort $arg->{created}->@* ],
       [ sort @cake_id{qw( C4R1 C4R2 C4R3 C4R4 C4R5 )} ],
       "the five expected items updated",
     );
 
-    ok(! $arg->{removed}->@*,   "no items removed");
+    ok(! $arg->{destroyed}->@*,   "no items destroyed");
   };
 
   subtest "synchronize (5-5 to 5-6), no maxChanges" => sub {
     my $res = $jmap_tester->request([
-      [ getCakeUpdates => { sinceState => "5-5" } ]
+      [ 'Cake/changes' => { sinceState => "5-5" } ]
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'cakeUpdates', 'cake updates!!');
+    is($type, 'Cake/changes', 'cake changes!!');
 
     is($arg->{oldState}, '5-5', "old state: 5-5");
     is($arg->{newState}, '5-6', "new state: 5-6");
     ok( ! $arg->{hasMoreUpdates}, "no more updates");
-    is($arg->{changed}->@*, 4, "4 items changed");
+    is($arg->{updated}->@*, 4, "4 items changed");
 
     is_deeply(
-      [ sort $arg->{changed}->@* ],
+      [ sort $arg->{updated}->@* ],
       [ sort @cake_id{qw( C1R5 C2R5 C3R5 C4R5 )} ],
       "the five expected items updated",
     );
 
-    ok(! $arg->{removed}->@*,   "no items removed");
+    ok(! $arg->{destroyed}->@*,   "no items destroyed");
   };
 
   for my $test (
     [ "sync (4-5 to 5-6), no maxChanges",              {} ],
     [ "sync (4-5 to 5-6), maxChanges exceeds updates", { maxChanges => 10 } ],
-    [ "sync (4-5 to 5-6), maxChanges qeuals updates",  { maxChanges =>  8 } ],
+    [ "sync (4-5 to 5-6), maxChanges equals updates",  { maxChanges =>  8 } ],
   ) {
     subtest $test->[0] => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "4-5", $test->[1]->%* } ]
+        [ 'Cake/changes' => { sinceState => "4-5", $test->[1]->%* } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'cakeUpdates', 'cake updates!!');
+      is($type, 'Cake/changes', 'cake changes!!');
 
       is($arg->{oldState}, '4-5', "old state: 4-5");
       is($arg->{newState}, '5-6', "new state: 5-6");
       ok( ! $arg->{hasMoreUpdates}, "no more updates");
-      is($arg->{changed}->@*, 8, "8 items changed");
+
+      # Ok, so. We created 5 cakes at state 4-6, which bumps our state to 5-6.
+      # But because in this complex state, we return both parts if either part
+      # changed (all the cakes were created since recipe state 5), we're gonna
+      # return all of them here. That means that 5 of them will be created
+      # (because the cakes themselves were created, and the others will come
+      # back as updated, because that's the only reasonable thing we can do,
+      # if we're committed to returning them all. -- michael, 2018-07-03
+      is($arg->{created}->@*, 5, "5 items changed");
+      is($arg->{updated}->@*, 3, "3 items updated");
 
       is_deeply(
-        [ sort $arg->{changed}->@* ],
+        [ sort $arg->{created}->@*, $arg->{updated}->@* ],
         [ sort @cake_id{qw( C4R1 C4R2 C4R3 C4R4 C4R5
                             C1R5 C2R5 C3R5 )} ],
         "the eight expected items updated",
       );
 
-      ok(! $arg->{removed}->@*,   "no items removed");
+      ok(! $arg->{destroyed}->@*,   "no items destroyed");
     };
   }
 
@@ -340,11 +391,11 @@ subtest "complex state comparisons" => sub {
     my $mid_state;
     subtest "first pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "4-5", maxChanges => 5 } ]
+        [ 'Cake/changes' => { sinceState => "4-5", maxChanges => 5 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'cakeUpdates', 'cake updates!!');
+      is($type, 'Cake/changes', 'cake changes!!');
 
       is($arg->{oldState}, '4-5', "old state: 4-5");
       ok(
@@ -352,9 +403,9 @@ subtest "complex state comparisons" => sub {
         "new state: $arg->{newState}",
       );
       ok($arg->{hasMoreUpdates},  "more updates await");
-      ok(! $arg->{removed}->@*,   "no items removed");
+      ok(! $arg->{destroyed}->@*,   "no items destroyed");
 
-      my @changed = $arg->{changed}->@*;
+      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
       cmp_ok(@changed, '<=', 5, "<= 5 items changed");
 
       $changed{ $cake_id_rev{$_} }++ for @changed;
@@ -363,20 +414,20 @@ subtest "complex state comparisons" => sub {
 
     subtest "second pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => $mid_state, maxChanges => 5 } ]
+        [ 'Cake/changes' => { sinceState => $mid_state, maxChanges => 5 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'cakeUpdates', 'cake updates!!');
+      is($type, 'Cake/changes', 'cake changes!!');
 
       is($arg->{oldState}, $mid_state, "old state: $mid_state");
       ok(! $arg->{hasMoreUpdates},  "no more updates");
-      ok(! $arg->{removed}->@*,   "no items removed");
+      ok(! $arg->{destroyed}->@*,   "no items destroyed");
 
-      my @changed = $arg->{changed}->@*;
+      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
       cmp_ok(@changed, '<=', 5, "<= 5 items changed");
 
-      $changed{ $cake_id_rev{$_} }++ for $arg->{changed}->@*;
+      $changed{ $cake_id_rev{$_} }++ for @changed;
     };
 
     is(keys %changed, 8, "eight total updates (with maybe some dupes)");
@@ -392,11 +443,11 @@ subtest "complex state comparisons" => sub {
     my $mid_state;
     subtest "first pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => "4-5", maxChanges => 3 } ]
+        [ 'Cake/changes' => { sinceState => "4-5", maxChanges => 3 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'cakeUpdates', 'cake updates!!');
+      is($type, 'Cake/changes', 'cake changes!!');
 
       is($arg->{oldState}, '4-5', "old state: 4-5");
       ok(
@@ -404,9 +455,9 @@ subtest "complex state comparisons" => sub {
         "new state: $arg->{newState}",
       );
       ok($arg->{hasMoreUpdates},  "more updates await");
-      ok(! $arg->{removed}->@*,   "no items removed");
+      ok(! $arg->{destroyed}->@*,   "no items destroyed");
 
-      my @changed = $arg->{changed}->@*;
+      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
       cmp_ok(@changed, '<=', 5, "<= 5 items changed");
 
       $changed{ $cake_id_rev{$_} }++ for @changed;
@@ -415,20 +466,20 @@ subtest "complex state comparisons" => sub {
 
     subtest "second pass at small-window update" => sub {
       my $res = $jmap_tester->request([
-        [ getCakeUpdates => { sinceState => $mid_state, maxChanges => 5 } ]
+        [ 'Cake/changes' => { sinceState => $mid_state, maxChanges => 5 } ]
       ]);
 
       my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'cakeUpdates', 'cake updates!!');
+      is($type, 'Cake/changes', 'cake changes!!');
 
       is($arg->{oldState}, $mid_state, "old state: $mid_state");
       ok(! $arg->{hasMoreUpdates},  "no more updates");
-      ok(! $arg->{removed}->@*,   "no items removed");
+      ok(! $arg->{destroyed}->@*,   "no items destroyed");
 
-      my @changed = $arg->{changed}->@*;
+      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
       cmp_ok(@changed, '<=', 5, "<= 5 items changed");
 
-      $changed{ $cake_id_rev{$_} }++ for $arg->{changed}->@*;
+      $changed{ $cake_id_rev{$_} }++ for @changed;
     };
 
     is(keys %changed, 8, "eight total updates (with maybe some dupes)");
@@ -446,13 +497,13 @@ subtest "updated null and updated Object" => sub {
   {
     my $res = $jmap_tester->request([
       [
-        setCookies => {
+        'Cookie/set' => {
           create => { foo => { type => 'macaroon' } }
         },
       ],
     ]);
 
-    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $set = $res->assert_successful->single_sentence('Cookie/set')->as_set;
     my $cookie = $set->created->{foo};
     $cookie_id = $cookie->{id};
 
@@ -473,13 +524,13 @@ subtest "updated null and updated Object" => sub {
   {
     my $res = $jmap_tester->request([
       [
-        setCookies => {
+        'Cookie/set' => {
           update => { $cookie_id => { delicious => 'maybe' } }
         },
       ],
     ]);
 
-    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $set = $res->assert_successful->single_sentence('Cookie/set')->as_set;
     my $cookie = $set->updated->{ $cookie_id };
 
     jcmp_deeply(
@@ -492,13 +543,13 @@ subtest "updated null and updated Object" => sub {
   {
     my $res = $jmap_tester->request([
       [
-        setCookies => {
+        'Cookie/set' => {
           update => { $cookie_id => { type => 'macaron' } }
         },
       ],
     ]);
 
-    my $set = $res->assert_successful->single_sentence('cookiesSet')->as_set;
+    my $set = $res->assert_successful->single_sentence('Cookie/set')->as_set;
     my $cookie = $set->updated->{ $cookie_id };
 
     jcmp_deeply(
@@ -509,24 +560,24 @@ subtest "updated null and updated Object" => sub {
   }
 };
 
-subtest "getFooUpdates - ix_get_updates_check" => sub {
+subtest "Foo/changes - ix_get_updates_check" => sub {
   {
     my $res = $jmap_tester->request([
       [
-        getUserUpdates => {
+        'User/changes' => {
           sinceState => "0",
           limit      => 5,
         }
       ]
     ]);
 
-    ok($res->single_sentence('userUpdates'), 'got updates');
+    ok($res->single_sentence('User/changes'), 'got changes');
   }
 
   {
     my $res = $jmap_tester->request([
       [
-        getUserUpdates => {
+        'User/changes' => {
           sinceState => "0",
           limit      => 6,
         }

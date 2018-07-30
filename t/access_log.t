@@ -8,6 +8,7 @@ use lib 't/lib';
 use Bakesale;
 use Bakesale::App;
 use Bakesale::Schema;
+use Capture::Tiny qw(capture_stderr);
 use JSON::MaybeXS qw(decode_json);
 use Test::Deep;
 use Test::Deep::JType;
@@ -61,23 +62,24 @@ jcmp_deeply(
 # Get us some exceptions
 local @ENV{qw(NO_CAKE_TOPPERS QUIET_BAKESALE)} = (1, 1);
 
-print STDERR "Ignore the next two exception reports for now..\n";
-$res = $jmap_tester->request([
-  [
-    setCakes => {
-      create => {
-        yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
-        woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
-      }
-    }, "my id"
-  ],
-]);
+capture_stderr(sub {
+  $res = $jmap_tester->request([
+    [
+      'Cake/set' => {
+        create => {
+          yum => { type => 'wedding', layer_count => 4, recipeId => $account{recipes}{1} },
+          woo => { type => 'wedding', layer_count => 8, recipeId => $account{recipes}{1} },
+        }
+      }, "my id"
+    ],
+  ]);
+});
 
 cmp_deeply(
   $res->as_stripped_triples,
   [
     [
-      cakesSet => superhashof({
+      'Cake/set' => superhashof({
         notCreated => {
           woo => { guid => ignore(), type => 'internalError' },
           yum => { guid => ignore(), type => 'internalError' },
@@ -111,7 +113,7 @@ for my $line (@lines) {
       ) : (
         call_info => [
           [
-            setCakes => { elapsed_seconds => $elapsed_re },
+            'Cake/set' => { elapsed_seconds => $elapsed_re },
           ],
         ],
         exception_guids => [ re('[A-Z0-9-]+'), re('[A-Z0-9-]+') ],

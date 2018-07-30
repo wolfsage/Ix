@@ -32,7 +32,7 @@ sub ix_extra_deployment_statements {
 
 sub ix_account_type { 'generic' }
 
-sub ix_type_key { 'users' }
+sub ix_type_key { 'User' }
 
 sub ix_is_account_base { 1 }
 
@@ -180,8 +180,6 @@ sub ix_get_list_filter_map {
     ranking  => { },
   };
 }
-
-sub ix_get_list_fetchable_map { {} }
 
 sub ix_get_list_joins { () }
 

@@ -28,7 +28,7 @@ __PACKAGE__->ix_add_properties(
 
 __PACKAGE__->set_primary_key('id');
 
-sub ix_type_key { 'cookies' }
+sub ix_type_key { 'Cookie' }
 
 sub ix_account_type { 'generic' }
 
@@ -141,8 +141,6 @@ sub ix_get_list_filter_map {
     batch => { },
   };
 }
-
-sub ix_get_list_fetchable_map { { } }
 
 sub ix_get_list_joins { () }
 

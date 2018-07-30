@@ -19,7 +19,7 @@ __PACKAGE__->ix_add_properties(
   baked_at    => { data_type => 'timestamptz', client_may_init => 0, client_may_update => 0 },
   recipeId    => {
     data_type    => 'idstr',
-    xref_to      => 'cakeRecipes',
+    xref_to      => 'CakeRecipe',
   },
 );
 
@@ -35,7 +35,7 @@ __PACKAGE__->has_many(
   { 'foreign.cakeId' => 'self.id' },
 );
 
-sub ix_type_key { 'cakes' }
+sub ix_type_key { 'Cake' }
 
 sub ix_account_type { 'generic' }
 
@@ -54,7 +54,7 @@ sub ix_get_check ($self, $ctx, $arg) {
 sub ix_state_string ($self, $state) {
   return join q{-},
     $state->state_for($self->ix_type_key),
-    $state->state_for('cakeRecipes');
+    $state->state_for('CakeRecipe');
 }
 
 sub ix_compare_state ($self, $since, $state) {
@@ -64,11 +64,11 @@ sub ix_compare_state ($self, $since, $state) {
     unless ($cake_since//'')    =~ /\A[0-9]+\z/
         && ($recipe_since//'')  =~ /\A[0-9]+\z/;
 
-  my $cake_high   = $state->highest_modseq_for('cakes');
-  my $recipe_high = $state->highest_modseq_for('cakeRecipes');
+  my $cake_high   = $state->highest_modseq_for('Cake');
+  my $recipe_high = $state->highest_modseq_for('CakeRecipe');
 
-  my $cake_low    = $state->lowest_modseq_for('cakes');
-  my $recipe_low  = $state->lowest_modseq_for('cakeRecipes');
+  my $cake_low    = $state->lowest_modseq_for('Cake');
+  my $recipe_low  = $state->lowest_modseq_for('CakeRecipe');
 
   if ($cake_high < $cake_since || $recipe_high < $recipe_since) {
     return Ix::StateComparison->bogus;
@@ -86,6 +86,11 @@ sub ix_compare_state ($self, $since, $state) {
 }
 
 sub ix_update_state_string_field { 'jointModSeq' }
+
+sub ix_item_created_since ($self, $item, $since) {
+  my ($cake_since,  $recipe_since)  = split /-/, $since, 2;
+  return $item->{modSeqCreated} > $cake_since;
+}
 
 sub ix_highest_state ($self, $since, $rows) {
   my ($cake_since,  $recipe_since)  = split /-/, $since, 2;
@@ -154,7 +159,7 @@ sub ix_update_single_state_conds ($self, $example_row) {
 sub ix_created ($self, $ctx, $row) {
   return unless $row->type eq 'wedding';
 
-  my $handler = $ctx->processor->handler_for('setCakeToppers');
+  my $handler = $ctx->processor->handler_for('CakeTopper/set');
 
   my @results = $ctx->processor->$handler($ctx, {
     create => { $row->id => { cakeId => $row->id } },
@@ -180,7 +185,7 @@ sub ix_postprocess_set ($self, $ctx, $results) {
     )->get_column('id')->all;
     next unless @tids;
 
-    my $handler = $ctx->processor->handler_for('getCakeToppers');
+    my $handler = $ctx->processor->handler_for('CakeTopper/get');
     push @$results, $ctx->processor->$handler($ctx, { ids => [ @tids ] });
   }
 
@@ -231,15 +236,6 @@ sub ix_get_list_filter_map {
       },
     },
     'recipe.is_delicious' => { },
-  };
-}
-
-sub ix_get_list_fetchable_map {
-  return {
-    fetchRecipes => {
-      field      => 'recipeId',
-      result_set => 'CakeRecipe',
-    },
   };
 }
 
