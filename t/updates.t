@@ -135,6 +135,15 @@ subtest "simple state comparisons" => sub {
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
     is($type, 'Cookie/changes', 'cookie changes!!');
 
+    jcmp_deeply(
+      $arg,
+      superhashof({
+        oldState => jstr(),
+        newState => jstr(),
+      }),
+      'state strings are, in fact, strings'
+    );
+
     is($arg->{oldState}, 2, "old state: 2");
     is($arg->{newState}, 3, "new state: 3");
     ok($arg->{hasMoreUpdates},   "more updates to get");

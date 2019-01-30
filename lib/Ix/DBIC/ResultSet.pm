@@ -254,7 +254,7 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
 
     my @return = $ctx->result($res_type => {
       oldState => "$since",
-      newState => ($hasMoreUpdates
+      newState => "" . ($hasMoreUpdates
                 ? $rclass->ix_highest_state($since, \@rows)
                 : $rclass->ix_state_string($ctx->state)),
       hasMoreUpdates => $hasMoreUpdates
