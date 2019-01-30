@@ -158,14 +158,8 @@ subtest "simple state comparisons" => sub {
     ]);
 
     my ($type, $arg) = $res->single_sentence->as_triple->@*;
-    is($type, 'Cookie/changes', 'cookie changes!!');
-
-    is($arg->{oldState}, 2, "old state: 2");
-    is($arg->{newState}, 3, "new state: 3");
-    ok($arg->{hasMoreUpdates},   "more updates to get");
-    is($arg->{created}->@*, 10, "10 items created");
-    ok(! $arg->{updated}->@*,   "no items updated");
-    ok(! $arg->{destroyed}->@*,   "no items destroyed");
+    is($type, 'error', 'cannot exeed maxChanges');
+    is($arg->{type}, "cannotCalculateChanges", "error type");
   };
 
   subtest "make some updates, synchronize (4 to 5)" => sub {
@@ -448,55 +442,13 @@ subtest "complex state comparisons" => sub {
   };
 
   subtest "sync (4-5 to 5-6), maxChanges smaller than first window" => sub {
-    my %changed;
-    my $mid_state;
-    subtest "first pass at small-window update" => sub {
-      my $res = $jmap_tester->request([
-        [ 'Cake/changes' => { sinceState => "4-5", maxChanges => 3 } ]
-      ]);
+    my $res = $jmap_tester->request([
+      [ 'Cake/changes' => { sinceState => "4-5", maxChanges => 3 } ]
+    ]);
 
-      my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'Cake/changes', 'cake changes!!');
-
-      is($arg->{oldState}, '4-5', "old state: 4-5");
-      ok(
-        $arg->{newState} ne $arg->{oldState},
-        "new state: $arg->{newState}",
-      );
-      ok($arg->{hasMoreUpdates},  "more updates await");
-      ok(! $arg->{destroyed}->@*,   "no items destroyed");
-
-      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
-      cmp_ok(@changed, '<=', 5, "<= 5 items changed");
-
-      $changed{ $cake_id_rev{$_} }++ for @changed;
-      $mid_state = $arg->{newState};
-    };
-
-    subtest "second pass at small-window update" => sub {
-      my $res = $jmap_tester->request([
-        [ 'Cake/changes' => { sinceState => $mid_state, maxChanges => 5 } ]
-      ]);
-
-      my ($type, $arg) = $res->single_sentence->as_triple->@*;
-      is($type, 'Cake/changes', 'cake changes!!');
-
-      is($arg->{oldState}, $mid_state, "old state: $mid_state");
-      ok(! $arg->{hasMoreUpdates},  "no more updates");
-      ok(! $arg->{destroyed}->@*,   "no items destroyed");
-
-      my @changed = ($arg->{created}->@*, $arg->{updated}->@*);
-      cmp_ok(@changed, '<=', 5, "<= 5 items changed");
-
-      $changed{ $cake_id_rev{$_} }++ for @changed;
-    };
-
-    is(keys %changed, 8, "eight total updates (with maybe some dupes)");
-    is_deeply(
-      [ sort keys %changed ],
-      [ sort qw( C4R1 C4R2 C4R3 C4R4 C4R5 C1R5 C2R5 C3R5 ) ],
-      "the eight expected items updated",
-    );
+    my ($type, $arg) = $res->single_sentence->as_triple->@*;
+    is($type, 'error', 'cannot exeed maxChanges');
+    is($arg->{type}, "cannotCalculateChanges", "error type is correct");
   };
 };
 

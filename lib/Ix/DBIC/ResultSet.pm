@@ -220,14 +220,10 @@ sub ix_get_updates ($self, $ctx, $arg = {}) {
       my @trimmed_rows = grep { $_->{$state_string_field} ne $maxState } @rows;
 
       if (@trimmed_rows == 0) {
-        # ... well, it turns out that the entire batch was in one state.  We
-        # can't possibly provide a consistent update within the bounds that the
-        # user requested.  When this happens, we're permitted to provide more
-        # records than requested, so let's just fetch one state worth of
-        # records. -- rjbs, 2016-02-22
-        @rows = $search->search(
-          $rclass->ix_update_single_state_conds($rows[0])
-        )->all;
+        # We used to just return everything here, but a JMAP API spec change
+        # (9ba6b5f75) means that we now must return a cannotCalculateChanges.
+        # -- michael, 2019-01-30
+        return $ctx->error(cannotCalculateChanges => {});
       } else {
         @rows = @trimmed_rows;
       }
