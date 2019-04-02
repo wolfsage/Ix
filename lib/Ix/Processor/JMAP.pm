@@ -171,12 +171,14 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   });
 
   my $call_start;
+  my $was_known_call;
 
   my $sc = Ix::JMAP::SentenceCollection->new;
   local $ctx->root_context->{result_accumulator} = $sc;
 
   CALL: for my $call (@$calls) {
     $call_start = [ gettimeofday ];
+    $was_known_call = 1;
 
     # On one hand, I am tempted to disallow ambiguous cids here.  On the other
     # hand, the spec does not. -- rjbs, 2016-02-11
@@ -185,6 +187,7 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
     my $handler = $self->handler_for( $method );
 
     unless ($handler) {
+      $was_known_call = 0;
       $sc->add_items([
         [
           Ix::Error::Generic->new({ error_type  => 'unknownMethod' }),
@@ -247,9 +250,9 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   } continue {
     my $call_end = [ gettimeofday ];
 
-    # Just elapsed time for now
     $ctx->record_call_info($call->[0], {
       elapsed_seconds => tv_interval($call_start, $call_end),
+      was_known_call  => $was_known_call,
     });
   }
 

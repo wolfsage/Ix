@@ -72,6 +72,9 @@ capture_stderr(sub {
         }
       }, "my id"
     ],
+    [
+      'Cake/frobnicate' => {}, 'x'
+    ],
   ]);
 });
 
@@ -85,7 +88,12 @@ cmp_deeply(
           yum => { guid => ignore(), type => 'internalError' },
         },
       }), 'my id'
-    ]
+    ],
+    [
+      error => {
+        type => 'unknownMethod',
+      }, 'x'
+    ],
   ],
   "errors bubble up"
 );
@@ -104,16 +112,22 @@ for my $line (@lines) {
       $line =~ /pieTypes/ ? (
         call_info => [
           [
-            pieTypes => { elapsed_seconds => $elapsed_re },
+            pieTypes => { elapsed_seconds => $elapsed_re, was_known_call => 1 },
           ],
           [
-            pieTypes => { elapsed_seconds => $elapsed_re },
+            pieTypes => { elapsed_seconds => $elapsed_re, was_known_call => 1 },
           ],
         ],
       ) : (
         call_info => [
           [
-            'Cake/set' => { elapsed_seconds => $elapsed_re },
+            'Cake/set' => { elapsed_seconds => $elapsed_re, was_known_call => 1 },
+          ],
+          [
+            'Cake/frobnicate' => {
+              elapsed_seconds => $elapsed_re,
+              was_known_call => 0
+            },
           ],
         ],
         exception_guids => [ re('[A-Z0-9-]+'), re('[A-Z0-9-]+') ],
