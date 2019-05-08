@@ -218,18 +218,14 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
     };
 
     RV: for my $i (0 .. $#rv) {
-      local $_ = $rv[$i];
-      my $item
-        = $_->$_DOES('Ix::Result')
-        ? [ $_, $cid ]
-        : [
-            Ix::Error::Generic->new({ error_type  => 'garbledResponse' }),
-            $cid,
-          ];
+      my $item = $rv[$i];
 
-      $sc->add_items([ $item ]);
+      Carp::confess("non-Ix::Result in result list: $item")
+        unless $item->$_DOES('Ix::Result');
 
-      if ($item->[0]->does('Ix::Error') && $i < $#rv) {
+      $sc->add_items([[ $item, $cid ]]);
+
+      if ($item->does('Ix::Error') && $i < $#rv) {
         # In this branch, we have a potential return value like:
         # (
         #   [ valid => ... ],
