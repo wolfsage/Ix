@@ -259,7 +259,11 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   return $sc;
 }
 
+sub optimize_calls {}
+
 sub process_request ($self, $ctx, $calls) {
+  $self->optimize_calls($calls);
+
   my $sc = $self->handle_calls($ctx, $calls);
 
   return $sc->as_triples;
