@@ -112,18 +112,18 @@ sub _sanity_check_calls ($self, $calls, $arg) {
 sub expand_backrefs ($self, $ctx, $arg) {
   return unless my @backref_keys = map {; s/^#// ? $_ : () } keys %$arg;
 
-  my sub ref_error ($desc) {
+  my sub throw_ref_error ($desc) {
     Ix::Error::Generic->new({
       error_type  => 'resultReference',
       properties  => {
         description => $desc,
       },
-    });
+    })->throw;
   }
 
   if (my @duplicated = grep {; exists $arg->{$_} } @backref_keys) {
-    return ref_error( "arguments present as both ResultReference and not: "
-                    .  join(q{, }, @duplicated));
+    throw_ref_error( "arguments present as both ResultReference and not: "
+                   .  join(q{, }, @duplicated));
   }
 
   my @sentences = $ctx->results_so_far->sentences;
@@ -134,17 +134,17 @@ sub expand_backrefs ($self, $ctx, $arg) {
     unless ( _HASH0($ref)
           && 3 == grep {; defined $ref->{$_} } qw(resultOf name path)
     ) {
-      return ref_error("malformed ResultReference");
+      throw_ref_error("malformed ResultReference");
     }
 
     my ($sentence) = grep {; $_->client_id eq $ref->{resultOf} } @sentences;
 
     unless ($sentence) {
-      return ref_error("no result for client id $ref->{resultOf}");
+      throw_ref_error("no result for client id $ref->{resultOf}");
     }
 
     unless ($sentence->name eq $ref->{name}) {
-      return ref_error(
+      throw_ref_error(
         "first result for client id $ref->{resultOf} is not $ref->{name} but "
         . $sentence->name,
       );
@@ -156,7 +156,7 @@ sub expand_backrefs ($self, $ctx, $arg) {
     );
 
     if ($error) {
-      return ref_error("error with path: $error");
+      throw_ref_error("error with path: $error");
     }
 
     $arg->{$key} = ref $result ? Storable::dclone($result) : $result;
@@ -198,26 +198,24 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
       next CALL;
     }
 
-    my @rv = $self->expand_backrefs($ctx, $arg);
+    my @rv = try {
+      $self->expand_backrefs($ctx, $arg);
 
-    unless (@rv) {
-      @rv = try {
-        unless ($ctx->may_call($method, $arg)) {
-          return $ctx->error(forbidden => {
-            description => "you are not authorized to make this call",
-          });
-        }
+      unless ($ctx->may_call($method, $arg)) {
+        return $ctx->error(forbidden => {
+          description => "you are not authorized to make this call",
+        });
+      }
 
-        $self->$handler($ctx, $arg);
-      } catch {
-        if ($_->$_DOES('Ix::Error')) {
-          return $_;
-        } else {
-          warn $_;
-          die $_;
-        }
-      };
-    }
+      $self->$handler($ctx, $arg);
+    } catch {
+      if ($_->$_DOES('Ix::Error')) {
+        return $_;
+      } else {
+        warn $_;
+        die $_;
+      }
+    };
 
     RV: for my $i (0 .. $#rv) {
       local $_ = $rv[$i];
