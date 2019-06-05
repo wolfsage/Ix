@@ -180,6 +180,20 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
     $call_start = [ gettimeofday ];
     $was_known_call = 1;
 
+    if ($call->$_DOES('Ix::Multicall')) {
+      # Returns [ [ $item, $cid ], ... ]
+      my $pairs = $call->execute($ctx);
+
+      for my $pair (@$pairs) {
+        Carp::confess("non-Ix::Result in result list: $pair->[0]")
+          unless $pair->[0]->$_DOES('Ix::Result');
+
+        $sc->add_items([ $pair ]);
+      }
+
+      next CALL;
+    }
+
     # On one hand, I am tempted to disallow ambiguous cids here.  On the other
     # hand, the spec does not. -- rjbs, 2016-02-11
     my ($method, $arg, $cid) = @$call;
