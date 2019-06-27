@@ -87,7 +87,6 @@ sub _sanity_check_calls ($self, $calls, $arg) {
   # We should, in the future, add a bunch of error checking up front and reject
   # badly-formed requests.  For now, this is a placeholder, except for its
   # client id fixups. -- rjbs, 2018-01-05
-
   my %saw_cid;
 
   # Won't happen.  Won't happen.  Won't happen... -- rjbs, 2018-01-05
@@ -169,6 +168,8 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   $self->_sanity_check_calls($calls, {
     add_missing_client_ids => ! $arg->{no_implicit_client_ids}
   });
+
+  $self->optimize_calls($ctx, $calls);
 
   my $call_start;
   my $was_known_call;
@@ -256,10 +257,12 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
   } continue {
     my $call_end = [ gettimeofday ];
 
+    # XXX - We still want to record call info for multicalls!
+    #       -- alh, 2019-06-26
     $ctx->record_call_info($call->[0], {
       elapsed_seconds => tv_interval($call_start, $call_end),
       was_known_call  => $was_known_call,
-    });
+    }) unless $call->$_DOES('Ix::Multicall');
   }
 
   return $sc;
@@ -268,8 +271,6 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
 sub optimize_calls {}
 
 sub process_request ($self, $ctx, $calls) {
-  $self->optimize_calls($calls);
-
   my $sc = $self->handle_calls($ctx, $calls);
 
   return $sc->as_triples;

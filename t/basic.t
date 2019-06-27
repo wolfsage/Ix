@@ -2492,6 +2492,38 @@ subtest "exeptions are not thrown twice" => sub {
   is(($app->processor->exceptions)[0]->ident, 'I except!', 'expected');
 };
 
+subtest "multicalls" => sub {
+  my $res = $jmap_tester->request([
+    [
+      'Cake/set' => {
+        create => {
+          1 => { type => 'cupcake', recipeId => $account{recipes}{1}, layer_count => 1, },
+        },
+      }
+    ],
+    [
+      'Cake/set' => {
+        create => {
+          2 => { type => 'cupcake', recipeId => $account{recipes}{1}, layer_count => 1, },
+        },
+      }
+    ],
+    [
+      'Cake/set' => {
+        create => {
+          3 => { type => 'cupcake', recipeId => $account{recipes}{1}, layer_count => 1, },
+        },
+      }
+    ],
+  ]);
+
+  jcmp_deeply(
+    $res->sentence_named('Cake/set')->arguments,
+    { batchSize => 3, },
+    'got a single batch of cupcakes'
+  );
+};
+
 $app->_shutdown;
 
 done_testing;

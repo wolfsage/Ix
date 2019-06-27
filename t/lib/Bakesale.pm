@@ -329,6 +329,53 @@ package Bakesale {
     return @rv;
   }
 
+  sub optimize_calls ($self, $ctx, $calls) {
+    my (@final, @combined);
+
+    for my $c (@$calls) {
+      my $is_cupcake;
+
+      if (
+           $c->[0] eq 'Cake/set'
+        && keys $c->[1]->%* == 1
+        && $c->[1]->{create}
+        && values $c->[1]->{create}->%* == 1
+      ) {
+        my ($what) = values $c->[1]->{create}->%*;
+        if ($what->{type} eq 'cupcake') {
+          $is_cupcake = 1;
+        }
+      }
+
+      if ($is_cupcake) {
+        push @combined, $c;
+      } else {
+        if (@combined > 1) {
+          push @final, Bakesale::Cupcake::Combiner->new({
+            calls => [ @combined ],
+          });
+
+          @combined = ();
+        } elsif (@combined) {
+          push @final, @combined, $c;
+        } else {
+          push @final, $c;
+        }
+      }
+    }
+
+    if (@combined > 1) {
+      push @final, Bakesale::Cupcake::Combiner->new({
+        calls => [ @combined ],
+      });
+
+    } elsif (@combined) {
+      push @final, @combined;
+    }
+
+    @$calls = @final;
+  }
+
   __PACKAGE__->meta->make_immutable;
   1;
 }
@@ -372,6 +419,29 @@ package Bakesale::Pie {
   sub result_type { 'pie' }
   sub result_arguments ($self) {
     return { flavor => $self->flavor, bakeOrder => $self->bake_order };
+  }
+}
+
+package Bakesale::Cupcake::Combiner {
+  use Moose;
+  use experimental qw(lexical_subs signatures postderef);
+  with 'Ix::Multicall';
+
+  has calls => (
+    is => 'ro',
+    isa => 'ArrayRef',
+    required => 1,
+  );
+
+  sub execute ($self, $ctx) {
+    return [ [
+      Ix::Result::Generic->new({
+        result_type => 'Cake/set',
+        result_arguments => {
+          batchSize => 0+$self->calls->@*,
+        },
+      }), "junk",
+    ] ];
   }
 }
 
