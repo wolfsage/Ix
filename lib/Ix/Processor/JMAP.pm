@@ -184,12 +184,10 @@ sub handle_calls ($self, $ctx, $calls, $arg = {}) {
       # Returns [ [ $item, $cid ], ... ]
       my $pairs = $call->execute($ctx);
 
-      for my $pair (@$pairs) {
-        Carp::confess("non-Ix::Result in result list: $pair->[0]")
-          unless $pair->[0]->$_DOES('Ix::Result');
+      Carp::confess("non-Ix::Result in result list")
+        if grep {; ! $_->[0]->$_DOES('Ix::Result') } @$pairs;
 
-        $sc->add_items([ $pair ]);
-      }
+      $sc->add_items($pairs);
 
       next CALL;
     }
